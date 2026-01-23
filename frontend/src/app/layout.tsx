@@ -6,6 +6,11 @@ import { AuthProvider } from '@/components/providers/auth-provider';
 import { ToastProvider } from '@/components/providers/toast-provider';
 import { Header } from '@/components/layout/header';
 import { MobileNav } from '@/components/layout/mobile-nav';
+import { InstallPrompt } from '@/components/pwa/install-prompt';
+import { OfflineIndicator } from '@/components/pwa/offline-indicator';
+import { WebVitalsReporter } from './web-vitals';
+import { AnnouncerProvider } from '@/components/a11y/announcer';
+import { I18nProvider } from '@/components/providers/i18n-provider';
 import '@/styles/globals.css';
 
 // Font configurations
@@ -146,9 +151,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <I18nProvider>
           <QueryProvider>
             <AuthProvider>
               <ToastProvider>
+                <AnnouncerProvider>
                 {/* Skip to main content for accessibility */}
                 <a
                   href="#main-content"
@@ -174,9 +181,18 @@ export default function RootLayout({
                   {/* Mobile bottom navigation */}
                   <MobileNav />
                 </div>
+
+                {/* PWA components */}
+                <OfflineIndicator />
+                <InstallPrompt />
+
+                {/* Performance monitoring */}
+                <WebVitalsReporter />
+                </AnnouncerProvider>
               </ToastProvider>
             </AuthProvider>
           </QueryProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

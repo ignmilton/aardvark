@@ -132,6 +132,22 @@ export class StoriesController {
   }
 
   /**
+   * Record a user interaction for recommendation refinement
+   */
+  @Post(':id/interact')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Record story interaction for recommendations' })
+  async recordInteraction(
+    @Param('id') id: string,
+    @Request() req: { user: { userId: string } },
+    @Body() body: { type: 'view' | 'read' | 'rate' | 'bookmark' },
+  ) {
+    await this.recommendationService.recordInteraction(req.user.userId, id, body.type);
+    return { success: true };
+  }
+
+  /**
    * Get a single story by ID
    */
   @Get(':id')
@@ -187,5 +203,15 @@ export class StoriesController {
     @Request() req: { user: { userId: string } },
   ) {
     return this.storiesService.publish(id, req.user.userId);
+  }
+
+  /**
+   * Get published story slugs for sitemap generation
+   */
+  @Get('sitemap')
+  @Public()
+  @ApiOperation({ summary: 'Get story slugs for sitemap' })
+  async getSitemapData() {
+    return this.storiesService.getSitemapData();
   }
 }

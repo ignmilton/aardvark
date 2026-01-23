@@ -56,7 +56,8 @@
     "socket.io": "^4.6.1",
     "stripe": "^14.10.0",
     "typeorm": "^0.3.17",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.2.1",
@@ -86,7 +87,8 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "@types/web-push": "^3.6.4"
   },
   "jest": {
     "moduleFileExtensions": ["js", "json", "ts"],

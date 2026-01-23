@@ -246,6 +246,23 @@ export class StoriesService {
   }
 
   /**
+   * Get story slugs and update dates for sitemap generation
+   */
+  async getSitemapData(): Promise<Array<{ slug: string; updatedAt: string }>> {
+    const stories = await this.storyRepository.find({
+      where: { status: StoryStatus.PUBLISHED },
+      select: ['slug', 'updatedAt'],
+      order: { updatedAt: 'DESC' },
+      take: 10000,
+    });
+
+    return stories.map((story) => ({
+      slug: story.slug,
+      updatedAt: story.updatedAt.toISOString(),
+    }));
+  }
+
+  /**
    * Get sort column from sort parameter
    */
   private getSortColumn(sortBy: string): string {

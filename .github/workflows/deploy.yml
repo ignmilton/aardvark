@@ -1,0 +1,173 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  # Build and push Docker images
+  build:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: meta
+        run: echo "tags=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.backend
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.API_URL }}
+            NEXT_PUBLIC_APP_URL=${{ secrets.APP_URL }}
+
+  # Run database migrations
+  migrate:
+    name: Run Migrations
+    runs-on: ubuntu-latest
+    needs: build
+    environment: ${{ inputs.environment || 'production' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --workspace=backend --workspace=shared
+
+      - name: Run migrations
+        run: npm run migration:run --workspace=backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # Deploy to server
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [build, migrate]
+    environment: ${{ inputs.environment || 'production' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/aardvark
+            export IMAGE_TAG=${{ github.sha }}
+            export GITHUB_REPOSITORY=${{ github.repository }}
+
+            # Pull latest images
+            docker compose -f docker-compose.prod.yml pull backend frontend
+
+            # Rolling update
+            docker compose -f docker-compose.prod.yml up -d --no-deps --scale backend=2 backend
+            docker compose -f docker-compose.prod.yml up -d --no-deps --scale frontend=2 frontend
+
+            # Health check
+            sleep 10
+            curl -f http://localhost/health || exit 1
+
+            echo "Deployment successful: ${{ github.sha }}"
+
+  # Post-deployment verification
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.APP_URL }}/api/health)
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed (status: $STATUS), retrying..."
+            sleep 10
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1
+
+      - name: Smoke test
+        run: |
+          # Verify homepage loads
+          curl -f ${{ secrets.APP_URL }} > /dev/null 2>&1
+          # Verify API responds
+          curl -f ${{ secrets.APP_URL }}/api/health > /dev/null 2>&1
+          echo "Smoke tests passed"
+
+      - name: Notify on success
+        if: success()
+        run: echo "Deployment to production successful - ${{ github.sha }}"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "::error::Deployment verification failed!"
