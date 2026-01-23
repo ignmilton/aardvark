@@ -1,0 +1,50 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - 'alerts.yml'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+scrape_configs:
+  - job_name: 'backend'
+    metrics_path: '/api/metrics'
+    static_configs:
+      - targets: ['backend:4000']
+        labels:
+          service: 'aardvark-backend'
+
+  - job_name: 'frontend'
+    metrics_path: '/api/analytics/vitals'
+    static_configs:
+      - targets: ['frontend:3000']
+        labels:
+          service: 'aardvark-frontend'
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'aardvark-postgres'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'aardvark-redis'
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:9113']
+        labels:
+          service: 'aardvark-nginx'
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'aardvark-host'
