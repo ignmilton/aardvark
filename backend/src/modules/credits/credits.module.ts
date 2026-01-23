@@ -6,6 +6,7 @@ import {
   Story,
   CreditBundle,
   AuthorEarning,
+  StoryUnlock,
 } from '@/database/entities';
 import { CreditsController } from './credits.controller';
 import { CreditsService } from './credits.service';
@@ -18,6 +19,7 @@ import { CreditsService } from './credits.service';
       Story,
       CreditBundle,
       AuthorEarning,
+      StoryUnlock,
     ]),
   ],
   controllers: [CreditsController],

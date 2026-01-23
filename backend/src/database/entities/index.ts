@@ -22,3 +22,4 @@ export * from './forum.entity';
 export * from './moderation.entity';
 export * from './tag.entity';
 export * from './push-subscription.entity';
+export * from './story-unlock.entity';

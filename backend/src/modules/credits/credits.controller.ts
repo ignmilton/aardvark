@@ -5,7 +5,10 @@ import {
   Body,
   Query,
   Req,
+  UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { CreditsService } from './credits.service';
 import {
   UnlockStoryDto,
@@ -14,11 +17,16 @@ import {
   TransactionHistoryQueryDto,
 } from './dto';
 
+// In-memory ad session store (use Redis in production for multi-instance)
+const adSessions = new Map<string, { userId: string; startedAt: number }>();
+const AD_MIN_DURATION_MS = 25_000; // Minimum 25 seconds must elapse
+
 /**
  * Controller for credit operations.
  * Handles balance inquiries, spending, and earning credits.
  */
 @Controller('credits')
+@UseGuards(JwtAuthGuard)
 export class CreditsController {
   constructor(private readonly creditsService: CreditsService) {}
 
@@ -28,12 +36,8 @@ export class CreditsController {
    */
   @Get('balance')
   async getBalance(@Req() req: any) {
-    const userId = req.user?.id || 'mock-user-id';
-    const balance = await this.creditsService.getBalance(userId);
-    return {
-      success: true,
-      data: balance,
-    };
+    const balance = await this.creditsService.getBalance(req.user.id);
+    return { success: true, data: balance };
   }
 
   /**
@@ -45,8 +49,7 @@ export class CreditsController {
     @Req() req: any,
     @Query() query: TransactionHistoryQueryDto,
   ) {
-    const userId = req.user?.id || 'mock-user-id';
-    const result = await this.creditsService.getTransactionHistory(userId, query);
+    const result = await this.creditsService.getTransactionHistory(req.user.id, query);
     return {
       success: true,
       data: result.transactions,
@@ -82,6 +85,19 @@ export class CreditsController {
   }
 
   /**
+   * Check if a story is unlocked
+   * GET /credits/unlock-status?storyId=xxx
+   */
+  @Get('unlock-status')
+  async checkUnlockStatus(
+    @Req() req: any,
+    @Query('storyId') storyId: string,
+  ) {
+    const unlocked = await this.creditsService.isStoryUnlocked(req.user.id, storyId);
+    return { success: true, data: { unlocked } };
+  }
+
+  /**
    * Unlock a premium story
    * POST /credits/unlock-story
    */
@@ -90,8 +106,7 @@ export class CreditsController {
     @Req() req: any,
     @Body() dto: UnlockStoryDto,
   ) {
-    const userId = req.user?.id || 'mock-user-id';
-    const transaction = await this.creditsService.unlockStory(userId, dto);
+    const transaction = await this.creditsService.unlockStory(req.user.id, dto);
     return {
       success: true,
       data: {
@@ -110,8 +125,7 @@ export class CreditsController {
     @Req() req: any,
     @Body() dto: TipAuthorDto,
   ) {
-    const userId = req.user?.id || 'mock-user-id';
-    const transaction = await this.creditsService.tipAuthor(userId, dto);
+    const transaction = await this.creditsService.tipAuthor(req.user.id, dto);
     return {
       success: true,
       data: {
@@ -127,8 +141,7 @@ export class CreditsController {
    */
   @Post('daily-bonus')
   async claimDailyBonus(@Req() req: any) {
-    const userId = req.user?.id || 'mock-user-id';
-    const transaction = await this.creditsService.claimDailyBonus(userId);
+    const transaction = await this.creditsService.claimDailyBonus(req.user.id);
     return {
       success: true,
       data: {
@@ -139,24 +152,74 @@ export class CreditsController {
   }
 
   /**
-   * Reward for watching an ad
+   * Start an ad session (server-side verification token).
+   * Client must call this before showing an ad, then submit the token
+   * when claiming the reward. Server verifies minimum time elapsed.
+   * POST /credits/ad-session
+   */
+  @Post('ad-session')
+  async startAdSession(@Req() req: any) {
+    const userId = req.user.id;
+
+    // Generate a unique session token
+    const sessionToken = `${userId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    // Store session with start time
+    adSessions.set(sessionToken, { userId, startedAt: Date.now() });
+
+    // Clean up old sessions (>10 min old)
+    const cutoff = Date.now() - 600_000;
+    for (const [key, session] of adSessions) {
+      if (session.startedAt < cutoff) {
+        adSessions.delete(key);
+      }
+    }
+
+    return {
+      success: true,
+      data: { sessionToken },
+    };
+  }
+
+  /**
+   * Reward for watching an ad (with server-side verification)
    * POST /credits/ad-reward
    */
   @Post('ad-reward')
   async rewardAdWatch(
     @Req() req: any,
-    @Body() dto: AdWatchRewardDto,
+    @Body() dto: AdWatchRewardDto & { sessionToken?: string },
   ) {
-    const userId = req.user?.id || 'mock-user-id';
+    const userId = req.user.id;
+
+    // Verify session token if provided
+    if (dto.sessionToken) {
+      const session = adSessions.get(dto.sessionToken);
+      if (!session) {
+        throw new BadRequestException('Invalid or expired ad session');
+      }
+      if (session.userId !== userId) {
+        throw new BadRequestException('Session token mismatch');
+      }
+
+      // Verify minimum time has elapsed (prevents instant claims)
+      const elapsed = Date.now() - session.startedAt;
+      if (elapsed < AD_MIN_DURATION_MS) {
+        throw new BadRequestException(
+          'Ad not watched long enough. Please watch the full ad.',
+        );
+      }
+
+      // Consume the session token (one-time use)
+      adSessions.delete(dto.sessionToken);
+    }
+
     const transaction = await this.creditsService.rewardAdWatch(userId, dto);
 
     if (!transaction) {
       return {
         success: true,
-        data: {
-          creditsAwarded: 0,
-          message: 'Ad not completed',
-        },
+        data: { creditsAwarded: 0, message: 'Ad not completed' },
       };
     }
 

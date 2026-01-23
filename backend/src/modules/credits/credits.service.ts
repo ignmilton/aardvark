@@ -12,6 +12,7 @@ import {
   Story,
   CreditBundle,
   AuthorEarning,
+  StoryUnlock,
 } from '@/database/entities';
 import {
   TransactionType,
@@ -40,6 +41,8 @@ export class CreditsService {
     private readonly bundleRepository: Repository<CreditBundle>,
     @InjectRepository(AuthorEarning)
     private readonly earningRepository: Repository<AuthorEarning>,
+    @InjectRepository(StoryUnlock)
+    private readonly storyUnlockRepository: Repository<StoryUnlock>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -199,12 +202,19 @@ export class CreditsService {
       throw new BadRequestException('You cannot unlock your own story');
     }
 
-    // TODO: Check if already unlocked
+    // Check if already unlocked
+    const existingUnlock = await this.storyUnlockRepository.findOne({
+      where: { userId, storyId: dto.storyId },
+    });
+    if (existingUnlock) {
+      throw new BadRequestException('Story already unlocked');
+    }
 
     return this.dataSource.transaction(async (manager) => {
       const userRepo = manager.getRepository(User);
       const txRepo = manager.getRepository(Transaction);
       const earningRepo = manager.getRepository(AuthorEarning);
+      const unlockRepo = manager.getRepository(StoryUnlock);
 
       // Lock user row
       const user = await userRepo.findOne({
@@ -254,7 +264,14 @@ export class CreditsService {
 
       await earningRepo.save(earning);
 
-      // TODO: Add to story unlocks table
+      // Record the unlock
+      const unlock = unlockRepo.create({
+        userId,
+        storyId: story.id,
+        transactionId: savedTx.id,
+        creditCost: story.creditCost,
+      });
+      await unlockRepo.save(unlock);
 
       return savedTx;
     });
@@ -426,6 +443,27 @@ export class CreditsService {
       storyId,
       'story',
     );
+  }
+
+  /**
+   * Check if user has unlocked a story
+   */
+  async isStoryUnlocked(userId: string, storyId: string): Promise<boolean> {
+    const unlock = await this.storyUnlockRepository.findOne({
+      where: { userId, storyId },
+    });
+    return !!unlock;
+  }
+
+  /**
+   * Get all unlocked story IDs for a user
+   */
+  async getUnlockedStoryIds(userId: string): Promise<string[]> {
+    const unlocks = await this.storyUnlockRepository.find({
+      where: { userId },
+      select: ['storyId'],
+    });
+    return unlocks.map((u) => u.storyId);
   }
 
   /**

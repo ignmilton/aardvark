@@ -80,6 +80,10 @@ export class BranchSubmission {
   })
   status: BranchSubmissionStatus;
 
+  // Reasons content filter flagged this submission (if any)
+  @Column({ type: 'jsonb', nullable: true })
+  filterReasons: string[] | null;
+
   @Column('uuid', { nullable: true })
   reviewedByUserId: string | null;
 

@@ -89,30 +89,60 @@ export function RewardAdButton({
     setAdState((prev) => ({ ...prev, isLoading: true, error: null }));
     setShowAdDialog(true);
 
-    // Simulate ad loading
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Request ad session token from server (prevents client-side manipulation)
+      const tokenResponse = await fetch('/api/credits/ad-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const tokenData = await tokenResponse.json();
 
-    setAdState((prev) => ({
-      ...prev,
-      isLoading: false,
-      isPlaying: true,
-      progress: 0,
-    }));
+      if (!tokenData.success) {
+        throw new Error(tokenData.error || 'Cannot start ad session');
+      }
+
+      // Store session token for verification on completion
+      sessionStorage.setItem('adSessionToken', tokenData.data.sessionToken);
+
+      // Load real ad content via Google Publisher Tag if available
+      if (typeof window !== 'undefined' && (window as any).googletag) {
+        (window as any).googletag.cmd.push(() => {
+          (window as any).googletag.display('reward-ad-slot');
+        });
+      }
+
+      setAdState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isPlaying: true,
+        progress: 0,
+      }));
+    } catch (error) {
+      setAdState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to load ad',
+      }));
+    }
   }, [adState.cooldownRemaining]);
 
   const handleAdComplete = async () => {
     setAdState((prev) => ({ ...prev, isPlaying: false }));
 
     try {
-      // Call API to claim reward
+      const sessionToken = sessionStorage.getItem('adSessionToken');
+      sessionStorage.removeItem('adSessionToken');
+
+      // Call API to claim reward with session token for server-side verification
       const response = await fetch('/api/credits/ad-reward', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           adType: 'video_reward',
-          adUnitId: 'reward_video_1',
+          adUnitId: process.env.NEXT_PUBLIC_AD_SLOT_VIDEO || 'reward_video_1',
           duration: AD_DURATION,
           completed: true,
+          sessionToken,
         }),
       });
 

@@ -21,6 +21,7 @@ import { SegmentNode, SegmentNodeData } from './segment-node';
 import { ChoiceEdge, ChoiceEdgeData } from './choice-edge';
 import { EditorToolbar } from './editor-toolbar';
 import { SegmentEditorModal } from './segment-editor-modal';
+import { ChoiceModal } from './choice-modal';
 
 // Custom node and edge types
 const nodeTypes = {
@@ -131,6 +132,10 @@ export function VisualEditor({
   const [editingSegment, setEditingSegment] = useState<Partial<StorySegment> | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Choice modal state
+  const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
+  const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
+
   // Update nodes when segments change
   useEffect(() => {
     setNodes(
@@ -179,23 +184,32 @@ export function VisualEditor({
 
   // Handle new connections (create choice)
   const onConnect = useCallback(
-    async (connection: Connection) => {
+    (connection: Connection) => {
       if (!connection.source || !connection.target) return;
+      setPendingConnection(connection);
+      setIsChoiceModalOpen(true);
+    },
+    []
+  );
 
-      const choiceText = prompt('Enter choice text:');
-      if (!choiceText) return;
+  // Confirm choice creation from modal
+  const handleChoiceConfirm = useCallback(
+    async (choiceText: string) => {
+      if (!pendingConnection?.source || !pendingConnection?.target) return;
+
+      setIsChoiceModalOpen(false);
 
       try {
         const newChoice = await onChoiceCreate({
-          segmentId: connection.source,
-          nextSegmentId: connection.target,
+          segmentId: pendingConnection.source,
+          nextSegmentId: pendingConnection.target,
           choiceText,
         });
 
         setEdges((eds) =>
           addEdge(
             {
-              ...connection,
+              ...pendingConnection,
               id: newChoice.id,
               type: 'choice',
               data: {
@@ -210,9 +224,11 @@ export function VisualEditor({
         );
       } catch (error) {
         console.error('Failed to create choice:', error);
+      } finally {
+        setPendingConnection(null);
       }
     },
-    [onChoiceCreate, setEdges]
+    [pendingConnection, onChoiceCreate, setEdges]
   );
 
   // Handle edge deletion
@@ -380,6 +396,26 @@ export function VisualEditor({
         onSave={handleSaveSegment}
         initialData={editingSegment || undefined}
         stateVariables={stateVariables}
+        storyId={storyId}
+      />
+
+      <ChoiceModal
+        isOpen={isChoiceModalOpen}
+        onClose={() => {
+          setIsChoiceModalOpen(false);
+          setPendingConnection(null);
+        }}
+        onConfirm={handleChoiceConfirm}
+        sourceTitle={
+          pendingConnection?.source
+            ? initialSegments.find((s) => s.id === pendingConnection.source)?.title
+            : null
+        }
+        targetTitle={
+          pendingConnection?.target
+            ? initialSegments.find((s) => s.id === pendingConnection.target)?.title
+            : null
+        }
       />
     </div>
   );
