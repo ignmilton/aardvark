@@ -394,7 +394,8 @@ export class PaymentsController {
   ) {
     const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
     if (!webhookSecret) {
-      return { received: true };
+      this.logger.error('STRIPE_WEBHOOK_SECRET is not configured - rejecting webhook');
+      return { received: false, error: 'Webhook secret not configured' };
     }
 
     const event = this.paymentsService.constructWebhookEvent(
@@ -457,24 +458,29 @@ export class PaymentsController {
       return;
     }
 
-    // Subscription checkout - create local subscription record
+    // Subscription checkout - create local subscription record (upsert to avoid race condition)
     const planId = session.metadata?.planId;
     if (planId && session.subscription) {
-      const existingSub = await this.subscriptionRepository.findOne({
-        where: { stripeSubscriptionId: session.subscription },
-      });
-      if (!existingSub) {
-        const sub = this.subscriptionRepository.create({
-          userId,
-          planId,
-          stripeSubscriptionId: session.subscription,
-          stripeCustomerId: session.customer,
-          status: 'active',
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        });
-        await this.subscriptionRepository.save(sub);
+      try {
+        await this.subscriptionRepository
+          .createQueryBuilder()
+          .insert()
+          .into('subscription')
+          .values({
+            userId,
+            planId,
+            stripeSubscriptionId: session.subscription,
+            stripeCustomerId: session.customer,
+            status: 'active',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          })
+          .orIgnore()
+          .execute();
         this.logger.log(`Subscription created for user ${userId}`);
+      } catch (err) {
+        // Duplicate subscription already exists, safe to ignore
+        this.logger.debug(`Subscription already exists for stripe ID ${session.subscription}`);
       }
     }
   }
@@ -749,9 +755,15 @@ export class PaymentsController {
       return { received: false, error: 'Invalid signature' };
     }
 
-    const payload = JSON.parse(body);
-    const event = payload.event;
+    let payload: any;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      this.logger.warn('Invalid JSON in Razorpay webhook body');
+      return { received: false, error: 'Invalid JSON payload' };
+    }
 
+    const event = payload.event;
     await this.razorpayService.handleWebhook(event, payload.payload);
 
     return { received: true };

@@ -60,7 +60,14 @@ export class ChoicesController {
     @Query('state') stateJson?: string,
     @Query('visited') visitedStr?: string,
   ) {
-    const state = stateJson ? JSON.parse(stateJson) : {};
+    let state: Record<string, any> = {};
+    if (stateJson) {
+      try {
+        state = JSON.parse(stateJson);
+      } catch {
+        // Invalid JSON, use empty state
+      }
+    }
     const visited = visitedStr ? visitedStr.split(',') : [];
     return this.choicesService.getAvailableChoices(segmentId, state, visited);
   }

@@ -3,6 +3,16 @@
  * This configuration is loaded at application startup and can be
  * injected into modules using ConfigService.
  */
+
+function requireInProduction(envVar: string, defaultValue: string): string {
+  const value = process.env[envVar];
+  if (value) return value;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(`${envVar} must be set in production environment`);
+  }
+  return defaultValue;
+}
+
 export default () => ({
   // Application settings
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -37,10 +47,8 @@ export default () => ({
 
   // JWT configuration
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev_jwt_secret_change_in_production',
-    refreshSecret:
-      process.env.JWT_REFRESH_SECRET ||
-      'dev_refresh_secret_change_in_production',
+    secret: requireInProduction('JWT_SECRET', 'dev_jwt_secret_change_in_production'),
+    refreshSecret: requireInProduction('JWT_REFRESH_SECRET', 'dev_refresh_secret_change_in_production'),
     accessExpiration: process.env.JWT_ACCESS_EXPIRATION || '15m',
     refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '7d',
   },

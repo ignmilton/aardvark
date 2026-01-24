@@ -40,17 +40,19 @@ export function ChoiceList({
   }
 
   return (
-    <div className="mt-8 pt-6 border-t border-border">
+    <div className="mt-8 pt-6 border-t border-border" role="region" aria-label="Story choices">
       <h3 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">
         What do you do?
       </h3>
 
-      <div className="space-y-3">
+      <div className="space-y-3" role="group" aria-label="Available choices">
         {visibleChoices.map((choice, index) => (
           <button
             key={choice.id}
             onClick={() => handleSelect(choice.id)}
             disabled={disabled || isLoading}
+            aria-label={`Choice ${index + 1}: ${choice.choiceText}`}
+            aria-pressed={selectedId === choice.id}
             className={cn(
               'w-full text-left p-4 rounded-lg border-2 transition-all duration-200',
               'hover:border-primary hover:bg-primary/5',

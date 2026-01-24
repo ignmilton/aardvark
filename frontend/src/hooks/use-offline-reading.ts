@@ -81,7 +81,11 @@ export function useOfflineReading() {
       // Service worker not ready yet, use localStorage fallback
       const stored = localStorage.getItem('offline-stories');
       if (stored) {
-        setSavedStories(JSON.parse(stored));
+        try {
+          setSavedStories(JSON.parse(stored));
+        } catch {
+          // Corrupted localStorage data, ignore
+        }
       }
     }
   }, []);
@@ -109,7 +113,12 @@ export function useOfflineReading() {
           savedAt: Date.now(),
         };
 
-        const existing = JSON.parse(localStorage.getItem('offline-stories') || '[]');
+        let existing: OfflineStory[] = [];
+        try {
+          existing = JSON.parse(localStorage.getItem('offline-stories') || '[]');
+        } catch {
+          // Corrupted data, start fresh
+        }
         const updated = [
           ...existing.filter((s: OfflineStory) => s.storyId !== story.storyId),
           offlineStory,
@@ -134,7 +143,12 @@ export function useOfflineReading() {
         await sendMessageToSW('REMOVE_OFFLINE_STORY', { storyId });
       }
 
-      const existing = JSON.parse(localStorage.getItem('offline-stories') || '[]');
+      let existing: OfflineStory[] = [];
+      try {
+        existing = JSON.parse(localStorage.getItem('offline-stories') || '[]');
+      } catch {
+        // Corrupted data, start fresh
+      }
       const updated = existing.filter((s: OfflineStory) => s.storyId !== storyId);
       localStorage.setItem('offline-stories', JSON.stringify(updated));
 
@@ -159,8 +173,12 @@ export function useOfflineReading() {
     }
 
     // Fallback to localStorage
-    const stored = JSON.parse(localStorage.getItem('offline-stories') || '[]');
-    return stored.find((s: OfflineStory) => s.storyId === storyId) || null;
+    try {
+      const stored: OfflineStory[] = JSON.parse(localStorage.getItem('offline-stories') || '[]');
+      return stored.find((s: OfflineStory) => s.storyId === storyId) || null;
+    } catch {
+      return null;
+    }
   }, []);
 
   const isStorySaved = useCallback(

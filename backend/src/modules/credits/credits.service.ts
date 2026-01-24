@@ -89,7 +89,9 @@ export class CreditsService {
     userId: string,
     query: TransactionHistoryQueryDto,
   ): Promise<{ transactions: Transaction[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 20, type } = query;
+    const { page = 1, limit: rawLimit = 20, type } = query;
+    // Cap limit to prevent resource exhaustion
+    const limit = Math.min(Math.max(1, rawLimit), 100);
 
     const queryBuilder = this.transactionRepository
       .createQueryBuilder('tx')
@@ -247,9 +249,9 @@ export class CreditsService {
 
       const savedTx = await txRepo.save(transaction);
 
-      // Create author earning
+      // Create author earning (derive author share from total minus fee to avoid rounding loss)
       const platformFee = Math.floor(story.creditCost * PLATFORM_FEE_PERCENTAGE);
-      const authorEarning = Math.floor(story.creditCost * AUTHOR_SHARE_PERCENTAGE);
+      const authorEarning = story.creditCost - platformFee;
 
       const earning = earningRepo.create({
         authorId: story.authorId,

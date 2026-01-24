@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface BranchSubmission {
   id: string;
@@ -265,7 +266,7 @@ export function ReviewDashboard({
                   </label>
                   <div
                     className="p-4 border rounded-lg bg-background max-h-60 overflow-y-auto prose prose-sm"
-                    dangerouslySetInnerHTML={{ __html: selectedSubmission.segmentData.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.segmentData.content) }}
                   />
                 </div>
 

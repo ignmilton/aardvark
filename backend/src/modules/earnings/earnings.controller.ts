@@ -5,7 +5,9 @@ import {
   Body,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { EarningsService } from './earnings.service';
 import {
   RequestPayoutDto,
@@ -17,6 +19,7 @@ import {
  * Controller for author earnings and payouts.
  */
 @Controller('earnings')
+@UseGuards(JwtAuthGuard)
 export class EarningsController {
   constructor(private readonly earningsService: EarningsService) {}
 
@@ -29,7 +32,7 @@ export class EarningsController {
     @Req() req: any,
     @Query('period') period?: 'day' | 'week' | 'month' | 'year' | 'all_time',
   ) {
-    const authorId = req.user?.id || 'mock-author-id';
+    const authorId = req.user.id;
     const summary = await this.earningsService.getSummary(authorId, period);
     return {
       success: true,
@@ -43,7 +46,7 @@ export class EarningsController {
    */
   @Get('balance')
   async getBalance(@Req() req: any) {
-    const authorId = req.user?.id || 'mock-author-id';
+    const authorId = req.user.id;
     const balance = await this.earningsService.getPendingBalance(authorId);
     return {
       success: true,
@@ -60,7 +63,7 @@ export class EarningsController {
     @Req() req: any,
     @Query() query: EarningsQueryDto,
   ) {
-    const authorId = req.user?.id || 'mock-author-id';
+    const authorId = req.user.id;
     const result = await this.earningsService.getEarnings(authorId, query);
     return {
       success: true,
@@ -96,7 +99,7 @@ export class EarningsController {
     @Req() req: any,
     @Query('period') period?: 'day' | 'week' | 'month' | 'year' | 'all_time',
   ) {
-    const authorId = req.user?.id || 'mock-author-id';
+    const authorId = req.user.id;
     const earnings = await this.earningsService.getEarningsByStory(authorId, period);
     return {
       success: true,
@@ -114,7 +117,7 @@ export class EarningsController {
    */
   @Get('payout-account')
   async getPayoutAccount(@Req() req: any) {
-    const authorId = req.user?.id || 'mock-author-id';
+    const authorId = req.user.id;
     const account = await this.earningsService.getPayoutAccount(authorId);
 
     if (!account) {
@@ -146,7 +149,7 @@ export class EarningsController {
     @Req() req: any,
     @Body() dto: SetupPayoutAccountDto,
   ) {
-    const authorId = req.user?.id || 'mock-author-id';
+    const authorId = req.user.id;
     const result = await this.earningsService.setupPayoutAccount(
       authorId,
       dto.country,
@@ -173,7 +176,7 @@ export class EarningsController {
     @Req() req: any,
     @Body() dto: RequestPayoutDto,
   ) {
-    const authorId = req.user?.id || 'mock-author-id';
+    const authorId = req.user.id;
     const payout = await this.earningsService.requestPayout(authorId, dto.amount);
     return {
       success: true,
@@ -192,7 +195,7 @@ export class EarningsController {
    */
   @Get('payouts')
   async getPayoutHistory(@Req() req: any) {
-    const authorId = req.user?.id || 'mock-author-id';
+    const authorId = req.user.id;
     const payouts = await this.earningsService.getPayoutHistory(authorId);
     return {
       success: true,

@@ -99,7 +99,13 @@ async function loadProgress(storyId: string, rootSegmentId: string): Promise<Pro
 
   // Fallback: localStorage for unauthenticated users
   const saved = localStorage.getItem(`progress-${storyId}`);
-  if (saved) return JSON.parse(saved);
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch {
+      // Corrupted progress data, start fresh
+    }
+  }
   return {
     id: `local-${storyId}`,
     currentSegmentId: rootSegmentId,

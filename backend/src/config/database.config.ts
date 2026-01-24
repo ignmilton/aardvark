@@ -39,7 +39,8 @@ export const databaseConfig = (
     // SSL configuration for production
     ssl: isProduction
       ? {
-          rejectUnauthorized: false,
+          rejectUnauthorized: configService.get('DB_SSL_REJECT_UNAUTHORIZED', 'true') !== 'false',
+          ca: configService.get('DB_SSL_CA') || undefined,
         }
       : false,
 

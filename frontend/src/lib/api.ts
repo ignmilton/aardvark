@@ -80,7 +80,7 @@ export const segmentsApi = {
 export const choicesApi = {
   getBySegment: (segmentId: string) => fetchApi<any[]>(`/choices/segment/${segmentId}`),
   getAvailable: (segmentId: string, state: Record<string, any>, visited: string[]) =>
-    fetchApi<any[]>(`/choices/segment/${segmentId}/available?state=${JSON.stringify(state)}&visited=${visited.join(',')}`),
+    fetchApi<any[]>(`/choices/segment/${segmentId}/available?state=${encodeURIComponent(JSON.stringify(state))}&visited=${encodeURIComponent(visited.join(','))}`),
   recordChoice: (choiceId: string) =>
     fetchApi<void>(`/choices/${choiceId}/chosen`, { method: 'POST' }),
   create: (data: any, token: string) =>

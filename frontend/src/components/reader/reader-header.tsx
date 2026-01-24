@@ -95,6 +95,9 @@ export function ReaderHeader({
             <button
               onClick={() => setShowMenu(!showMenu)}
               className="p-2 rounded-md hover:bg-muted transition-colors"
+              aria-label="Story menu"
+              aria-expanded={showMenu}
+              aria-haspopup="true"
             >
               <svg
                 className="w-5 h-5"
@@ -117,10 +120,11 @@ export function ReaderHeader({
                   className="fixed inset-0 z-40"
                   onClick={() => setShowMenu(false)}
                 />
-                <div className="absolute right-0 mt-2 w-48 bg-popover border rounded-lg shadow-lg z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-popover border rounded-lg shadow-lg z-50" role="menu">
                   <div className="py-1">
                     {onReset && (
                       <button
+                        role="menuitem"
                         onClick={() => {
                           onReset();
                           setShowMenu(false);
@@ -146,6 +150,7 @@ export function ReaderHeader({
                     <Link
                       href={`/story/${storySlug}`}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                      role="menuitem"
                       onClick={() => setShowMenu(false)}
                     >
                       <svg
