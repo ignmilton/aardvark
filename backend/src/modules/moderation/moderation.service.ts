@@ -13,6 +13,7 @@ import {
   ModerationAction,
   User,
 } from '@/database/entities';
+import { AccountStatus } from '@aardvark/shared';
 import { ModerationQueueQuery, ModerationLogQuery } from './dto/moderation.dto';
 
 /**
@@ -85,13 +86,14 @@ export class ModerationService {
   }> {
     const {
       page = 1,
-      limit = 20,
+      limit: rawLimit = 20,
       contentType,
       status,
       assignedTo,
       sortBy = 'createdAt',
       sortOrder = 'DESC',
     } = query;
+    const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const where: FindOptionsWhere<Report> = {};
 
@@ -303,6 +305,11 @@ export class ModerationService {
 
     const savedBan = await this.userBanRepository.save(ban);
 
+    // Update user account status
+    await this.userRepository.update(userId, {
+      accountStatus: isPermanent ? AccountStatus.BANNED : AccountStatus.SUSPENDED,
+    });
+
     // Determine action type
     let action: ModerationAction;
     if (isShadowban) {
@@ -349,6 +356,11 @@ export class ModerationService {
     ban.liftedById = liftedById;
 
     const savedBan = await this.userBanRepository.save(ban);
+
+    // Restore user account status
+    await this.userRepository.update(ban.userId, {
+      accountStatus: AccountStatus.ACTIVE,
+    });
 
     // Create moderation log
     await this.createModerationLog(
@@ -418,12 +430,13 @@ export class ModerationService {
   }> {
     const {
       page = 1,
-      limit = 20,
+      limit: rawLimit = 20,
       moderatorId,
       contentType,
       action,
       targetUserId,
     } = query;
+    const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const where: FindOptionsWhere<ModerationLog> = {};
 
@@ -617,7 +630,8 @@ export class ModerationService {
     limit: number;
     totalPages: number;
   }> {
-    const { page = 1, limit = 20, contentType, status, flagType } = query;
+    const { page = 1, limit: rawLimit = 20, contentType, status, flagType } = query;
+    const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const where: FindOptionsWhere<ContentFlag> = {};
 

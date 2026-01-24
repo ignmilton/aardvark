@@ -62,9 +62,13 @@ export function usePushNotifications() {
       setSubscription(sub);
 
       // Send subscription to backend
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       await fetch('/api/notifications/push/subscribe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(sub.toJSON()),
       });
 
@@ -85,9 +89,13 @@ export function usePushNotifications() {
       await subscription.unsubscribe();
 
       // Notify backend
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       await fetch('/api/notifications/push/unsubscribe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ endpoint: subscription.endpoint }),
       });
 
