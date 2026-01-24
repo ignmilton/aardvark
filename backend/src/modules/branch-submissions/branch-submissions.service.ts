@@ -14,6 +14,7 @@ import {
   UpdateBranchSubmissionDto,
   QueryBranchSubmissionsDto,
 } from './dto';
+import { filterContent } from './content-filter';
 
 @Injectable()
 export class BranchSubmissionsService {
@@ -62,6 +63,17 @@ export class BranchSubmissionsService {
       throw new BadRequestException('Cannot add branches to ending segments');
     }
 
+    // Run content filter on the submission
+    const filterResult = filterContent(dto.segmentData.content);
+
+    // Determine status: auto-approve only if open mode AND content passes filter
+    let status: string;
+    if (story.collaborationMode === CollaborationMode.OPEN && filterResult.passed) {
+      status = 'approved';
+    } else {
+      status = 'pending';
+    }
+
     // Create submission
     const submission = this.submissionRepository.create({
       storyId: dto.storyId,
@@ -81,13 +93,14 @@ export class BranchSubmissionsService {
         conditions: choice.conditions || [],
       })),
       submissionNote: dto.submissionNote,
-      status: story.collaborationMode === CollaborationMode.OPEN ? 'approved' : 'pending',
+      status,
+      filterReasons: !filterResult.passed ? filterResult.reasons : undefined,
     });
 
     const saved = await this.submissionRepository.save(submission);
 
-    // If open collaboration, immediately create the segment
-    if (story.collaborationMode === CollaborationMode.OPEN) {
+    // If approved (open collaboration + passed filter), immediately create the segment
+    if (status === 'approved') {
       await this.approveSubmission(saved, story.authorId);
     }
 

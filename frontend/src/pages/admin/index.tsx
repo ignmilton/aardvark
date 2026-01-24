@@ -30,8 +30,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month'>('day');
 
-  // TODO: Get auth token from auth context
-  const token = undefined;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
 
   const { data: stats, isLoading: statsLoading } = useAdminStats(token);
   const { data: analytics, isLoading: analyticsLoading } = usePlatformAnalytics(token);

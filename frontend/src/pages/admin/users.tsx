@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Search,
@@ -80,8 +80,7 @@ interface AdminUserView {
  * View users, manage bans, warnings, and user actions
  */
 export default function UserManagementPage() {
-  // TODO: Get auth token from auth context
-  const token = undefined;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
 
   // State
   const [selectedTab, setSelectedTab] = useState<'all' | 'banned' | 'warnings'>('all');
@@ -91,6 +90,8 @@ export default function UserManagementPage() {
   const [actionType, setActionType] = useState<'ban' | 'warn' | 'view'>('view');
   const [page, setPage] = useState(1);
   const limit = 20;
+  const [users, setUsers] = useState<AdminUserView[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
 
   // Hooks
   const { data: adminStats } = useAdminStats(token);
@@ -102,25 +103,34 @@ export default function UserManagementPage() {
   const issueWarningMutation = useIssueWarning(token);
   const liftBanMutation = useLiftBan(token);
 
-  // Mock users data - In real app, fetch from API
-  const mockUsers: AdminUserView[] = [
-    {
-      id: '1',
-      username: 'john_doe',
-      email: 'john@example.com',
-      displayName: 'John Doe',
-      avatarUrl: null,
-      role: 'author' as UserRole,
-      accountStatus: 'active' as AccountStatus,
-      emailVerified: true,
-      warningCount: 0,
-      banCount: 0,
-      activeBan: null,
-      lastLoginAt: new Date(Date.now() - 3600000),
-      createdAt: new Date(Date.now() - 86400000 * 30),
-    },
-    // Add more mock users as needed
-  ];
+  // Fetch users from API
+  useEffect(() => {
+    async function loadUsers() {
+      setUsersLoading(true);
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const response = await fetch(
+          `${API_URL}/users/admin/list?page=${page}&limit=${limit}&search=${encodeURIComponent(searchQuery)}`,
+          { headers },
+        );
+        if (!response.ok) throw new Error('Failed to fetch users');
+        const { data } = await response.json();
+        setUsers((data || []).map((u: any) => ({
+          ...u,
+          lastLoginAt: u.lastLoginAt ? new Date(u.lastLoginAt) : null,
+          createdAt: new Date(u.createdAt),
+        })));
+      } catch (error) {
+        console.error('Failed to load users:', error);
+        setUsers([]);
+      } finally {
+        setUsersLoading(false);
+      }
+    }
+    loadUsers();
+  }, [page, searchQuery, token]);
 
   // Handlers
   const handleUserAction = (userId: string, action: 'ban' | 'warn' | 'view') => {
@@ -137,15 +147,8 @@ export default function UserManagementPage() {
     }
   };
 
-  // Filter users by search query
-  const filteredUsers = mockUsers.filter((user) => {
-    if (!searchQuery) return true;
-    return (
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  // Users are already filtered server-side via search param
+  const filteredUsers = users;
 
   // Get status badge variant
   const getStatusBadge = (status: AccountStatus) => {

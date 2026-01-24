@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { RichTextEditor } from './rich-text-editor';
+import { useAutosave, DraftData } from './use-autosave';
 
 interface StateEffect {
   variableId: string;
@@ -28,6 +30,7 @@ interface SegmentEditorModalProps {
   onSave: (data: SegmentData) => void;
   initialData?: Partial<SegmentData>;
   stateVariables?: { id: string; name: string; displayName: string; type: string }[];
+  storyId?: string;
 }
 
 export function SegmentEditorModal({
@@ -36,35 +39,81 @@ export function SegmentEditorModal({
   onSave,
   initialData,
   stateVariables = [],
+  storyId = 'unknown',
 }: SegmentEditorModalProps) {
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [contentHtml, setContentHtml] = useState('');
+  const [contentText, setContentText] = useState('');
   const [isEnding, setIsEnding] = useState(false);
   const [endingType, setEndingType] = useState<'good' | 'bad' | 'neutral' | 'secret' | null>(null);
   const [stateEffects, setStateEffects] = useState<StateEffect[]>([]);
+  const [showDraftRecovery, setShowDraftRecovery] = useState(false);
+
+  const { saveDraft, loadDraft, clearDraft, hasDraft } = useAutosave(
+    storyId,
+    initialData?.id,
+    isOpen,
+  );
 
   useEffect(() => {
+    if (!isOpen) {
+      setShowDraftRecovery(false);
+      return;
+    }
+
     if (initialData) {
       setTitle(initialData.title || '');
-      setContent(initialData.contentMarkdown || initialData.content || '');
+      setContentHtml(initialData.content || '');
+      setContentText(initialData.contentMarkdown || '');
       setIsEnding(initialData.isEnding || false);
       setEndingType(initialData.endingType || null);
       setStateEffects(initialData.stateEffects || []);
     } else {
       setTitle('');
-      setContent('');
+      setContentHtml('');
+      setContentText('');
       setIsEnding(false);
       setEndingType(null);
       setStateEffects([]);
     }
-  }, [initialData, isOpen]);
+
+    // Check for a saved draft
+    if (hasDraft()) {
+      setShowDraftRecovery(true);
+    }
+  }, [initialData, isOpen, hasDraft]);
+
+  const restoreDraft = useCallback(() => {
+    const draft = loadDraft();
+    if (draft) {
+      setTitle(draft.title);
+      setContentHtml(draft.contentHtml);
+      setContentText(draft.contentText);
+      setIsEnding(draft.isEnding);
+      setEndingType(draft.endingType);
+    }
+    setShowDraftRecovery(false);
+  }, [loadDraft]);
+
+  const dismissDraft = useCallback(() => {
+    clearDraft();
+    setShowDraftRecovery(false);
+  }, [clearDraft]);
+
+  // Autosave on content changes
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!contentText.trim() && !title.trim()) return;
+    saveDraft({ title, contentHtml, contentText, isEnding, endingType });
+  }, [title, contentHtml, contentText, isEnding, endingType, isOpen, saveDraft]);
 
   const handleSave = () => {
+    clearDraft();
     onSave({
       id: initialData?.id,
       title,
-      content: `<p>${content.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`,
-      contentMarkdown: content,
+      content: contentHtml,
+      contentMarkdown: contentText,
       isEnding,
       endingType: isEnding ? endingType : null,
       stateEffects,
@@ -129,6 +178,23 @@ export function SegmentEditorModal({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] space-y-6">
+          {/* Draft recovery banner */}
+          {showDraftRecovery && (
+            <div className="flex items-center justify-between p-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                An unsaved draft was found. Restore it?
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={dismissDraft}>
+                  Discard
+                </Button>
+                <Button size="sm" onClick={restoreDraft}>
+                  Restore
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Title */}
           <div>
             <label className="block text-sm font-medium mb-2">Title (optional)</label>
@@ -142,15 +208,13 @@ export function SegmentEditorModal({
           {/* Content */}
           <div>
             <label className="block text-sm font-medium mb-2">Content</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Write your story segment here..."
-              className="w-full h-48 px-3 py-2 rounded-md border bg-background resize-y font-reading"
+            <RichTextEditor
+              content={contentHtml}
+              onChange={(html, text) => {
+                setContentHtml(html);
+                setContentText(text);
+              }}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              {content.split(/\s+/).filter(Boolean).length} words
-            </p>
           </div>
 
           {/* Ending options */}
@@ -256,7 +320,7 @@ export function SegmentEditorModal({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!content.trim()}>
+          <Button onClick={handleSave} disabled={!contentText.trim()}>
             {initialData?.id ? 'Save Changes' : 'Create Segment'}
           </Button>
         </div>

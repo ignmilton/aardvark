@@ -1,6 +1,8 @@
 'use client';
 
+import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface ReaderContentProps {
   title?: string | null;
@@ -21,6 +23,9 @@ export function ReaderContent({
     neutral: 'border-l-blue-500 bg-blue-50 dark:bg-blue-950/30',
     secret: 'border-l-purple-500 bg-purple-50 dark:bg-purple-950/30',
   };
+
+  // Sanitize HTML content to prevent XSS attacks
+  const sanitizedContent = useMemo(() => sanitizeHtml(content), [content]);
 
   return (
     <article
@@ -47,7 +52,7 @@ export function ReaderContent({
       )}
 
       <div
-        dangerouslySetInnerHTML={{ __html: content }}
+        dangerouslySetInnerHTML={{ __html: sanitizedContent }}
         className="story-content"
       />
 

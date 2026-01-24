@@ -31,26 +31,9 @@ export function TrendingStories() {
   }
 
   if (error || !stories?.length) {
-    // Return placeholder stories for demo
-    const demoCategories = ['fantasy', 'sci_fi', 'romance', 'mystery', 'thriller', 'adventure'];
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {demoCategories.map((category, i) => (
-          <StoryCard
-            key={i}
-            story={{
-              id: `trending-${i}`,
-              title: `Trending ${category.replace('_', ' ')} Story`,
-              description: 'A captivating tale that has captured readers attention...',
-              coverImageUrl: null,
-              category: category as Story['category'],
-              averageRating: 4.2 + i * 0.1,
-              viewCount: 5000 - i * 500,
-              authorId: 'demo-author',
-              estimatedReadTime: 15 + i * 5,
-            } as Story}
-          />
-        ))}
+      <div className="text-center py-8 text-muted-foreground">
+        <p>No trending stories right now. Be the first to publish!</p>
       </div>
     );
   }

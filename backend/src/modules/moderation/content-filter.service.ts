@@ -399,8 +399,9 @@ export class ContentFilterService {
   }
 
   /**
-   * Analyze image for inappropriate content
-   * Note: This is a placeholder - real implementation would use AWS Rekognition or similar
+   * Analyze image for inappropriate content.
+   * Performs URL validation, checks content type, and optionally calls
+   * an external moderation API (configured via IMAGE_MODERATION_API_URL).
    */
   async analyzeImage(
     imageUrl: string,
@@ -408,16 +409,126 @@ export class ContentFilterService {
     contentId: string,
     authorId?: string,
   ): Promise<{ safe: boolean; flags: string[] }> {
-    // Placeholder for image moderation
-    // In production, integrate with:
-    // - AWS Rekognition DetectModerationLabels
-    // - Google Cloud Vision SafeSearch
-    // - Azure Content Moderator
-    this.logger.log(`Image moderation placeholder for: ${imageUrl}`);
+    const flags: string[] = [];
 
-    return {
-      safe: true,
-      flags: [],
-    };
+    // Block data: URIs (potential XSS/exploit vector)
+    if (/^data:/i.test(imageUrl)) {
+      flags.push('data_uri_blocked');
+      await this.flagContent(contentType, contentId, authorId, 'data_uri', 1.0, imageUrl);
+      return { safe: false, flags };
+    }
+
+    // Block non-http(s) URLs
+    if (!/^https?:\/\//i.test(imageUrl)) {
+      flags.push('invalid_protocol');
+      return { safe: false, flags };
+    }
+
+    // Check for suspicious URL patterns (common exploit hosting)
+    const suspiciousPatterns = [
+      /\.(exe|bat|cmd|sh|ps1|msi)(\?|$)/i,
+      /javascript:/i,
+      /\.php\?/i,
+    ];
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(imageUrl)) {
+        flags.push('suspicious_url_pattern');
+        await this.flagContent(contentType, contentId, authorId, 'suspicious_url', 0.9, imageUrl);
+        return { safe: false, flags };
+      }
+    }
+
+    // Validate that the URL actually points to an image via HEAD request
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(imageUrl, {
+        method: 'HEAD',
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+      clearTimeout(timeout);
+
+      const responseContentType = response.headers.get('content-type') || '';
+      if (!responseContentType.startsWith('image/')) {
+        flags.push('not_an_image');
+        await this.flagContent(contentType, contentId, authorId, 'invalid_content_type', 0.95, `${imageUrl} -> ${responseContentType}`);
+        return { safe: false, flags };
+      }
+    } catch (error) {
+      // If URL is unreachable, flag but don't block (might be temporary)
+      this.logger.warn(`Image URL unreachable: ${imageUrl} - ${error.message}`);
+      flags.push('unreachable_url');
+    }
+
+    // Call external moderation API if configured
+    const moderationApiUrl = this.configService.get<string>('IMAGE_MODERATION_API_URL');
+    if (moderationApiUrl) {
+      try {
+        const apiKey = this.configService.get<string>('IMAGE_MODERATION_API_KEY');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(moderationApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          },
+          body: JSON.stringify({ image_url: imageUrl }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (response.ok) {
+          const result = await response.json();
+          // Expected response: { safe: boolean, categories: string[] }
+          if (result.safe === false) {
+            const categories = result.categories || ['nsfw_content'];
+            flags.push(...categories);
+            await this.flagContent(
+              contentType,
+              contentId,
+              authorId,
+              categories.join(','),
+              result.confidence || 0.8,
+              imageUrl,
+            );
+            return { safe: false, flags };
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`External image moderation failed: ${error.message}`);
+        // Don't block on moderation service failure - flag for manual review
+        await this.flagContent(contentType, contentId, authorId, 'moderation_api_error', 0.5, imageUrl);
+      }
+    }
+
+    return { safe: flags.length === 0, flags };
+  }
+
+  /**
+   * Helper to create a content flag record
+   */
+  private async flagContent(
+    contentType: ModerationContentType,
+    contentId: string,
+    authorId: string | undefined,
+    flagType: string,
+    confidence: number,
+    patterns: string,
+  ): Promise<void> {
+    const flag = this.contentFlagRepository.create({
+      contentType,
+      contentId,
+      authorId: authorId || null,
+      flagType,
+      confidence,
+      matchedPatterns: patterns,
+      status: ModerationStatus.PENDING,
+      isAutoResolved: false,
+    });
+    await this.contentFlagRepository.save(flag);
   }
 }

@@ -31,24 +31,9 @@ export function FeaturedStories() {
   }
 
   if (error || !stories?.length) {
-    // Return placeholder stories for demo
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1, 2, 3, 4].map((i) => (
-          <StoryCard
-            key={i}
-            story={{
-              id: `demo-${i}`,
-              title: `Adventure Story ${i}`,
-              description: 'An exciting interactive adventure awaits...',
-              coverImageUrl: null,
-              category: 'fantasy',
-              averageRating: 4.5,
-              viewCount: 1000 * i,
-              authorId: 'demo-author',
-            } as Story}
-          />
-        ))}
+      <div className="text-center py-8 text-muted-foreground">
+        <p>No featured stories available yet. Check back soon!</p>
       </div>
     );
   }

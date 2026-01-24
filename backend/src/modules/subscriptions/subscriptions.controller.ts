@@ -4,7 +4,9 @@ import {
   Post,
   Body,
   Req,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { SubscriptionsService } from './subscriptions.service';
 import { CancelSubscriptionDto } from './dto';
 
@@ -12,6 +14,7 @@ import { CancelSubscriptionDto } from './dto';
  * Controller for subscription management.
  */
 @Controller('subscriptions')
+@UseGuards(JwtAuthGuard)
 export class SubscriptionsController {
   constructor(private readonly subscriptionsService: SubscriptionsService) {}
 
@@ -43,7 +46,7 @@ export class SubscriptionsController {
    */
   @Get('status')
   async getStatus(@Req() req: any) {
-    const userId = req.user?.id || 'mock-user-id';
+    const userId = req.user.id;
     const status = await this.subscriptionsService.getSubscriptionStatus(userId);
     return {
       success: true,
@@ -71,7 +74,7 @@ export class SubscriptionsController {
    */
   @Get('premium')
   async checkPremium(@Req() req: any) {
-    const userId = req.user?.id || 'mock-user-id';
+    const userId = req.user.id;
     const isPremium = await this.subscriptionsService.isPremium(userId);
     return {
       success: true,
@@ -88,7 +91,7 @@ export class SubscriptionsController {
     @Req() req: any,
     @Body() dto: CancelSubscriptionDto,
   ) {
-    const userId = req.user?.id || 'mock-user-id';
+    const userId = req.user.id;
     const subscription = await this.subscriptionsService.cancelSubscription(
       userId,
       dto.cancelImmediately,
@@ -109,7 +112,7 @@ export class SubscriptionsController {
    */
   @Post('resume')
   async resume(@Req() req: any) {
-    const userId = req.user?.id || 'mock-user-id';
+    const userId = req.user.id;
     const subscription = await this.subscriptionsService.resumeSubscription(userId);
     return {
       success: true,
@@ -126,7 +129,7 @@ export class SubscriptionsController {
    */
   @Get('history')
   async getHistory(@Req() req: any) {
-    const userId = req.user?.id || 'mock-user-id';
+    const userId = req.user.id;
     const history = await this.subscriptionsService.getHistory(userId);
     return {
       success: true,
