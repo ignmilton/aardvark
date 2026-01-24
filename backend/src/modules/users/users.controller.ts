@@ -89,6 +89,25 @@ export class UsersController {
     return this.usersService.upgradeToAuthor(req.user.id);
   }
 
+  @Get('me/data-export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'GDPR: Export all personal data' })
+  @ApiResponse({ status: 200, description: 'Complete user data export in JSON format' })
+  async exportData(@Request() req: any) {
+    return this.usersService.exportUserData(req.user.userId);
+  }
+
+  @Delete('me/account')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'GDPR: Delete account and all associated data' })
+  @ApiResponse({ status: 204, description: 'Account deleted successfully' })
+  async deleteAccount(@Request() req: any) {
+    await this.usersService.deleteAccount(req.user.userId);
+  }
+
   @Get(':username')
   @ApiOperation({ summary: 'Get user profile by username' })
   @ApiParam({ name: 'username', description: 'Username' })

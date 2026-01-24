@@ -20,7 +20,7 @@ export class TokenBlacklistService {
    * @param token - The JWT token string
    * @param expiresInSeconds - Seconds until the token expires naturally
    */
-  blacklist_token(token: string, expiresInSeconds: number): void {
+  blacklistToken(token: string, expiresInSeconds: number): void {
     const expiryTimestamp = Date.now() + expiresInSeconds * 1000;
     this.blacklist.set(token, expiryTimestamp);
   }

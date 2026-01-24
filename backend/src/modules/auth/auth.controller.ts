@@ -89,7 +89,7 @@ export class AuthController {
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.slice(7);
       // Blacklist for remaining token lifetime (max 15 minutes for access tokens)
-      this.tokenBlacklistService.blacklist_token(token, 15 * 60);
+      this.tokenBlacklistService.blacklistToken(token, 15 * 60);
     }
     return { message: 'Logged out successfully' };
   }

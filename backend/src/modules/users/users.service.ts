@@ -3,15 +3,28 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, ILike } from 'typeorm';
-import { User, Follow, ReaderProgress } from '@/database/entities';
+import { Repository, DataSource, Like, ILike } from 'typeorm';
+import {
+  User,
+  Follow,
+  ReaderProgress,
+  Story,
+  Comment,
+  Rating,
+  Transaction,
+  Notification,
+  Message,
+} from '@/database/entities';
 import { UpdateUserDto, UserQueryDto } from './dto';
 import { UserRole, UserProfile, UserStats, UserBadge } from '@aardvark/shared';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -19,6 +32,7 @@ export class UsersService {
     private readonly followRepository: Repository<Follow>,
     @InjectRepository(ReaderProgress)
     private readonly progressRepository: Repository<ReaderProgress>,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -380,6 +394,120 @@ export class UsersService {
 
     user.role = UserRole.AUTHOR;
     return this.userRepository.save(user);
+  }
+
+  /**
+   * GDPR: Export all user data as a JSON object.
+   * Returns profile, stories, comments, ratings, progress, transactions, etc.
+   */
+  async exportUserData(userId: string): Promise<Record<string, any>> {
+    const user = await this.findById(userId);
+
+    const storyRepo = this.dataSource.getRepository(Story);
+    const commentRepo = this.dataSource.getRepository(Comment);
+    const ratingRepo = this.dataSource.getRepository(Rating);
+    const transactionRepo = this.dataSource.getRepository(Transaction);
+    const notificationRepo = this.dataSource.getRepository(Notification);
+    const messageRepo = this.dataSource.getRepository(Message);
+
+    const [
+      stories,
+      comments,
+      ratings,
+      readingProgress,
+      transactions,
+      notifications,
+      sentMessages,
+      receivedMessages,
+      followers,
+      following,
+    ] = await Promise.all([
+      storyRepo.find({ where: { authorId: userId } }),
+      commentRepo.find({ where: { userId } }),
+      ratingRepo.find({ where: { userId } }),
+      this.progressRepository.find({ where: { userId } }),
+      transactionRepo.find({ where: { userId }, order: { createdAt: 'DESC' } }),
+      notificationRepo.find({ where: { userId }, order: { createdAt: 'DESC' }, take: 1000 }),
+      messageRepo.find({ where: { senderId: userId }, order: { createdAt: 'DESC' } }),
+      messageRepo.find({ where: { recipientId: userId }, order: { createdAt: 'DESC' } }),
+      this.followRepository.find({ where: { followingId: userId }, select: ['followerId', 'createdAt'] }),
+      this.followRepository.find({ where: { followerId: userId }, select: ['followingId', 'createdAt'] }),
+    ]);
+
+    return {
+      exportDate: new Date().toISOString(),
+      profile: this.sanitizeUser(user),
+      stories: stories.map(({ id, title, description, status, createdAt, updatedAt }) => ({
+        id, title, description, status, createdAt, updatedAt,
+      })),
+      comments: comments.map(({ id, storyId, content, createdAt }) => ({
+        id, storyId, content, createdAt,
+      })),
+      ratings: ratings.map(({ id, storyId, rating, reviewText, createdAt }) => ({
+        id, storyId, rating, reviewText, createdAt,
+      })),
+      readingProgress: readingProgress.map(({ storyId, currentSegmentId, lastReadAt }) => ({
+        storyId, currentSegmentId, lastReadAt,
+      })),
+      transactions: transactions.map(({ id, type, amount, description, createdAt }) => ({
+        id, type, amount, description, createdAt,
+      })),
+      notifications: notifications.map(({ id, type, title, message, isRead, createdAt }) => ({
+        id, type, title, message, isRead, createdAt,
+      })),
+      messages: {
+        sent: sentMessages.map(({ id, recipientId, content, createdAt }) => ({
+          id, recipientId, content, createdAt,
+        })),
+        received: receivedMessages.map(({ id, senderId, content, createdAt }) => ({
+          id, senderId, content, createdAt,
+        })),
+      },
+      followers: followers.map(({ followerId, createdAt }) => ({ followerId, createdAt })),
+      following: following.map(({ followingId, createdAt }) => ({ followingId, createdAt })),
+    };
+  }
+
+  /**
+   * GDPR: Delete user account and all associated data.
+   * Anonymizes content where deletion would break referential integrity.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await this.findById(userId);
+
+    await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const commentRepo = manager.getRepository(Comment);
+      const ratingRepo = manager.getRepository(Rating);
+      const progressRepo = manager.getRepository(ReaderProgress);
+      const transactionRepo = manager.getRepository(Transaction);
+      const notificationRepo = manager.getRepository(Notification);
+      const messageRepo = manager.getRepository(Message);
+      const followRepo = manager.getRepository(Follow);
+
+      // Delete user's data in dependency order
+      await followRepo.delete({ followerId: userId });
+      await followRepo.delete({ followingId: userId });
+      await notificationRepo.delete({ userId });
+      await messageRepo.delete({ senderId: userId });
+      await messageRepo.delete({ recipientId: userId });
+      await progressRepo.delete({ userId });
+      await transactionRepo.delete({ userId });
+      await ratingRepo.delete({ userId });
+      await commentRepo.delete({ userId });
+
+      // Anonymize stories (keep content but remove author link)
+      const storyRepo = manager.getRepository(Story);
+      await storyRepo.update(
+        { authorId: userId },
+        { authorId: null as any, status: 'hidden' as any },
+      );
+
+      // Delete the user account
+      await userRepo.delete(userId);
+    });
+
+    this.logger.log(`Account deleted for user ${userId} (${user.username})`);
   }
 
   /**
