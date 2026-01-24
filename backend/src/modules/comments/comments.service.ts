@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
-import { Comment, Story, User } from '@/database/entities';
+import { Comment, Story, User, CommentLike } from '@/database/entities';
 import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from './dto';
 import { UserRole } from '@aardvark/shared';
 import * as sanitizeHtml from 'sanitize-html';
@@ -19,6 +19,8 @@ export class CommentsService {
     private readonly commentRepository: Repository<Comment>,
     @InjectRepository(Story)
     private readonly storyRepository: Repository<Story>,
+    @InjectRepository(CommentLike)
+    private readonly commentLikeRepository: Repository<CommentLike>,
   ) {}
 
   /**
@@ -273,19 +275,47 @@ export class CommentsService {
   }
 
   /**
-   * Like a comment
+   * Like a comment (prevents duplicate likes per user)
    */
   async likeComment(commentId: string, userId: string): Promise<void> {
-    // In a full implementation, we would track likes in a separate table
-    // For now, just increment the count
+    const existing = await this.commentLikeRepository.findOne({
+      where: { commentId, userId },
+    });
+
+    if (existing) {
+      throw new BadRequestException('You have already liked this comment');
+    }
+
+    await this.commentLikeRepository.save(
+      this.commentLikeRepository.create({ commentId, userId }),
+    );
     await this.commentRepository.increment({ id: commentId }, 'likesCount', 1);
   }
 
   /**
-   * Unlike a comment
+   * Unlike a comment (only if previously liked)
    */
   async unlikeComment(commentId: string, userId: string): Promise<void> {
+    const existing = await this.commentLikeRepository.findOne({
+      where: { commentId, userId },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('You have not liked this comment');
+    }
+
+    await this.commentLikeRepository.remove(existing);
     await this.commentRepository.decrement({ id: commentId }, 'likesCount', 1);
+  }
+
+  /**
+   * Check if user has liked a comment
+   */
+  async hasUserLiked(commentId: string, userId: string): Promise<boolean> {
+    const count = await this.commentLikeRepository.count({
+      where: { commentId, userId },
+    });
+    return count > 0;
   }
 
   /**

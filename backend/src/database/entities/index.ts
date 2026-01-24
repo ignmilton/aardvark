@@ -23,3 +23,4 @@ export * from './moderation.entity';
 export * from './tag.entity';
 export * from './push-subscription.entity';
 export * from './story-unlock.entity';
+export * from './comment-like.entity';

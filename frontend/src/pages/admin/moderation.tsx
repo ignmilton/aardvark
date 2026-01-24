@@ -35,8 +35,7 @@ import type {
  * Displays and manages content awaiting moderation review
  */
 export default function ModerationQueuePage() {
-  // TODO: Get auth token from auth context
-  const token = undefined;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
 
   // State
   const [selectedTab, setSelectedTab] = useState<ModerationStatus>('pending');

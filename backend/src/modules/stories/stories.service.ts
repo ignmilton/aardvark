@@ -13,7 +13,7 @@ import {
   UpdateStoryDto,
   UserRole,
 } from '@aardvark/shared';
-import { Story, StoryStateVariable } from '@/database/entities';
+import { Story, StoryStateVariable, Rating } from '@/database/entities';
 
 /**
  * Service handling story CRUD operations and queries.
@@ -25,6 +25,8 @@ export class StoriesService {
     private readonly storyRepository: Repository<Story>,
     @InjectRepository(StoryStateVariable)
     private readonly stateVariableRepository: Repository<StoryStateVariable>,
+    @InjectRepository(Rating)
+    private readonly ratingRepository: Repository<Rating>,
   ) {}
 
   /**
@@ -241,8 +243,20 @@ export class StoriesService {
    * Update story rating (called when a rating is added/updated)
    */
   async updateRating(id: string): Promise<void> {
-    // This would calculate the new average rating from all ratings
-    // For now, it's a placeholder
+    const result = await this.ratingRepository
+      .createQueryBuilder('rating')
+      .select('AVG(rating.rating)', 'avg')
+      .addSelect('COUNT(rating.id)', 'count')
+      .where('rating.storyId = :id', { id })
+      .getRawOne();
+
+    const averageRating = result?.avg ? parseFloat(result.avg) : 0;
+    const ratingsCount = result?.count ? parseInt(result.count, 10) : 0;
+
+    await this.storyRepository.update(id, {
+      averageRating: Math.round(averageRating * 10) / 10,
+      ratingsCount,
+    });
   }
 
   /**
