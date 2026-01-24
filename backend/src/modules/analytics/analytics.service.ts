@@ -15,7 +15,7 @@ import {
   Choice,
   User,
 } from '@entities';
-import { TransactionType } from '@aardvark/shared';
+import { TransactionType, PLATFORM_FEE_PERCENTAGE } from '@aardvark/shared';
 import {
   AuthorDashboard,
   TopStory,
@@ -36,7 +36,7 @@ import {
   DropoffPoint,
   EngagementTrends,
   ExportResult,
-  ExportFormat,
+  ExportFormatType,
 } from './analytics.types';
 import { AnalyticsPeriod } from './dto/analytics.dto';
 
@@ -566,18 +566,30 @@ export class AnalyticsService {
   ): Promise<SegmentStat[]> {
     const segments = await this.segmentRepository
       .createQueryBuilder('segment')
+      .leftJoinAndSelect('segment.choices', 'choice')
       .where('segment.storyId = :storyId', { storyId })
       .orderBy('segment.readCount', 'DESC')
       .limit(limit)
       .getMany();
 
-    return segments.map((segment) => ({
-      segmentId: segment.id,
-      title: segment.title,
-      readCount: segment.readCount,
-      avgTimeSpent: segment.estimatedReadTime,
-      dropoffRate: 0, // This would need more complex calculation
-    }));
+    return segments.map((segment) => {
+      let dropoffRate = 0;
+      if (!segment.isEnding && segment.readCount > 0) {
+        const totalChosen = (segment.choices || []).reduce(
+          (sum, c) => sum + (c.timesChosen || 0),
+          0,
+        );
+        dropoffRate = Math.round(((segment.readCount - totalChosen) / segment.readCount) * 100);
+        if (dropoffRate < 0) dropoffRate = 0;
+      }
+      return {
+        segmentId: segment.id,
+        title: segment.title,
+        readCount: segment.readCount,
+        avgTimeSpent: segment.estimatedReadTime,
+        dropoffRate,
+      };
+    });
   }
 
   /**
@@ -907,9 +919,11 @@ export class AnalyticsService {
       .orderBy('txn.createdAt', 'DESC')
       .getMany();
 
+    const feeRate = PLATFORM_FEE_PERCENTAGE / 100;
+    const authorRate = 1 - feeRate;
     const totalGross = transactions.reduce((sum, txn) => sum + txn.amount, 0);
-    const totalFees = totalGross * 0.1; // Assuming 10% platform fee
-    const totalNet = totalGross - totalFees;
+    const totalFees = totalGross * feeRate;
+    const totalNet = totalGross * authorRate;
 
     // Group by story
     const byStoryMap = new Map<string, StoryEarnings>();
@@ -926,8 +940,8 @@ export class AnalyticsService {
         };
 
         existing.gross += txn.amount;
-        existing.fees += txn.amount * 0.1;
-        existing.net += txn.amount * 0.9;
+        existing.fees += txn.amount * feeRate;
+        existing.net += txn.amount * authorRate;
         existing.transactionCount++;
 
         byStoryMap.set(txn.referenceId, existing);
@@ -1236,7 +1250,7 @@ export class AnalyticsService {
   async exportAnalytics(
     authorId: string,
     type: 'dashboard' | 'stories' | 'earnings' | 'readers',
-    format: ExportFormat = 'json',
+    format: ExportFormatType = 'json',
   ): Promise<ExportResult> {
     let data: any;
 

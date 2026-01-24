@@ -394,7 +394,7 @@ export function VisualEditor({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveSegment}
-        initialData={editingSegment || undefined}
+        initialData={editingSegment ? { ...editingSegment, title: editingSegment.title ?? undefined, contentMarkdown: editingSegment.contentMarkdown ?? undefined } : undefined}
         stateVariables={stateVariables}
         storyId={storyId}
       />

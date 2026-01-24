@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ReaderHeader, ReaderContent, ChoiceList, ProgressSidebar } from '@/components/reader';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { storiesApi, segmentsApi, choicesApi, progressApi } from '@/lib/api';
 
 // Types
 interface Story {
@@ -42,98 +43,77 @@ interface Progress {
   isCompleted: boolean;
 }
 
-// Mock API functions (replace with actual API calls)
-const api = {
-  getStory: async (slug: string): Promise<Story> => {
-    // Mock data - replace with actual API call
-    return {
-      id: '1',
-      title: 'The Dragon\'s Choice',
-      slug: slug,
-      rootSegmentId: 'seg-1',
-    };
-  },
+function getToken(): string | undefined {
+  return typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+}
 
-  getSegment: async (segmentId: string): Promise<Segment> => {
-    // Mock data - replace with actual API call
-    const segments: Record<string, Segment> = {
-      'seg-1': {
-        id: 'seg-1',
-        title: 'The Beginning',
-        content: `
-          <p>You stand at the entrance of a dark cave. The wind howls behind you, pushing you forward into the unknown darkness. Your torch flickers, casting dancing shadows on the ancient stone walls.</p>
-          <p>Legend speaks of a dragon who guards an immense treasure deep within these mountains. Many have entered seeking fortune; few have returned.</p>
-          <p>As you take your first steps into the cave, you hear a sound ahead. It could be the wind echoing through the tunnels, or perhaps something else entirely...</p>
-        `,
-        isEnding: false,
-        endingType: null,
-        stateEffects: [],
-        choices: [
-          { id: 'c1', choiceText: 'Proceed cautiously with your torch held high', nextSegmentId: 'seg-2', order: 1, isHidden: false },
-          { id: 'c2', choiceText: 'Call out to see if anyone responds', nextSegmentId: 'seg-3', order: 2, isHidden: false },
-          { id: 'c3', choiceText: 'Extinguish your torch and move silently in the dark', nextSegmentId: 'seg-4', order: 3, isHidden: false },
-        ],
-      },
-      'seg-2': {
-        id: 'seg-2',
-        title: 'The Careful Path',
-        content: `
-          <p>You raise your torch higher, letting its warm glow push back the shadows. The cave walls glitter with mineral deposits - crystals that catch the firelight and scatter it like stars.</p>
-          <p>Ahead, the tunnel splits into two passages. The left path slopes downward, and you can hear the distant sound of running water. The right path continues level, but there are strange markings etched into the stone.</p>
-        `,
-        isEnding: false,
-        endingType: null,
-        stateEffects: [{ variableName: 'careful', operation: 'set', value: true }],
-        choices: [
-          { id: 'c4', choiceText: 'Take the left path toward the water', nextSegmentId: 'seg-5', order: 1, isHidden: false },
-          { id: 'c5', choiceText: 'Examine the markings on the right path', nextSegmentId: 'seg-6', order: 2, isHidden: false },
-        ],
-      },
-      'seg-3': {
-        id: 'seg-3',
-        title: 'A Voice in the Dark',
-        content: `
-          <p>"Hello?" Your voice echoes through the cavern, bouncing off walls you cannot see. For a long moment, there is only silence.</p>
-          <p>Then, a deep, rumbling voice responds from somewhere far below: "Who dares enter my domain?"</p>
-          <p>The dragon knows you're here now. There's no turning back.</p>
-        `,
-        isEnding: false,
-        endingType: null,
-        stateEffects: [{ variableName: 'dragon_aware', operation: 'set', value: true }],
-        choices: [
-          { id: 'c6', choiceText: '"I come seeking wisdom, great one!"', nextSegmentId: 'seg-7', order: 1, isHidden: false },
-          { id: 'c7', choiceText: 'Run back toward the entrance', nextSegmentId: 'seg-8', order: 2, isHidden: false },
-        ],
-      },
-      'seg-4': {
-        id: 'seg-4',
-        title: 'Darkness Embraces You',
-        content: `
-          <p>You extinguish your torch with a quick motion. Darkness swallows you whole, but your other senses sharpen. You can smell the musty age of the cave, feel the slight movement of air indicating passages ahead.</p>
-          <p>Moving by touch alone, you navigate deeper. Your hand brushes against something unexpected - scales, warm and smooth.</p>
-          <p>Before you can react, a massive eye opens right in front of you, glowing with an inner fire that illuminates your terrified face.</p>
-          <p>"Brave, or foolish?" the dragon muses. "Perhaps both."</p>
-        `,
-        isEnding: true,
-        endingType: 'neutral',
-        stateEffects: [],
-        choices: [],
-      },
-    };
+async function loadSegmentWithChoices(segmentId: string): Promise<Segment> {
+  const segmentData = await segmentsApi.getById(segmentId);
+  let segChoices: Choice[] = [];
+  try {
+    segChoices = await choicesApi.getBySegment(segmentId);
+  } catch {
+    // Segment may have no choices
+  }
+  return {
+    ...segmentData,
+    choices: (segChoices || []).sort((a: Choice, b: Choice) => a.order - b.order),
+  };
+}
 
-    return segments[segmentId] || segments['seg-1'];
-  },
+async function loadProgress(storyId: string, rootSegmentId: string): Promise<Progress> {
+  const token = getToken();
+  if (token) {
+    try {
+      const serverProgress = await progressApi.get(storyId, token);
+      if (serverProgress) {
+        return {
+          id: serverProgress.id,
+          currentSegmentId: serverProgress.currentSegmentId,
+          visitedSegmentIds: serverProgress.visitedSegmentIds || [rootSegmentId],
+          choiceHistory: serverProgress.choiceHistory || [],
+          stateVariables: serverProgress.stateVariables || {},
+          bookmarks: serverProgress.bookmarks || [],
+          isCompleted: serverProgress.isCompleted || false,
+        };
+      }
+    } catch {
+      // No progress yet, will create below
+    }
+    // Start new progress on server
+    try {
+      const newProgress = await progressApi.start(storyId, token);
+      return {
+        id: newProgress.id,
+        currentSegmentId: rootSegmentId,
+        visitedSegmentIds: [rootSegmentId],
+        choiceHistory: [],
+        stateVariables: {},
+        bookmarks: [],
+        isCompleted: false,
+      };
+    } catch {
+      // Fall through to local
+    }
+  }
 
-  getProgress: async (storyId: string): Promise<Progress | null> => {
-    // Check localStorage for saved progress
-    const saved = localStorage.getItem(`progress-${storyId}`);
-    return saved ? JSON.parse(saved) : null;
-  },
+  // Fallback: localStorage for unauthenticated users
+  const saved = localStorage.getItem(`progress-${storyId}`);
+  if (saved) return JSON.parse(saved);
+  return {
+    id: `local-${storyId}`,
+    currentSegmentId: rootSegmentId,
+    visitedSegmentIds: [rootSegmentId],
+    choiceHistory: [],
+    stateVariables: {},
+    bookmarks: [],
+    isCompleted: false,
+  };
+}
 
-  saveProgress: async (storyId: string, progress: Progress): Promise<void> => {
-    localStorage.setItem(`progress-${storyId}`, JSON.stringify(progress));
-  },
-};
+function saveLocalProgress(storyId: string, progress: Progress): void {
+  localStorage.setItem(`progress-${storyId}`, JSON.stringify(progress));
+}
 
 export default function StoryReaderPage() {
   const params = useParams();
@@ -151,29 +131,18 @@ export default function StoryReaderPage() {
 
   // Load story and progress
   useEffect(() => {
-    async function loadStory() {
+    async function init() {
       try {
         setIsLoading(true);
-        const storyData = await api.getStory(slug);
+        const storyData = await storiesApi.getBySlug(slug);
         setStory(storyData);
 
         // Load or create progress
-        let progressData = await api.getProgress(storyData.id);
-        if (!progressData) {
-          progressData = {
-            id: `progress-${storyData.id}`,
-            currentSegmentId: storyData.rootSegmentId,
-            visitedSegmentIds: [storyData.rootSegmentId],
-            choiceHistory: [],
-            stateVariables: {},
-            bookmarks: [],
-            isCompleted: false,
-          };
-        }
+        const progressData = await loadProgress(storyData.id, storyData.rootSegmentId);
         setProgress(progressData);
 
-        // Load current segment
-        const segmentData = await api.getSegment(progressData.currentSegmentId);
+        // Load current segment with choices
+        const segmentData = await loadSegmentWithChoices(progressData.currentSegmentId);
         setSegment(segmentData);
         setStartTime(Date.now());
       } catch (err) {
@@ -184,7 +153,7 @@ export default function StoryReaderPage() {
       }
     }
 
-    loadStory();
+    init();
   }, [slug]);
 
   // Handle choice selection
@@ -198,10 +167,9 @@ export default function StoryReaderPage() {
         const choice = segment.choices.find((c) => c.id === choiceId);
         if (!choice) return;
 
-        // Calculate time spent
         const timeSpent = Math.floor((Date.now() - startTime) / 1000);
 
-        // Update progress
+        // Update progress locally
         const updatedProgress: Progress = {
           ...progress,
           currentSegmentId: choice.nextSegmentId,
@@ -214,8 +182,8 @@ export default function StoryReaderPage() {
           ],
         };
 
-        // Load next segment
-        const nextSegment = await api.getSegment(choice.nextSegmentId);
+        // Load next segment with choices
+        const nextSegment = await loadSegmentWithChoices(choice.nextSegmentId);
 
         // Apply state effects
         if (nextSegment.stateEffects) {
@@ -229,8 +197,19 @@ export default function StoryReaderPage() {
           updatedProgress.isCompleted = true;
         }
 
-        // Save progress
-        await api.saveProgress(story.id, updatedProgress);
+        // Persist progress
+        const token = getToken();
+        if (token) {
+          try {
+            await progressApi.makeChoice(story.id, choiceId, timeSpent, token);
+          } catch {
+            // Fallback to local
+          }
+        }
+        saveLocalProgress(story.id, updatedProgress);
+
+        // Record choice analytics (fire-and-forget)
+        choicesApi.recordChoice(choiceId).catch(() => {});
 
         // Update state
         setProgress(updatedProgress);
@@ -256,7 +235,7 @@ export default function StoryReaderPage() {
       setIsTransitioning(true);
 
       try {
-        const segmentData = await api.getSegment(segmentId);
+        const segmentData = await loadSegmentWithChoices(segmentId);
 
         const updatedProgress: Progress = {
           ...progress,
@@ -264,7 +243,16 @@ export default function StoryReaderPage() {
           isCompleted: false,
         };
 
-        await api.saveProgress(story.id, updatedProgress);
+        // Persist
+        const token = getToken();
+        if (token) {
+          try {
+            await progressApi.navigate(story.id, segmentId, token);
+          } catch {
+            // Fallback to local
+          }
+        }
+        saveLocalProgress(story.id, updatedProgress);
 
         setProgress(updatedProgress);
         setSegment(segmentData);
@@ -290,19 +278,32 @@ export default function StoryReaderPage() {
     );
 
     let updatedBookmarks: Progress['bookmarks'];
+    const token = getToken();
+
     if (isBookmarked) {
       updatedBookmarks = progress.bookmarks.filter(
         (b) => b.segmentId !== segment.id
       );
+      if (token) {
+        try {
+          await progressApi.removeBookmark(story.id, segment.id, token);
+        } catch { /* fallback to local */ }
+      }
     } else {
+      const note = segment.title || '';
       updatedBookmarks = [
         ...progress.bookmarks,
-        { segmentId: segment.id, note: segment.title || '', createdAt: new Date() },
+        { segmentId: segment.id, note, createdAt: new Date() },
       ];
+      if (token) {
+        try {
+          await progressApi.addBookmark(story.id, segment.id, note, token);
+        } catch { /* fallback to local */ }
+      }
     }
 
     const updatedProgress = { ...progress, bookmarks: updatedBookmarks };
-    await api.saveProgress(story.id, updatedProgress);
+    saveLocalProgress(story.id, updatedProgress);
     setProgress(updatedProgress);
   }, [story, segment, progress]);
 
@@ -316,7 +317,7 @@ export default function StoryReaderPage() {
     if (!confirmed) return;
 
     const newProgress: Progress = {
-      id: `progress-${story.id}`,
+      id: progress?.id || `local-${story.id}`,
       currentSegmentId: story.rootSegmentId,
       visitedSegmentIds: [story.rootSegmentId],
       choiceHistory: [],
@@ -325,15 +326,22 @@ export default function StoryReaderPage() {
       isCompleted: false,
     };
 
-    await api.saveProgress(story.id, newProgress);
+    // Reset on server
+    const token = getToken();
+    if (token) {
+      try {
+        await progressApi.reset(story.id, token);
+      } catch { /* fallback to local */ }
+    }
+    saveLocalProgress(story.id, newProgress);
     setProgress(newProgress);
 
-    const segmentData = await api.getSegment(story.rootSegmentId);
+    const segmentData = await loadSegmentWithChoices(story.rootSegmentId);
     setSegment(segmentData);
     setStartTime(Date.now());
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [story]);
+  }, [story, progress]);
 
   // Loading state
   if (isLoading) {

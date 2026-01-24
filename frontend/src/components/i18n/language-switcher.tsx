@@ -2,7 +2,7 @@
 
 import { Globe } from 'lucide-react';
 import { useState } from 'react';
-import { locales, localeNames, type Locale } from '@/i18n/config';
+import { locales, localeNames } from '@/i18n/config';
 import { useTranslations } from '@/hooks/use-translations';
 
 /**

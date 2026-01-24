@@ -1,12 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReviewDashboard } from '@/components/submissions';
+import {
+  storiesApi,
+  segmentsApi,
+  choicesApi,
+  stateVariablesApi,
+  branchSubmissionsApi,
+} from '@/lib/api';
 
 // Dynamically import the visual editor to avoid SSR issues with React Flow
 const VisualEditorWithProvider = dynamic(
@@ -92,135 +99,9 @@ interface BranchSubmission {
   createdAt: string;
 }
 
-// Mock API - replace with actual API calls
-const mockStory: Story = {
-  id: '1',
-  title: 'The Dragon\'s Choice',
-  slug: 'the-dragons-choice',
-  description: 'An epic adventure where your choices determine your fate.',
-  status: 'draft',
-  collaborationMode: 'moderated',
-  rootSegmentId: 'seg-1',
-};
-
-const mockSegments: Segment[] = [
-  {
-    id: 'seg-1',
-    title: 'The Beginning',
-    content: '<p>You stand at the entrance of a dark cave...</p>',
-    contentMarkdown: 'You stand at the entrance of a dark cave...',
-    position: { x: 250, y: 50 },
-    isRootSegment: true,
-    isEnding: false,
-    endingType: null,
-    wordCount: 45,
-    stateEffects: [],
-  },
-  {
-    id: 'seg-2',
-    title: 'The Careful Path',
-    content: '<p>You raise your torch higher...</p>',
-    contentMarkdown: 'You raise your torch higher...',
-    position: { x: 100, y: 200 },
-    isRootSegment: false,
-    isEnding: false,
-    endingType: null,
-    wordCount: 38,
-    stateEffects: [{ variableName: 'careful', operation: 'set', value: true }],
-  },
-  {
-    id: 'seg-3',
-    title: 'A Voice in the Dark',
-    content: '<p>"Hello?" Your voice echoes...</p>',
-    contentMarkdown: '"Hello?" Your voice echoes...',
-    position: { x: 400, y: 200 },
-    isRootSegment: false,
-    isEnding: false,
-    endingType: null,
-    wordCount: 42,
-    stateEffects: [{ variableName: 'dragon_aware', operation: 'set', value: true }],
-  },
-  {
-    id: 'seg-4',
-    title: 'Darkness Embraces You',
-    content: '<p>You extinguish your torch...</p>',
-    contentMarkdown: 'You extinguish your torch...',
-    position: { x: 250, y: 350 },
-    isRootSegment: false,
-    isEnding: true,
-    endingType: 'neutral',
-    wordCount: 55,
-    stateEffects: [],
-  },
-];
-
-const mockChoices: Choice[] = [
-  {
-    id: 'c1',
-    segmentId: 'seg-1',
-    nextSegmentId: 'seg-2',
-    choiceText: 'Proceed cautiously with your torch held high',
-    order: 1,
-    conditions: [],
-  },
-  {
-    id: 'c2',
-    segmentId: 'seg-1',
-    nextSegmentId: 'seg-3',
-    choiceText: 'Call out to see if anyone responds',
-    order: 2,
-    conditions: [],
-  },
-  {
-    id: 'c3',
-    segmentId: 'seg-2',
-    nextSegmentId: 'seg-4',
-    choiceText: 'Continue into the darkness',
-    order: 1,
-    conditions: [],
-  },
-];
-
-const mockStateVariables: StateVariable[] = [
-  { id: 'var-1', name: 'careful', displayName: 'Careful Approach', type: 'boolean' },
-  { id: 'var-2', name: 'dragon_aware', displayName: 'Dragon Awareness', type: 'boolean' },
-  { id: 'var-3', name: 'trust_level', displayName: 'Trust Level', type: 'number' },
-];
-
-const mockSubmissions: BranchSubmission[] = [
-  {
-    id: 'sub-1',
-    segmentData: {
-      title: 'The Dragon Awakens',
-      content: '<p>The dragon slowly opens one eye, its golden pupil focusing on you...</p>',
-      isEnding: false,
-      endingType: null,
-    },
-    choicesData: [{ choiceText: 'Approach the dragon cautiously', order: 1 }],
-    submissionNote: 'This branch explores what happens when you actually meet the dragon.',
-    status: 'pending',
-    submittedBy: { id: 'user-2', username: 'dragonwriter', displayName: 'Dragon Writer' },
-    parentSegment: { id: 'seg-3', title: 'A Voice in the Dark' },
-    reviewNote: null,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'sub-2',
-    segmentData: {
-      title: 'Hidden Treasure',
-      content: '<p>Behind a loose stone, you discover a cache of ancient gold coins...</p>',
-      isEnding: true,
-      endingType: 'good',
-    },
-    choicesData: [{ choiceText: 'Search the walls carefully', order: 1 }],
-    submissionNote: 'A secret good ending for careful explorers!',
-    status: 'pending',
-    submittedBy: { id: 'user-3', username: 'treasurehunter', displayName: 'Treasure Hunter' },
-    parentSegment: { id: 'seg-2', title: 'The Careful Path' },
-    reviewNote: null,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+function getToken(): string | undefined {
+  return typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+}
 
 export default function StoryEditorPage() {
   const params = useParams();
@@ -235,17 +116,62 @@ export default function StoryEditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'visual' | 'settings' | 'variables' | 'submissions'>('visual');
 
-  // Load story data
+  // Settings form state
+  const [settingsTitle, setSettingsTitle] = useState('');
+  const [settingsDescription, setSettingsDescription] = useState('');
+  const [settingsCollabMode, setSettingsCollabMode] = useState('private');
+  const [newVarName, setNewVarName] = useState('');
+  const [newVarDisplayName, setNewVarDisplayName] = useState('');
+  const [newVarType, setNewVarType] = useState('boolean');
+  const [showAddVariable, setShowAddVariable] = useState(false);
+
+  // Load story data from API
   useEffect(() => {
     async function loadStory() {
+      const token = getToken();
       try {
-        // Mock API call - replace with actual
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setStory(mockStory);
-        setSegments(mockSegments);
-        setChoices(mockChoices);
-        setStateVariables(mockStateVariables);
-        setSubmissions(mockSubmissions);
+        // Fetch the story by slug
+        const storyData = await storiesApi.getBySlug(slug);
+        setStory(storyData);
+        setSettingsTitle(storyData.title);
+        setSettingsDescription(storyData.description || '');
+        setSettingsCollabMode(storyData.collaborationMode || 'private');
+
+        // Fetch segments for this story
+        const segmentsData = await segmentsApi.getByStory(storyData.id);
+        setSegments(segmentsData || []);
+
+        // Fetch all choices for all segments
+        const allChoices: Choice[] = [];
+        for (const seg of segmentsData || []) {
+          try {
+            const segChoices = await choicesApi.getBySegment(seg.id);
+            allChoices.push(...(segChoices || []));
+          } catch {
+            // Segment may have no choices
+          }
+        }
+        setChoices(allChoices);
+
+        // Fetch state variables
+        if (token) {
+          try {
+            const vars = await stateVariablesApi.getByStory(storyData.id, token);
+            setStateVariables(vars || []);
+          } catch {
+            // No variables yet
+          }
+        }
+
+        // Fetch branch submissions
+        if (token && storyData.collaborationMode !== 'private') {
+          try {
+            const subsData = await branchSubmissionsApi.getByStory(storyData.id, token);
+            setSubmissions(subsData?.submissions || []);
+          } catch {
+            // No submissions
+          }
+        }
       } catch (error) {
         console.error('Failed to load story:', error);
       } finally {
@@ -256,10 +182,13 @@ export default function StoryEditorPage() {
     loadStory();
   }, [slug]);
 
-  // API handlers - replace with actual API calls
-  const handleSegmentCreate = async (segment: Partial<Segment>): Promise<Segment> => {
-    const newSegment: Segment = {
-      id: `seg-${Date.now()}`,
+  // Real API handlers
+  const handleSegmentCreate = useCallback(async (segment: Partial<Segment>): Promise<Segment> => {
+    const token = getToken();
+    if (!token || !story) throw new Error('Not authenticated');
+
+    const created = await segmentsApi.create({
+      storyId: story.id,
       title: segment.title || null,
       content: segment.content || '',
       contentMarkdown: segment.contentMarkdown || null,
@@ -267,50 +196,116 @@ export default function StoryEditorPage() {
       isRootSegment: segments.length === 0,
       isEnding: segment.isEnding || false,
       endingType: segment.endingType || null,
-      wordCount: segment.content?.split(/\s+/).length || 0,
       stateEffects: segment.stateEffects || [],
-    };
-    setSegments((prev) => [...prev, newSegment]);
-    return newSegment;
-  };
+    }, token);
 
-  const handleSegmentUpdate = async (id: string, data: Partial<Segment>): Promise<void> => {
+    setSegments((prev) => [...prev, created]);
+    return created;
+  }, [story, segments.length]);
+
+  const handleSegmentUpdate = useCallback(async (id: string, data: Partial<Segment>): Promise<void> => {
+    const token = getToken();
+    if (!token) return;
+
+    await segmentsApi.update(id, data, token);
     setSegments((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...data } : s))
     );
-  };
+  }, []);
 
-  const handleSegmentDelete = async (id: string): Promise<void> => {
+  const handleSegmentDelete = useCallback(async (id: string): Promise<void> => {
+    const token = getToken();
+    if (!token) return;
+
+    await segmentsApi.delete(id, token);
     setSegments((prev) => prev.filter((s) => s.id !== id));
     setChoices((prev) => prev.filter((c) => c.segmentId !== id && c.nextSegmentId !== id));
-  };
+  }, []);
 
-  const handleChoiceCreate = async (choice: Partial<Choice>): Promise<Choice> => {
-    const newChoice: Choice = {
-      id: `choice-${Date.now()}`,
-      segmentId: choice.segmentId!,
-      nextSegmentId: choice.nextSegmentId!,
+  const handleChoiceCreate = useCallback(async (choice: Partial<Choice>): Promise<Choice> => {
+    const token = getToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const created = await choicesApi.create({
+      segmentId: choice.segmentId,
+      nextSegmentId: choice.nextSegmentId,
       choiceText: choice.choiceText || 'New choice',
       order: choices.filter((c) => c.segmentId === choice.segmentId).length + 1,
       conditions: [],
-    };
-    setChoices((prev) => [...prev, newChoice]);
-    return newChoice;
-  };
+    }, token);
 
-  const handleChoiceDelete = async (id: string): Promise<void> => {
+    setChoices((prev) => [...prev, created]);
+    return created;
+  }, [choices]);
+
+  const handleChoiceDelete = useCallback(async (id: string): Promise<void> => {
+    const token = getToken();
+    if (!token) return;
+
+    await choicesApi.delete(id, token);
     setChoices((prev) => prev.filter((c) => c.id !== id));
-  };
+  }, []);
 
-  const handlePositionsUpdate = async (
+  const handlePositionsUpdate = useCallback(async (
     positions: { segmentId: string; x: number; y: number }[]
   ): Promise<void> => {
+    const token = getToken();
+    if (!token || !story) return;
+
+    await segmentsApi.updatePositions(story.id, positions, token);
     setSegments((prev) =>
       prev.map((s) => {
         const pos = positions.find((p) => p.segmentId === s.id);
         return pos ? { ...s, position: { x: pos.x, y: pos.y } } : s;
       })
     );
+  }, [story]);
+
+  // Variable management
+  const handleAddVariable = async () => {
+    const token = getToken();
+    if (!token || !story || !newVarName.trim()) return;
+
+    const created = await stateVariablesApi.create({
+      storyId: story.id,
+      name: newVarName.trim(),
+      displayName: newVarDisplayName.trim() || newVarName.trim(),
+      type: newVarType,
+      defaultValue: newVarType === 'boolean' ? false : newVarType === 'number' ? 0 : '',
+    }, token);
+
+    setStateVariables((prev) => [...prev, created]);
+    setNewVarName('');
+    setNewVarDisplayName('');
+    setNewVarType('boolean');
+    setShowAddVariable(false);
+  };
+
+  const handleDeleteVariable = async (id: string) => {
+    const token = getToken();
+    if (!token) return;
+
+    await stateVariablesApi.delete(id, token);
+    setStateVariables((prev) => prev.filter((v) => v.id !== id));
+  };
+
+  // Settings save
+  const handleSaveSettings = async () => {
+    const token = getToken();
+    if (!token || !story) return;
+
+    await storiesApi.update(story.id, {
+      title: settingsTitle,
+      description: settingsDescription,
+      collaborationMode: settingsCollabMode,
+    }, token);
+
+    setStory((prev) => prev ? {
+      ...prev,
+      title: settingsTitle,
+      description: settingsDescription,
+      collaborationMode: settingsCollabMode,
+    } : null);
   };
 
   if (isLoading) {
@@ -445,13 +440,62 @@ export default function StoryEditorPage() {
                   Define variables to track reader choices and unlock conditional content
                 </p>
               </div>
-              <Button>Add Variable</Button>
+              <Button onClick={() => setShowAddVariable(true)}>Add Variable</Button>
             </div>
 
-            {stateVariables.length === 0 ? (
+            {showAddVariable && (
+              <div className="mb-6 p-4 border rounded-lg space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Name (code)</label>
+                    <input
+                      type="text"
+                      value={newVarName}
+                      onChange={(e) => setNewVarName(e.target.value)}
+                      placeholder="e.g. has_key"
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Display Name</label>
+                    <input
+                      type="text"
+                      value={newVarDisplayName}
+                      onChange={(e) => setNewVarDisplayName(e.target.value)}
+                      placeholder="e.g. Has Key"
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Type</label>
+                    <select
+                      value={newVarType}
+                      onChange={(e) => setNewVarType(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    >
+                      <option value="boolean">Boolean</option>
+                      <option value="number">Number</option>
+                      <option value="string">String</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setShowAddVariable(false)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleAddVariable} disabled={!newVarName.trim()}>
+                    Create
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {stateVariables.length === 0 && !showAddVariable ? (
               <div className="text-center py-12 bg-muted/30 rounded-lg">
                 <p className="text-muted-foreground mb-4">No variables defined yet</p>
-                <Button variant="outline">Create your first variable</Button>
+                <Button variant="outline" onClick={() => setShowAddVariable(true)}>
+                  Create your first variable
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -467,8 +511,14 @@ export default function StoryEditorPage() {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">Edit</Button>
-                      <Button variant="ghost" size="sm" className="text-destructive">Delete</Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => handleDeleteVariable(variable.id)}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -485,27 +535,33 @@ export default function StoryEditorPage() {
                 <label className="block text-sm font-medium mb-2">Title</label>
                 <input
                   type="text"
-                  defaultValue={story.title}
+                  value={settingsTitle}
+                  onChange={(e) => setSettingsTitle(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Description</label>
                 <textarea
-                  defaultValue={story.description}
+                  value={settingsDescription}
+                  onChange={(e) => setSettingsDescription(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border rounded-md"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Collaboration Mode</label>
-                <select className="w-full px-3 py-2 border rounded-md">
+                <select
+                  value={settingsCollabMode}
+                  onChange={(e) => setSettingsCollabMode(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                >
                   <option value="private">Private - Only you can edit</option>
                   <option value="moderated">Moderated - Others can submit branches for approval</option>
                   <option value="open">Open - Anyone can add branches</option>
                 </select>
               </div>
-              <Button>Save Settings</Button>
+              <Button onClick={handleSaveSettings}>Save Settings</Button>
             </div>
           </div>
         )}
@@ -514,7 +570,10 @@ export default function StoryEditorPage() {
           <ReviewDashboard
             submissions={submissions}
             onReview={async (submissionId, status, reviewNote) => {
-              // Mock API call - replace with actual
+              const token = getToken();
+              if (!token) return;
+
+              await branchSubmissionsApi.review(submissionId, { status, reviewNote }, token);
               setSubmissions((prev) =>
                 prev.map((s) =>
                   s.id === submissionId

@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, ILike } from 'typeorm';
+import { Repository, FindOptionsWhere, ILike, Not, IsNull, MoreThan } from 'typeorm';
 import {
   StoryStatus,
   StoryCategory,
@@ -127,32 +127,72 @@ export class StoriesService {
   }
 
   /**
-   * Find featured stories
+   * Find featured stories (admin-featured first, then top-rated fallback)
    */
   async findFeatured(limit = 4): Promise<Story[]> {
-    return this.storyRepository.find({
+    // First, get explicitly featured stories
+    const featured = await this.storyRepository.find({
       where: {
         status: StoryStatus.PUBLISHED,
-        featuredAt: undefined, // Will be updated when featuring is implemented
+        featuredAt: Not(IsNull()),
       },
-      order: {
-        averageRating: 'DESC',
-        viewCount: 'DESC',
-      },
+      order: { featuredAt: 'DESC' },
       take: limit,
+      relations: ['author'],
     });
+
+    if (featured.length >= limit) return featured;
+
+    // Fill remaining slots with top-rated stories
+    const remaining = limit - featured.length;
+    const featuredIds = featured.map((s) => s.id);
+    const topRated = await this.storyRepository
+      .createQueryBuilder('story')
+      .leftJoinAndSelect('story.author', 'author')
+      .where('story.status = :status', { status: StoryStatus.PUBLISHED })
+      .andWhere('story.ratingsCount >= :minRatings', { minRatings: 3 })
+      .andWhere(featuredIds.length > 0 ? 'story.id NOT IN (:...ids)' : '1=1', { ids: featuredIds })
+      .orderBy('story.averageRating', 'DESC')
+      .addOrderBy('story.viewCount', 'DESC')
+      .take(remaining)
+      .getMany();
+
+    return [...featured, ...topRated];
   }
 
   /**
-   * Find trending stories (last 7 days by views)
+   * Find trending stories (recency-weighted popularity)
    */
   async findTrending(limit = 6): Promise<Story[]> {
-    // For MVP, just return most viewed published stories
-    return this.storyRepository.find({
-      where: { status: StoryStatus.PUBLISHED },
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Prefer recently published stories with high view counts
+    const recent = await this.storyRepository.find({
+      where: {
+        status: StoryStatus.PUBLISHED,
+        publishedAt: MoreThan(thirtyDaysAgo),
+      },
       order: { viewCount: 'DESC' },
       take: limit,
+      relations: ['author'],
     });
+
+    if (recent.length >= limit) return recent;
+
+    // Fill remaining with all-time popular stories
+    const remaining = limit - recent.length;
+    const recentIds = recent.map((s) => s.id);
+    const popular = await this.storyRepository
+      .createQueryBuilder('story')
+      .leftJoinAndSelect('story.author', 'author')
+      .where('story.status = :status', { status: StoryStatus.PUBLISHED })
+      .andWhere(recentIds.length > 0 ? 'story.id NOT IN (:...ids)' : '1=1', { ids: recentIds })
+      .orderBy('story.viewCount', 'DESC')
+      .take(remaining)
+      .getMany();
+
+    return [...recent, ...popular];
   }
 
   /**
@@ -260,18 +300,18 @@ export class StoriesService {
   }
 
   /**
-   * Get story slugs and update dates for sitemap generation
+   * Get story IDs and update dates for sitemap generation
    */
-  async getSitemapData(): Promise<Array<{ slug: string; updatedAt: string }>> {
+  async getSitemapData(): Promise<Array<{ id: string; updatedAt: string }>> {
     const stories = await this.storyRepository.find({
       where: { status: StoryStatus.PUBLISHED },
-      select: ['slug', 'updatedAt'],
+      select: ['id', 'updatedAt'],
       order: { updatedAt: 'DESC' },
       take: 10000,
     });
 
     return stories.map((story) => ({
-      slug: story.slug,
+      id: story.id,
       updatedAt: story.updatedAt.toISOString(),
     }));
   }

@@ -317,9 +317,7 @@ export interface AuthorPayoutAccount {
 // Minimum payout threshold in cents
 export const MIN_PAYOUT_AMOUNT = 5000; // $50
 
-// Platform revenue share
-export const PLATFORM_FEE_PERCENTAGE = 0.3; // 30%
-export const AUTHOR_SHARE_PERCENTAGE = 0.7; // 70%
+// Platform revenue share - values defined in constants/index.ts
 
 // ============================================================================
 // DTOs

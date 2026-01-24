@@ -43,8 +43,6 @@ export function sanitizeHtml(dirty: string): string {
     ADD_ATTR: ['target'],
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'textarea'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
-    // Force all links to open in new tab with noopener
-    ADD_HOOKS: true,
   });
 }
 

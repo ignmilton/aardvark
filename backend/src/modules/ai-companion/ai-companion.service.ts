@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -29,6 +30,7 @@ import {
  */
 @Injectable()
 export class AICompanionService {
+  private readonly logger = new Logger(AICompanionService.name);
   private openai: OpenAI;
   private readonly creditsPerOperation = {
     [AIOperationType.CONTINUE_STORY]: 10,
@@ -611,7 +613,7 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
       });
     } catch (error) {
       // Don't throw on logging errors
-      console.error('Failed to log AI usage:', error);
+      this.logger.warn('Failed to log AI usage', error instanceof Error ? error.message : error);
     }
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import Link, { type LinkProps } from 'next/link';
 import { useInView } from 'react-intersection-observer';
 

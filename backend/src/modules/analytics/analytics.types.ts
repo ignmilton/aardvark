@@ -295,13 +295,13 @@ export interface EngagementTrends {
 /**
  * Export format type
  */
-export type ExportFormat = 'csv' | 'json';
+export type ExportFormatType = 'csv' | 'json';
 
 /**
  * Export result
  */
 export interface ExportResult {
-  format: ExportFormat;
+  format: ExportFormatType;
   data: string;
   filename: string;
   contentType: string;

@@ -217,7 +217,7 @@ export function RewardAdButton({
       </Button>
 
       <Dialog open={showAdDialog} onOpenChange={(open) => !adState.isPlaying && setShowAdDialog(open)}>
-        <DialogContent className="sm:max-w-md" hideCloseButton={adState.isPlaying}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {adState.isLoading

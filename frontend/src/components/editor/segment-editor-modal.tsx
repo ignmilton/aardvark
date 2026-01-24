@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { RichTextEditor } from './rich-text-editor';
-import { useAutosave, DraftData } from './use-autosave';
+import { useAutosave } from './use-autosave';
 
 interface StateEffect {
   variableId: string;

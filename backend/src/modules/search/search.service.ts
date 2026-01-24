@@ -474,12 +474,12 @@ export class SearchService implements OnModuleInit {
       complexity: story.complexity,
       viewCount: story.viewCount,
       averageRating: story.averageRating,
-      ratingCount: story.ratingCount,
-      publishedAt: story.publishedAt,
+      ratingCount: story.ratingsCount,
+      publishedAt: story.publishedAt!,
       updatedAt: story.updatedAt,
       suggest: {
         input: [story.title, ...story.tags],
-        weight: Math.round(story.averageRating * story.ratingCount),
+        weight: Math.round(story.averageRating * story.ratingsCount),
       },
     };
 

@@ -98,7 +98,7 @@ export function ReviewDashboard({
       revision_requested: 'bg-blue-100 text-blue-800',
     };
     return (
-      <span className={`px-2 py-0.5 text-xs rounded-full ${styles[status] || ''}`}>
+      <span className={`px-2 py-0.5 text-xs rounded-full ${styles[status as keyof typeof styles] || ''}`}>
         {status === 'revision_requested' ? 'Revision Requested' : status}
       </span>
     );

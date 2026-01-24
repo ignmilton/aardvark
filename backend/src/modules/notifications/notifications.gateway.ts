@@ -62,10 +62,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       if (!this.userConnections.has(userId)) {
         this.userConnections.set(userId, new Set());
       }
-      this.userConnections.get(userId).add(client.id);
+      this.userConnections.get(userId)!.add(client.id);
 
       this.logger.log(
-        `User ${userId} connected with socket ${client.id} (${this.userConnections.get(userId).size} active connections)`,
+        `User ${userId} connected with socket ${client.id} (${this.userConnections.get(userId)!.size} active connections)`,
       );
 
       // Join user to their personal room

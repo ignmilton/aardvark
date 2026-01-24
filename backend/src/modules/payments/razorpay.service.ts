@@ -109,9 +109,17 @@ export class RazorpayService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    this.keyId = this.configService.get<string>('RAZORPAY_KEY_ID') || 'rzp_test_mock';
-    this.keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || 'mock_secret';
-    this.webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET') || 'mock_webhook';
+    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
+    const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
+    const webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET');
+
+    if (!keyId || !keySecret || !webhookSecret) {
+      throw new Error('Razorpay credentials not configured. Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET environment variables.');
+    }
+
+    this.keyId = keyId;
+    this.keySecret = keySecret;
+    this.webhookSecret = webhookSecret;
   }
 
   /**
@@ -498,10 +506,12 @@ export class RazorpayService {
   ): Promise<{ handled: boolean }> {
     this.logger.log(`Processing Razorpay webhook: ${event}`);
 
+    const payloadData = payload as Record<string, any>;
+
     switch (event) {
-      case 'payment.captured':
+      case 'payment.captured': {
         // Payment successful - credits should be added
-        const paymentEntity = payload.payment?.entity as RazorpayPayment | undefined;
+        const paymentEntity = payloadData.payment?.entity as RazorpayPayment | undefined;
         if (paymentEntity) {
           const order = await this.orderRepository.findOne({
             where: { razorpayOrderId: paymentEntity.order_id },
@@ -516,9 +526,10 @@ export class RazorpayService {
           }
         }
         break;
+      }
 
-      case 'payment.failed':
-        const failedPayment = payload.payment?.entity as RazorpayPayment | undefined;
+      case 'payment.failed': {
+        const failedPayment = payloadData.payment?.entity as RazorpayPayment | undefined;
         if (failedPayment) {
           const order = await this.orderRepository.findOne({
             where: { razorpayOrderId: failedPayment.order_id },
@@ -530,21 +541,43 @@ export class RazorpayService {
           }
         }
         break;
+      }
 
       case 'payout.processed':
       case 'payout.failed':
-      case 'payout.reversed':
-        const payoutEntity = payload.payout?.entity as RazorpayPayout | undefined;
+      case 'payout.reversed': {
+        const payoutEntity = payloadData.payout?.entity as RazorpayPayout | undefined;
         if (payoutEntity) {
           await this.updatePayoutStatus(payoutEntity.id);
         }
         break;
+      }
 
       default:
         this.logger.log(`Unhandled webhook event: ${event}`);
     }
 
     return { handled: true };
+  }
+
+  /**
+   * Get author's payout account details
+   */
+  async getAuthorPayoutAccount(authorId: string): Promise<AuthorPayoutAccount | null> {
+    return this.payoutAccountRepository.findOne({
+      where: { authorId },
+    });
+  }
+
+  /**
+   * Get payout history for an author
+   */
+  async getPayoutHistory(authorId: string): Promise<Payout[]> {
+    return this.payoutRepository.find({
+      where: { authorId },
+      order: { requestedAt: 'DESC' },
+      take: 50,
+    });
   }
 
   /**

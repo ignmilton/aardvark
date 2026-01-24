@@ -6,21 +6,18 @@ import {
   Users,
   FileText,
   Flag,
-  AlertTriangle,
   TrendingUp,
-  DollarSign,
   Activity,
   Shield,
 } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
 import { AdminStatsCard } from '@/components/admin/admin-stats-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAdminStats, usePlatformAnalytics } from '@/hooks/use-admin-analytics';
-import { formatCompactNumber, formatRelativeDate } from '@/lib/utils';
-import type { ModerationAction, ReportReason } from '@aardvark/shared';
+import { formatCompactNumber } from '@/lib/utils';
 
 /**
  * Admin Dashboard - Main overview page
@@ -32,10 +29,8 @@ export default function AdminDashboard() {
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
 
-  const { data: stats, isLoading: statsLoading } = useAdminStats(token);
-  const { data: analytics, isLoading: analyticsLoading } = usePlatformAnalytics(token);
-
-  const isLoading = statsLoading || analyticsLoading;
+  const { data: stats } = useAdminStats(token);
+  const { data: analytics } = usePlatformAnalytics(selectedPeriod, token);
 
   // Calculate trend percentages (mock for now)
   const getTrendValue = (current: number, previous: number) => {
