@@ -4,8 +4,10 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Request } from 'express';
 import { User } from '@/database/entities';
 import { AccountStatus } from '@aardvark/shared';
+import { TokenBlacklistService } from '../token-blacklist.service';
 
 /**
  * JWT payload interface
@@ -21,6 +23,7 @@ interface JwtPayload {
 /**
  * JWT authentication strategy for Passport.
  * Validates JWT tokens and extracts user information.
+ * Checks token blacklist to enforce server-side logout.
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -28,11 +31,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly tokenBlacklistService: TokenBlacklistService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.get('jwt.secret'),
+      passReqToCallback: true,
     });
   }
 
@@ -40,7 +45,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Validate JWT payload and return user info.
    * This is called automatically by Passport after token verification.
    */
-  async validate(payload: JwtPayload) {
+  async validate(req: Request, payload: JwtPayload) {
+    // Check if token has been blacklisted (user logged out)
+    const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+    if (token && this.tokenBlacklistService.isBlacklisted(token)) {
+      throw new UnauthorizedException('Token has been invalidated');
+    }
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
       select: ['id', 'username', 'role', 'accountStatus'],

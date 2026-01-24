@@ -11,6 +11,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -27,6 +28,7 @@ import {
   BulkUpdatePositionsDto,
 } from './dto';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '@/modules/auth/guards/optional-jwt-auth.guard';
 
 @ApiTags('segments')
 @Controller('segments')
@@ -45,7 +47,9 @@ export class SegmentsController {
   }
 
   @Get('story/:storyId')
-  @ApiOperation({ summary: 'Get all segments for a story' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all segments for a story (editor)' })
   @ApiParam({ name: 'storyId', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'List of segments' })
   async findByStory(
@@ -56,6 +60,8 @@ export class SegmentsController {
   }
 
   @Get('story/:storyId/structure')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get full story structure for visual editor' })
   @ApiParam({ name: 'storyId', description: 'Story ID' })
   @ApiResponse({ status: 200, description: 'Story structure with segments and choices' })
@@ -90,12 +96,23 @@ export class SegmentsController {
   }
 
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get segment by ID' })
   @ApiParam({ name: 'id', description: 'Segment ID' })
   @ApiResponse({ status: 200, description: 'Segment details' })
+  @ApiResponse({ status: 403, description: 'Registration required to continue reading' })
   @ApiResponse({ status: 404, description: 'Segment not found' })
-  async findById(@Param('id') id: string) {
-    return this.segmentsService.findById(id);
+  async findById(@Param('id') id: string, @Request() req: any) {
+    const segment = await this.segmentsService.findById(id);
+
+    // Guest users can only read the root segment (first chapter)
+    if (!req.user && !segment.isRootSegment) {
+      throw new ForbiddenException(
+        'Please register or log in to continue reading beyond the first chapter.',
+      );
+    }
+
+    return segment;
   }
 
   @Put(':id')

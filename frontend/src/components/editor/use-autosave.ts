@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 
-const AUTOSAVE_INTERVAL_MS = 5000; // Save every 5 seconds
+const AUTOSAVE_INTERVAL_MS = 30000; // Save every 30 seconds
 const DRAFT_PREFIX = 'aardvark_draft_';
 
 export interface DraftData {

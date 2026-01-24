@@ -11,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
+import { TokenBlacklistService } from './token-blacklist.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
@@ -26,7 +27,10 @@ import { ForgotPasswordDto, ResetPasswordDto } from './dto/reset-password.dto';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
+  ) {}
 
   /**
    * Register a new user account
@@ -72,16 +76,21 @@ export class AuthController {
   }
 
   /**
-   * Logout (client-side token invalidation)
+   * Logout and invalidate the current token
    */
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Logout current user' })
-  async logout() {
-    // JWT tokens are stateless, logout is handled client-side
-    // In production, you might want to implement token blacklisting
+  async logout(@Request() req: any) {
+    // Extract token and add to blacklist so it can't be reused
+    const authHeader = req.headers?.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      // Blacklist for remaining token lifetime (max 15 minutes for access tokens)
+      this.tokenBlacklistService.blacklist_token(token, 15 * 60);
+    }
     return { message: 'Logged out successfully' };
   }
 
