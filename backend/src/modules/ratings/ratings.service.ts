@@ -376,7 +376,7 @@ export class RatingsService {
 
     await this.storyRepository.update(storyId, {
       averageRating: Math.round(averageRating * 10) / 10,
-      ratingCount,
+      ratingsCount: ratingCount,
     });
   }
 

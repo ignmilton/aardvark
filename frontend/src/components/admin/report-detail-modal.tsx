@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, CheckCircle, X, XCircle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,10 +14,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { ModerationAction } from '@aardvark/shared';
 import type {
   Report,
   ModerationQueueItem,
-  ModerationAction,
   ReportReason,
 } from '@aardvark/shared';
 
@@ -43,12 +43,12 @@ const reasonLabels: Record<ReportReason, string> = {
 };
 
 const actionOptions: { value: ModerationAction; label: string; variant: 'default' | 'destructive' }[] = [
-  { value: 'approve', label: 'Approve Content', variant: 'default' },
-  { value: 'remove', label: 'Remove Content', variant: 'destructive' },
-  { value: 'warn_user', label: 'Warn User', variant: 'default' },
-  { value: 'temp_ban', label: 'Temporary Ban', variant: 'destructive' },
-  { value: 'dismiss', label: 'Dismiss Report', variant: 'default' },
-  { value: 'escalate', label: 'Escalate to Admin', variant: 'default' },
+  { value: ModerationAction.APPROVE, label: 'Approve Content', variant: 'default' },
+  { value: ModerationAction.REMOVE, label: 'Remove Content', variant: 'destructive' },
+  { value: ModerationAction.WARN_USER, label: 'Warn User', variant: 'default' },
+  { value: ModerationAction.TEMP_BAN, label: 'Temporary Ban', variant: 'destructive' },
+  { value: ModerationAction.DISMISS, label: 'Dismiss Report', variant: 'default' },
+  { value: ModerationAction.ESCALATE, label: 'Escalate to Admin', variant: 'default' },
 ];
 
 /**
@@ -170,7 +170,7 @@ export function ReportDetailModal({
                 </div>
               )}
 
-              {queueItem.content && (
+              {queueItem.content != null && (
                 <div>
                   <div className="text-sm font-medium mb-1">Content Preview</div>
                   <div className="p-3 bg-muted rounded-md text-sm max-h-48 overflow-y-auto">

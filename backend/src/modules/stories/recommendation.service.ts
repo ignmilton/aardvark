@@ -336,16 +336,19 @@ export class RecommendationService {
     userId: string,
     limit: number = 10,
   ): Promise<RecommendedStory[]> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['following'],
-    });
+    // Get followed author IDs from the follow table
+    const follows = await this.userRepository.manager
+      .getRepository('Follow')
+      .find({
+        where: { followerId: userId },
+        select: ['followingId'],
+      });
 
-    if (!user || !user.following || user.following.length === 0) {
+    if (!follows || follows.length === 0) {
       return [];
     }
 
-    const followedAuthorIds = user.following.map((f) => f.id);
+    const followedAuthorIds = follows.map((f: any) => f.followingId);
 
     const stories = await this.storyRepository.find({
       where: {

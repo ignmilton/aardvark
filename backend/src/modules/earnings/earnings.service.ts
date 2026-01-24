@@ -239,7 +239,7 @@ export class EarningsService {
 
     // Create onboarding link
     const accountLink = await this.paymentsService.createConnectAccountLink(
-      account.stripeConnectAccountId,
+      account.stripeConnectAccountId!,
       refreshUrl,
       returnUrl,
     );
@@ -350,7 +350,7 @@ export class EarningsService {
       // Create Stripe transfer
       const transfer = await this.paymentsService.createTransfer(
         payout.amount,
-        account.stripeConnectAccountId,
+        account.stripeConnectAccountId!,
         `Aardvark author payout`,
         { payoutId: payout.id, authorId: payout.authorId },
       );

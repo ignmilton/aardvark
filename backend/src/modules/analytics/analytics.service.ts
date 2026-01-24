@@ -36,7 +36,7 @@ import {
   DropoffPoint,
   EngagementTrends,
   ExportResult,
-  ExportFormat,
+  ExportFormatType,
 } from './analytics.types';
 import { AnalyticsPeriod } from './dto/analytics.dto';
 
@@ -1236,7 +1236,7 @@ export class AnalyticsService {
   async exportAnalytics(
     authorId: string,
     type: 'dashboard' | 'stories' | 'earnings' | 'readers',
-    format: ExportFormat = 'json',
+    format: ExportFormatType = 'json',
   ): Promise<ExportResult> {
     let data: any;
 

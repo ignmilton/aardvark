@@ -67,7 +67,7 @@ export class BranchSubmissionsService {
     const filterResult = filterContent(dto.segmentData.content);
 
     // Determine status: auto-approve only if open mode AND content passes filter
-    let status: string;
+    let status: 'pending' | 'approved' | 'rejected' | 'revision_requested';
     if (story.collaborationMode === CollaborationMode.OPEN && filterResult.passed) {
       status = 'approved';
     } else {
@@ -309,8 +309,10 @@ export class BranchSubmissionsService {
     };
 
     for (const stat of stats) {
-      const statusKey = stat.status === 'revision_requested' ? 'revisionRequested' : stat.status;
-      result[statusKey] = parseInt(stat.count, 10);
+      const statusKey = stat.status === 'revision_requested' ? 'revisionRequested' : stat.status as string;
+      if (statusKey in result) {
+        result[statusKey as keyof typeof result] = parseInt(stat.count, 10);
+      }
     }
 
     return result;

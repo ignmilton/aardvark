@@ -2,12 +2,9 @@
 
 import { useState } from 'react';
 import {
-  Filter,
   Search,
   CheckCircle,
-  XCircle,
   AlertTriangle,
-  Eye,
 } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
 import { ModerationQueueItemComponent } from '@/components/admin/moderation-queue-item';
@@ -16,17 +13,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   useModerationQueue,
   useAssignModeration,
-  useResolveModeration,
   useAdminStats,
 } from '@/hooks/use-moderation';
+import {
+  ModerationStatus,
+} from '@aardvark/shared';
 import type {
   ModerationQueueItem,
-  ModerationStatus,
-  ContentType,
   ModerationQueueQuery,
 } from '@aardvark/shared';
 
@@ -38,14 +34,14 @@ export default function ModerationQueuePage() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
 
   // State
-  const [selectedTab, setSelectedTab] = useState<ModerationStatus>('pending');
+  const [selectedTab, setSelectedTab] = useState<ModerationStatus>(ModerationStatus.PENDING);
   const [selectedItem, setSelectedItem] = useState<ModerationQueueItem | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<ModerationQueueQuery>({
     page: 1,
     limit: 20,
-    status: 'pending',
+    status: ModerationStatus.PENDING,
     sortBy: 'priority',
     sortOrder: 'desc',
   });
@@ -57,7 +53,6 @@ export default function ModerationQueuePage() {
     token
   );
   const assignMutation = useAssignModeration(token);
-  const resolveMutation = useResolveModeration(token);
 
   // Handlers
   const handleReviewItem = (item: ModerationQueueItem) => {
@@ -345,9 +340,10 @@ export default function ModerationQueuePage() {
       {/* Detail Modal */}
       {selectedItem && (
         <ReportDetailModal
-          open={showDetailModal}
-          onOpenChange={setShowDetailModal}
-          item={selectedItem}
+          isOpen={showDetailModal}
+          onClose={() => setShowDetailModal(false)}
+          queueItem={selectedItem}
+          onResolve={async () => { setShowDetailModal(false); }}
         />
       )}
     </div>

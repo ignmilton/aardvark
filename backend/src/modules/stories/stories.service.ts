@@ -260,18 +260,18 @@ export class StoriesService {
   }
 
   /**
-   * Get story slugs and update dates for sitemap generation
+   * Get story IDs and update dates for sitemap generation
    */
-  async getSitemapData(): Promise<Array<{ slug: string; updatedAt: string }>> {
+  async getSitemapData(): Promise<Array<{ id: string; updatedAt: string }>> {
     const stories = await this.storyRepository.find({
       where: { status: StoryStatus.PUBLISHED },
-      select: ['slug', 'updatedAt'],
+      select: ['id', 'updatedAt'],
       order: { updatedAt: 'DESC' },
       take: 10000,
     });
 
     return stories.map((story) => ({
-      slug: story.slug,
+      id: story.id,
       updatedAt: story.updatedAt.toISOString(),
     }));
   }

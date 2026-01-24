@@ -13,6 +13,7 @@ import {
   UseGuards,
   Logger,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -691,11 +692,13 @@ export class PaymentsController {
     @Body() dto: RequestUPIPayoutDto,
   ) {
     const authorId = req.user.id;
-    const availableBalancePaise = dto.amount;
+    if (!dto.amount) {
+      throw new BadRequestException('Amount is required for UPI payout');
+    }
 
     const payout = await this.razorpayService.createPayout(
       authorId,
-      availableBalancePaise,
+      dto.amount,
       'Aardvark author earnings',
     );
 

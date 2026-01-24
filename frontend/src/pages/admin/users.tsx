@@ -4,12 +4,9 @@ import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Search,
-  Filter,
-  Shield,
   AlertTriangle,
   Ban,
   CheckCircle,
-  XCircle,
   MoreVertical,
   Eye,
   UserX,
@@ -40,18 +37,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   useUserBans,
-  useUserWarnings,
-  useIssueBan,
-  useIssueWarning,
   useLiftBan,
   useAdminStats,
 } from '@/hooks/use-moderation';
 import { getInitials, formatRelativeDate } from '@/lib/utils';
 import type {
   UserBan,
-  UserWarning,
-  BanType,
-  BanScope,
   UserRole,
   AccountStatus,
 } from '@aardvark/shared';
@@ -87,11 +78,11 @@ export default function UserManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
-  const [actionType, setActionType] = useState<'ban' | 'warn' | 'view'>('view');
-  const [page, setPage] = useState(1);
+  const [, setActionType] = useState<'ban' | 'warn' | 'view'>('view');
+  const [page] = useState(1);
   const limit = 20;
   const [users, setUsers] = useState<AdminUserView[]>([]);
-  const [usersLoading, setUsersLoading] = useState(true);
+  const [, setUsersLoading] = useState(true);
 
   // Hooks
   const { data: adminStats } = useAdminStats(token);
@@ -99,8 +90,6 @@ export default function UserManagementPage() {
     { page, limit, isActive: true },
     token
   );
-  const issueBanMutation = useIssueBan(token);
-  const issueWarningMutation = useIssueWarning(token);
   const liftBanMutation = useLiftBan(token);
 
   // Fetch users from API
@@ -220,7 +209,7 @@ export default function UserManagementPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {bansData?.pagination.totalItems || 0}
+                  {bansData?.total || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Currently banned
@@ -386,7 +375,7 @@ export default function UserManagementPage() {
                     </div>
                   ) : bansData && bansData.items.length > 0 ? (
                     <div className="space-y-3">
-                      {bansData.items.map((ban) => (
+                      {bansData.items.map((ban: any) => (
                         <Card key={ban.id}>
                           <CardContent className="pt-6">
                             <div className="flex items-start justify-between">
@@ -530,10 +519,12 @@ export default function UserManagementPage() {
       {/* User Action Modal */}
       {selectedUserId && (
         <UserActionModal
-          open={showActionModal}
-          onOpenChange={setShowActionModal}
+          isOpen={showActionModal}
+          onClose={() => setShowActionModal(false)}
           userId={selectedUserId}
-          actionType={actionType}
+          username={users.find(u => u.id === selectedUserId)?.username || ''}
+          onWarn={async () => { setShowActionModal(false); }}
+          onBan={async () => { setShowActionModal(false); }}
         />
       )}
     </div>

@@ -50,7 +50,7 @@ interface CreditBundlesProps {
 }
 
 export function CreditBundles({ onPurchaseSuccess }: CreditBundlesProps) {
-  const [selectedBundle, setSelectedBundle] = useState<CreditBundle | null>(null);
+  const [selectedBundle] = useState<CreditBundle | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card'>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
 

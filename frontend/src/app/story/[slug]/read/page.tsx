@@ -198,9 +198,6 @@ export default function StoryReaderPage() {
         const choice = segment.choices.find((c) => c.id === choiceId);
         if (!choice) return;
 
-        // Calculate time spent
-        const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-
         // Update progress
         const updatedProgress: Progress = {
           ...progress,

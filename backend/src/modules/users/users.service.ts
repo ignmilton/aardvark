@@ -108,12 +108,12 @@ export class UsersService {
     ]);
 
     // Calculate total reads and ratings from stories
-    const publishedStories = user.stories?.filter((s) => s.isPublished) || [];
+    const publishedStories = user.stories?.filter((s) => s.publishedAt != null) || [];
     const totalReads = publishedStories.reduce((sum, s) => sum + s.viewCount, 0);
-    const totalRatings = publishedStories.reduce((sum, s) => sum + s.ratingCount, 0);
+    const totalRatings = publishedStories.reduce((sum, s) => sum + s.ratingsCount, 0);
     const averageRating =
       totalRatings > 0
-        ? publishedStories.reduce((sum, s) => sum + s.averageRating * s.ratingCount, 0) / totalRatings
+        ? publishedStories.reduce((sum, s) => sum + s.averageRating * s.ratingsCount, 0) / totalRatings
         : 0;
 
     return {

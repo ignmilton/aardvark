@@ -49,8 +49,6 @@ test.describe('Story Browsing & Reading', () => {
     const readLink = page.locator('a[href*="/read"]').first();
     if (await readLink.isVisible()) {
       await readLink.click();
-      // Choices should be buttons or links
-      const choices = page.locator('.choice-button, [data-testid="choice"], [role="option"]');
       // Wait for content to load
       await page.waitForTimeout(2000);
       // At least verify the page loaded

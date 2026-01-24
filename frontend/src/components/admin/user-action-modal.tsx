@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { AlertTriangle, Ban, Flag, Shield } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import type { BanType, BanScope } from '@aardvark/shared';
+import { BanType, BanScope } from '@aardvark/shared';
 
 interface UserActionModalProps {
   isOpen: boolean;
@@ -62,10 +61,10 @@ const actionConfig: Record<
 };
 
 const banScopes: { value: BanScope; label: string }[] = [
-  { value: 'full', label: 'Full Platform Access' },
-  { value: 'posting', label: 'Content Creation Only' },
-  { value: 'commenting', label: 'Commenting Only' },
-  { value: 'messaging', label: 'Messaging Only' },
+  { value: BanScope.FULL, label: 'Full Platform Access' },
+  { value: BanScope.POSTING, label: 'Content Creation Only' },
+  { value: BanScope.COMMENTING, label: 'Commenting Only' },
+  { value: BanScope.MESSAGING, label: 'Messaging Only' },
 ];
 
 /**
@@ -82,7 +81,7 @@ export function UserActionModal({
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
   const [reason, setReason] = useState('');
   const [duration, setDuration] = useState('7');
-  const [scope, setScope] = useState<BanScope>('full');
+  const [scope, setScope] = useState<BanScope>(BanScope.FULL);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -95,10 +94,10 @@ export function UserActionModal({
       } else {
         const banType: BanType =
           selectedAction === 'perm_ban'
-            ? 'permanent'
+            ? BanType.PERMANENT
             : selectedAction === 'shadow_ban'
-            ? 'shadow'
-            : 'temporary';
+            ? BanType.SHADOW
+            : BanType.TEMPORARY;
 
         const durationDays =
           selectedAction === 'temp_ban' ? parseInt(duration) : undefined;
@@ -119,7 +118,7 @@ export function UserActionModal({
       setSelectedAction(null);
       setReason('');
       setDuration('7');
-      setScope('full');
+      setScope(BanScope.FULL);
     }
   };
 

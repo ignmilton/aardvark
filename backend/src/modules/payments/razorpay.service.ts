@@ -498,10 +498,12 @@ export class RazorpayService {
   ): Promise<{ handled: boolean }> {
     this.logger.log(`Processing Razorpay webhook: ${event}`);
 
+    const payloadData = payload as Record<string, any>;
+
     switch (event) {
-      case 'payment.captured':
+      case 'payment.captured': {
         // Payment successful - credits should be added
-        const paymentEntity = payload.payment?.entity as RazorpayPayment | undefined;
+        const paymentEntity = payloadData.payment?.entity as RazorpayPayment | undefined;
         if (paymentEntity) {
           const order = await this.orderRepository.findOne({
             where: { razorpayOrderId: paymentEntity.order_id },
@@ -516,9 +518,10 @@ export class RazorpayService {
           }
         }
         break;
+      }
 
-      case 'payment.failed':
-        const failedPayment = payload.payment?.entity as RazorpayPayment | undefined;
+      case 'payment.failed': {
+        const failedPayment = payloadData.payment?.entity as RazorpayPayment | undefined;
         if (failedPayment) {
           const order = await this.orderRepository.findOne({
             where: { razorpayOrderId: failedPayment.order_id },
@@ -530,21 +533,43 @@ export class RazorpayService {
           }
         }
         break;
+      }
 
       case 'payout.processed':
       case 'payout.failed':
-      case 'payout.reversed':
-        const payoutEntity = payload.payout?.entity as RazorpayPayout | undefined;
+      case 'payout.reversed': {
+        const payoutEntity = payloadData.payout?.entity as RazorpayPayout | undefined;
         if (payoutEntity) {
           await this.updatePayoutStatus(payoutEntity.id);
         }
         break;
+      }
 
       default:
         this.logger.log(`Unhandled webhook event: ${event}`);
     }
 
     return { handled: true };
+  }
+
+  /**
+   * Get author's payout account details
+   */
+  async getAuthorPayoutAccount(authorId: string): Promise<AuthorPayoutAccount | null> {
+    return this.payoutAccountRepository.findOne({
+      where: { authorId },
+    });
+  }
+
+  /**
+   * Get payout history for an author
+   */
+  async getPayoutHistory(authorId: string): Promise<Payout[]> {
+    return this.payoutRepository.find({
+      where: { authorId },
+      order: { requestedAt: 'DESC' },
+      take: 50,
+    });
   }
 
   /**

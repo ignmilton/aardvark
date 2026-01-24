@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils';
 import type {
   ModerationQueueItem,
   ContentType,
-  ModerationStatus,
 } from '@aardvark/shared';
 
 interface ModerationQueueItemProps {
@@ -144,7 +143,7 @@ export function ModerationQueueItemComponent({
           </div>
 
           {/* Content snippet (if expanded) */}
-          {isExpanded && item.content && (
+          {isExpanded && item.content != null && (
             <div className="mt-3 p-3 bg-muted rounded-md text-sm">
               <pre className="whitespace-pre-wrap break-words">
                 {JSON.stringify(item.content, null, 2).slice(0, 500)}

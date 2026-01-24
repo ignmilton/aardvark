@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
-import Link from 'next/link';
 
 interface ForumCategory {
   id: string;
