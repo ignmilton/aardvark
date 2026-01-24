@@ -32,6 +32,8 @@ import {
 export class AICompanionService {
   private readonly logger = new Logger(AICompanionService.name);
   private openai: OpenAI;
+  private readonly MAX_INPUT_LENGTH = 50000; // ~12,500 tokens max input
+  private readonly MAX_PROMPT_LENGTH = 2000;
   private readonly creditsPerOperation = {
     [AIOperationType.CONTINUE_STORY]: 10,
     [AIOperationType.SUGGEST_BRANCHES]: 8,
@@ -59,6 +61,23 @@ export class AICompanionService {
   }
 
   /**
+   * Validate input lengths to prevent excessive token usage
+   */
+  private validateInputLength(inputs: Record<string, string | undefined>): void {
+    for (const [name, value] of Object.entries(inputs)) {
+      if (!value) continue;
+      const maxLength = name.includes('prompt') || name.includes('role') || name.includes('situation')
+        ? this.MAX_PROMPT_LENGTH
+        : this.MAX_INPUT_LENGTH;
+      if (value.length > maxLength) {
+        throw new BadRequestException(
+          `Input "${name}" exceeds maximum length of ${maxLength} characters (received ${value.length})`,
+        );
+      }
+    }
+  }
+
+  /**
    * Continue story with AI generation
    */
   async continueStory(
@@ -68,6 +87,8 @@ export class AICompanionService {
     style?: string,
     length: number = 300,
   ): Promise<AIContinueStoryResponse> {
+    this.validateInputLength({ storyContext, prompt, style });
+
     // Check credits
     await this.checkCredits(userId, AIOperationType.CONTINUE_STORY);
 
@@ -92,6 +113,12 @@ The continuation should be approximately ${length} words and maintain narrative 
       const tokenCount = completion.usage?.total_tokens || 0;
       const creditsUsed = this.creditsPerOperation[AIOperationType.CONTINUE_STORY];
 
+      // Don't charge credits for empty responses
+      if (!continuation.trim()) {
+        await this.logUsage(userId, AIOperationType.CONTINUE_STORY, tokenCount, 0, false, 'Empty response from AI');
+        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+      }
+
       // Log usage and deduct credits
       await this.logUsage(userId, AIOperationType.CONTINUE_STORY, tokenCount, creditsUsed, true);
       await this.deductCredits(userId, AIOperationType.CONTINUE_STORY, tokenCount);
@@ -102,6 +129,7 @@ The continuation should be approximately ${length} words and maintain narrative 
         creditsUsed,
       };
     } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
       await this.logUsage(
         userId,
         AIOperationType.CONTINUE_STORY,
@@ -123,6 +151,7 @@ The continuation should be approximately ${length} words and maintain narrative 
     currentSegment: string,
     numBranches: number = 3,
   ): Promise<AISuggestBranchesResponse> {
+    this.validateInputLength({ storyContext, currentSegment });
     await this.checkCredits(userId, AIOperationType.SUGGEST_BRANCHES);
 
     try {
@@ -143,9 +172,16 @@ Each branch should lead to a different narrative direction.`;
         response_format: { type: 'json_object' },
       });
 
-      const response = JSON.parse(completion.choices[0]?.message?.content || '{"branches": []}');
+      const rawContent = completion.choices[0]?.message?.content || '';
       const tokenCount = completion.usage?.total_tokens || 0;
       const creditsUsed = this.creditsPerOperation[AIOperationType.SUGGEST_BRANCHES];
+
+      if (!rawContent.trim()) {
+        await this.logUsage(userId, AIOperationType.SUGGEST_BRANCHES, tokenCount, 0, false, 'Empty response from AI');
+        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+      }
+
+      const response = JSON.parse(rawContent);
 
       // Ensure branches have the correct format
       const branches = (response.branches || []).map((b: any) => ({
@@ -162,6 +198,7 @@ Each branch should lead to a different narrative direction.`;
         creditsUsed,
       };
     } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
       await this.logUsage(
         userId,
         AIOperationType.SUGGEST_BRANCHES,
@@ -182,6 +219,7 @@ Each branch should lead to a different narrative direction.`;
     text: string,
     focus: 'grammar' | 'style' | 'both' = 'both',
   ): Promise<AIImproveWritingResponse> {
+    this.validateInputLength({ text });
     await this.checkCredits(userId, AIOperationType.IMPROVE_WRITING);
 
     try {
@@ -206,9 +244,16 @@ Return a JSON object with: { "improved": "...", "suggestions": ["...", "..."] }`
         response_format: { type: 'json_object' },
       });
 
-      const response = JSON.parse(completion.choices[0]?.message?.content || '{"improved": "", "suggestions": []}');
+      const rawContent = completion.choices[0]?.message?.content || '';
       const tokenCount = completion.usage?.total_tokens || 0;
       const creditsUsed = this.creditsPerOperation[AIOperationType.IMPROVE_WRITING];
+
+      if (!rawContent.trim()) {
+        await this.logUsage(userId, AIOperationType.IMPROVE_WRITING, tokenCount, 0, false, 'Empty response from AI');
+        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+      }
+
+      const response = JSON.parse(rawContent);
 
       await this.logUsage(userId, AIOperationType.IMPROVE_WRITING, tokenCount, creditsUsed, true);
       await this.deductCredits(userId, AIOperationType.IMPROVE_WRITING, tokenCount);
@@ -221,6 +266,7 @@ Return a JSON object with: { "improved": "...", "suggestions": ["...", "..."] }`
         creditsUsed,
       };
     } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
       await this.logUsage(
         userId,
         AIOperationType.IMPROVE_WRITING,
@@ -242,6 +288,7 @@ Return a JSON object with: { "improved": "...", "suggestions": ["...", "..."] }`
     genre?: string,
     traits?: string[],
   ): Promise<AIGenerateCharacterResponse> {
+    this.validateInputLength({ role, genre });
     await this.checkCredits(userId, AIOperationType.GENERATE_CHARACTER);
 
     try {
@@ -264,12 +311,16 @@ Return JSON: { "name": "...", "description": "...", "traits": ["...", "..."], "b
         response_format: { type: 'json_object' },
       });
 
-      const response = JSON.parse(
-        completion.choices[0]?.message?.content ||
-        '{"name": "", "description": "", "traits": [], "backstory": ""}'
-      );
+      const rawContent = completion.choices[0]?.message?.content || '';
       const tokenCount = completion.usage?.total_tokens || 0;
       const creditsUsed = this.creditsPerOperation[AIOperationType.GENERATE_CHARACTER];
+
+      if (!rawContent.trim()) {
+        await this.logUsage(userId, AIOperationType.GENERATE_CHARACTER, tokenCount, 0, false, 'Empty response from AI');
+        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+      }
+
+      const response = JSON.parse(rawContent);
 
       await this.logUsage(userId, AIOperationType.GENERATE_CHARACTER, tokenCount, creditsUsed, true);
       await this.deductCredits(userId, AIOperationType.GENERATE_CHARACTER, tokenCount);
@@ -283,6 +334,7 @@ Return JSON: { "name": "...", "description": "...", "traits": ["...", "..."], "b
         creditsUsed,
       };
     } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
       await this.logUsage(
         userId,
         AIOperationType.GENERATE_CHARACTER,
@@ -304,6 +356,7 @@ Return JSON: { "name": "...", "description": "...", "traits": ["...", "..."], "b
     situation: string,
     tone?: string,
   ): Promise<AIGenerateDialogueResponse> {
+    this.validateInputLength({ situation, tone });
     await this.checkCredits(userId, AIOperationType.GENERATE_DIALOGUE);
 
     try {
@@ -325,11 +378,16 @@ Return JSON: { "dialogueOptions": [{ "character": "...", "dialogue": "...", "ton
         response_format: { type: 'json_object' },
       });
 
-      const response = JSON.parse(
-        completion.choices[0]?.message?.content || '{"dialogueOptions": []}'
-      );
+      const rawContent = completion.choices[0]?.message?.content || '';
       const tokenCount = completion.usage?.total_tokens || 0;
       const creditsUsed = this.creditsPerOperation[AIOperationType.GENERATE_DIALOGUE];
+
+      if (!rawContent.trim()) {
+        await this.logUsage(userId, AIOperationType.GENERATE_DIALOGUE, tokenCount, 0, false, 'Empty response from AI');
+        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+      }
+
+      const response = JSON.parse(rawContent);
 
       await this.logUsage(userId, AIOperationType.GENERATE_DIALOGUE, tokenCount, creditsUsed, true);
       await this.deductCredits(userId, AIOperationType.GENERATE_DIALOGUE, tokenCount);
@@ -340,6 +398,7 @@ Return JSON: { "dialogueOptions": [{ "character": "...", "dialogue": "...", "ton
         creditsUsed,
       };
     } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
       await this.logUsage(
         userId,
         AIOperationType.GENERATE_DIALOGUE,
@@ -360,6 +419,7 @@ Return JSON: { "dialogueOptions": [{ "character": "...", "dialogue": "...", "ton
     storyContent: string,
     maxWords: number = 200,
   ): Promise<AISummarizeStoryResponse> {
+    this.validateInputLength({ storyContent });
     await this.checkCredits(userId, AIOperationType.SUMMARIZE_STORY);
 
     try {
@@ -378,11 +438,16 @@ Return JSON: { "summary": "...", "keyPoints": ["...", "..."] }`;
         response_format: { type: 'json_object' },
       });
 
-      const response = JSON.parse(
-        completion.choices[0]?.message?.content || '{"summary": "", "keyPoints": []}'
-      );
+      const rawContent = completion.choices[0]?.message?.content || '';
       const tokenCount = completion.usage?.total_tokens || 0;
       const creditsUsed = this.creditsPerOperation[AIOperationType.SUMMARIZE_STORY];
+
+      if (!rawContent.trim()) {
+        await this.logUsage(userId, AIOperationType.SUMMARIZE_STORY, tokenCount, 0, false, 'Empty response from AI');
+        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+      }
+
+      const response = JSON.parse(rawContent);
 
       await this.logUsage(userId, AIOperationType.SUMMARIZE_STORY, tokenCount, creditsUsed, true);
       await this.deductCredits(userId, AIOperationType.SUMMARIZE_STORY, tokenCount);
@@ -395,6 +460,7 @@ Return JSON: { "summary": "...", "keyPoints": ["...", "..."] }`;
         creditsUsed,
       };
     } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
       await this.logUsage(
         userId,
         AIOperationType.SUMMARIZE_STORY,
@@ -471,6 +537,7 @@ Return JSON: { "summary": "...", "keyPoints": ["...", "..."] }`;
     themes?: string[],
     numIdeas: number = 3,
   ): Promise<AIGeneratePlotIdeasResponse> {
+    this.validateInputLength({ genre });
     await this.checkCredits(userId, AIOperationType.GENERATE_PLOT_IDEAS);
 
     try {
@@ -496,11 +563,16 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
         response_format: { type: 'json_object' },
       });
 
-      const response = JSON.parse(
-        completion.choices[0]?.message?.content || '{"ideas": []}'
-      );
+      const rawContent = completion.choices[0]?.message?.content || '';
       const tokenCount = completion.usage?.total_tokens || 0;
       const creditsUsed = this.creditsPerOperation[AIOperationType.GENERATE_PLOT_IDEAS];
+
+      if (!rawContent.trim()) {
+        await this.logUsage(userId, AIOperationType.GENERATE_PLOT_IDEAS, tokenCount, 0, false, 'Empty response from AI');
+        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+      }
+
+      const response = JSON.parse(rawContent);
 
       await this.logUsage(userId, AIOperationType.GENERATE_PLOT_IDEAS, tokenCount, creditsUsed, true);
       await this.deductCredits(userId, AIOperationType.GENERATE_PLOT_IDEAS, tokenCount);
@@ -511,6 +583,7 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
         creditsUsed,
       };
     } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
       await this.logUsage(
         userId,
         AIOperationType.GENERATE_PLOT_IDEAS,

@@ -1,7 +1,46 @@
+import type {
+  Story,
+  StorySegment,
+  Choice,
+  ReaderProgress,
+  StoryStateVariable,
+  CreateStoryDto,
+  UpdateStoryDto,
+  CreateSegmentDto,
+  UpdateSegmentDto,
+  CreateChoiceDto,
+  UpdateChoiceDto,
+} from '@aardvark/shared';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 interface FetchOptions extends RequestInit {
   token?: string;
+}
+
+interface SegmentPosition {
+  segmentId: string;
+  x: number;
+  y: number;
+}
+
+interface StoryStructure {
+  segments: StorySegment[];
+  choices: Choice[];
+}
+
+interface BranchSubmission {
+  id: string;
+  storyId: string;
+  authorId: string;
+  segmentData: { title: string; content: string };
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Date;
+}
+
+interface ReviewSubmissionDto {
+  status: 'approved' | 'rejected';
+  feedback?: string;
 }
 
 async function fetchApi<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
@@ -31,16 +70,16 @@ async function fetchApi<T>(endpoint: string, options: FetchOptions = {}): Promis
 
 // Stories API
 export const storiesApi = {
-  getBySlug: (slug: string) => fetchApi<any>(`/stories/slug/${slug}`),
-  getById: (id: string) => fetchApi<any>(`/stories/${id}`),
-  update: (id: string, data: any, token: string) =>
-    fetchApi<any>(`/stories/${id}`, {
+  getBySlug: (slug: string) => fetchApi<Story>(`/stories/slug/${slug}`),
+  getById: (id: string) => fetchApi<Story>(`/stories/${id}`),
+  update: (id: string, data: Partial<UpdateStoryDto>, token: string) =>
+    fetchApi<Story>(`/stories/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
       token,
     }),
   publish: (id: string, token: string) =>
-    fetchApi<any>(`/stories/${id}/publish`, {
+    fetchApi<Story>(`/stories/${id}/publish`, {
       method: 'POST',
       token,
     }),
@@ -48,17 +87,17 @@ export const storiesApi = {
 
 // Segments API
 export const segmentsApi = {
-  getById: (id: string) => fetchApi<any>(`/segments/${id}`),
-  getByStory: (storyId: string) => fetchApi<any[]>(`/segments/story/${storyId}`),
-  getStructure: (storyId: string) => fetchApi<any>(`/segments/story/${storyId}/structure`),
-  create: (data: any, token: string) =>
-    fetchApi<any>('/segments', {
+  getById: (id: string) => fetchApi<StorySegment>(`/segments/${id}`),
+  getByStory: (storyId: string) => fetchApi<StorySegment[]>(`/segments/story/${storyId}`),
+  getStructure: (storyId: string) => fetchApi<StoryStructure>(`/segments/story/${storyId}/structure`),
+  create: (data: CreateSegmentDto, token: string) =>
+    fetchApi<StorySegment>('/segments', {
       method: 'POST',
       body: JSON.stringify(data),
       token,
     }),
-  update: (id: string, data: any, token: string) =>
-    fetchApi<any>(`/segments/${id}`, {
+  update: (id: string, data: Partial<UpdateSegmentDto>, token: string) =>
+    fetchApi<StorySegment>(`/segments/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
       token,
@@ -68,7 +107,7 @@ export const segmentsApi = {
       method: 'DELETE',
       token,
     }),
-  updatePositions: (storyId: string, positions: any[], token: string) =>
+  updatePositions: (storyId: string, positions: SegmentPosition[], token: string) =>
     fetchApi<void>(`/segments/story/${storyId}/positions`, {
       method: 'PUT',
       body: JSON.stringify({ positions }),
@@ -78,19 +117,19 @@ export const segmentsApi = {
 
 // Choices API
 export const choicesApi = {
-  getBySegment: (segmentId: string) => fetchApi<any[]>(`/choices/segment/${segmentId}`),
-  getAvailable: (segmentId: string, state: Record<string, any>, visited: string[]) =>
-    fetchApi<any[]>(`/choices/segment/${segmentId}/available?state=${JSON.stringify(state)}&visited=${visited.join(',')}`),
+  getBySegment: (segmentId: string) => fetchApi<Choice[]>(`/choices/segment/${segmentId}`),
+  getAvailable: (segmentId: string, state: Record<string, unknown>, visited: string[]) =>
+    fetchApi<Choice[]>(`/choices/segment/${segmentId}/available?state=${encodeURIComponent(JSON.stringify(state))}&visited=${encodeURIComponent(visited.join(','))}`),
   recordChoice: (choiceId: string) =>
     fetchApi<void>(`/choices/${choiceId}/chosen`, { method: 'POST' }),
-  create: (data: any, token: string) =>
-    fetchApi<any>('/choices', {
+  create: (data: CreateChoiceDto, token: string) =>
+    fetchApi<Choice>('/choices', {
       method: 'POST',
       body: JSON.stringify(data),
       token,
     }),
-  update: (id: string, data: any, token: string) =>
-    fetchApi<any>(`/choices/${id}`, {
+  update: (id: string, data: Partial<UpdateChoiceDto>, token: string) =>
+    fetchApi<Choice>(`/choices/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
       token,
@@ -105,37 +144,37 @@ export const choicesApi = {
 // Progress API
 export const progressApi = {
   start: (storyId: string, token: string) =>
-    fetchApi<any>('/progress/start', {
+    fetchApi<ReaderProgress>('/progress/start', {
       method: 'POST',
       body: JSON.stringify({ storyId }),
       token,
     }),
   get: (storyId: string, token: string) =>
-    fetchApi<any>(`/progress/story/${storyId}`, { token }),
+    fetchApi<ReaderProgress>(`/progress/story/${storyId}`, { token }),
   makeChoice: (storyId: string, choiceId: string, timeSpent: number, token: string) =>
-    fetchApi<any>(`/progress/story/${storyId}/choice`, {
+    fetchApi<ReaderProgress>(`/progress/story/${storyId}/choice`, {
       method: 'POST',
       body: JSON.stringify({ choiceId, timeSpent }),
       token,
     }),
   navigate: (storyId: string, segmentId: string, token: string) =>
-    fetchApi<any>(`/progress/story/${storyId}/navigate/${segmentId}`, {
+    fetchApi<ReaderProgress>(`/progress/story/${storyId}/navigate/${segmentId}`, {
       method: 'POST',
       token,
     }),
   reset: (storyId: string, token: string) =>
-    fetchApi<any>(`/progress/story/${storyId}/reset`, {
+    fetchApi<ReaderProgress>(`/progress/story/${storyId}/reset`, {
       method: 'POST',
       token,
     }),
   addBookmark: (storyId: string, segmentId: string, note: string, token: string) =>
-    fetchApi<any>(`/progress/story/${storyId}/bookmarks`, {
+    fetchApi<ReaderProgress>(`/progress/story/${storyId}/bookmarks`, {
       method: 'POST',
       body: JSON.stringify({ segmentId, note }),
       token,
     }),
   removeBookmark: (storyId: string, segmentId: string, token: string) =>
-    fetchApi<any>(`/progress/story/${storyId}/bookmarks/${segmentId}`, {
+    fetchApi<ReaderProgress>(`/progress/story/${storyId}/bookmarks/${segmentId}`, {
       method: 'DELETE',
       token,
     }),
@@ -144,15 +183,15 @@ export const progressApi = {
 // State Variables API
 export const stateVariablesApi = {
   getByStory: (storyId: string, token: string) =>
-    fetchApi<any[]>(`/state-variables/story/${storyId}`, { token }),
-  create: (data: any, token: string) =>
-    fetchApi<any>('/state-variables', {
+    fetchApi<StoryStateVariable[]>(`/state-variables/story/${storyId}`, { token }),
+  create: (data: Omit<StoryStateVariable, 'id' | 'createdAt'>, token: string) =>
+    fetchApi<StoryStateVariable>('/state-variables', {
       method: 'POST',
       body: JSON.stringify(data),
       token,
     }),
-  update: (id: string, data: any, token: string) =>
-    fetchApi<any>(`/state-variables/${id}`, {
+  update: (id: string, data: Partial<StoryStateVariable>, token: string) =>
+    fetchApi<StoryStateVariable>(`/state-variables/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
       token,
@@ -167,9 +206,9 @@ export const stateVariablesApi = {
 // Branch Submissions API
 export const branchSubmissionsApi = {
   getByStory: (storyId: string, token: string) =>
-    fetchApi<any>(`/branch-submissions?storyId=${storyId}`, { token }),
-  review: (id: string, data: any, token: string) =>
-    fetchApi<any>(`/branch-submissions/${id}/review`, {
+    fetchApi<BranchSubmission[]>(`/branch-submissions?storyId=${storyId}`, { token }),
+  review: (id: string, data: ReviewSubmissionDto, token: string) =>
+    fetchApi<BranchSubmission>(`/branch-submissions/${id}/review`, {
       method: 'POST',
       body: JSON.stringify(data),
       token,

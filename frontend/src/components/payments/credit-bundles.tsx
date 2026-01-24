@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { UPIPaymentButton } from './upi-payment-button';
+import { fetchApi } from '@/lib/api';
 
 interface CreditBundle {
   id: string;
@@ -14,8 +15,8 @@ interface CreditBundle {
   isPopular: boolean;
 }
 
-// Sample bundles - in production these come from the API
-const BUNDLES: CreditBundle[] = [
+// Fallback bundles used only if API is unavailable
+const FALLBACK_BUNDLES: CreditBundle[] = [
   {
     id: 'bundle-starter',
     name: 'Starter Pack',
@@ -50,9 +51,26 @@ interface CreditBundlesProps {
 }
 
 export function CreditBundles({ onPurchaseSuccess }: CreditBundlesProps) {
-  const [selectedBundle] = useState<CreditBundle | null>(null);
+  const [bundles, setBundles] = useState<CreditBundle[]>(FALLBACK_BUNDLES);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card'>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoadingBundles, setIsLoadingBundles] = useState(true);
+
+  useEffect(() => {
+    async function loadBundles() {
+      try {
+        const response = await fetchApi<{ success: boolean; data: CreditBundle[] }>('/credits/bundles');
+        if (response.data && response.data.length > 0) {
+          setBundles(response.data);
+        }
+      } catch {
+        // Use fallback bundles if API is unavailable
+      } finally {
+        setIsLoadingBundles(false);
+      }
+    }
+    loadBundles();
+  }, []);
 
   const formatUSD = (cents: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -84,7 +102,17 @@ export function CreditBundles({ onPurchaseSuccess }: CreditBundlesProps) {
 
       const data = await response.json();
       if (data.success && data.data.url) {
-        window.location.href = data.data.url;
+        // Validate redirect URL to prevent open redirect attacks
+        try {
+          const url = new URL(data.data.url);
+          if (url.protocol === 'https:' && url.hostname.endsWith('.stripe.com')) {
+            window.location.href = data.data.url;
+          } else {
+            console.error('Invalid checkout URL received');
+          }
+        } catch {
+          console.error('Malformed checkout URL');
+        }
       }
     } catch (error) {
       console.error('Checkout error:', error);
@@ -127,14 +155,12 @@ export function CreditBundles({ onPurchaseSuccess }: CreditBundlesProps) {
 
       {/* Bundles Grid */}
       <div className="grid gap-4 md:grid-cols-3">
-        {BUNDLES.map((bundle) => (
+        {bundles.map((bundle) => (
           <div
             key={bundle.id}
-            className={`relative p-6 rounded-xl border-2 transition-all ${
-              selectedBundle?.id === bundle.id
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
-            } ${bundle.isPopular ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+            className={`relative p-6 rounded-xl border-2 transition-all border-border hover:border-primary/50 ${
+              bundle.isPopular ? 'ring-2 ring-primary ring-offset-2' : ''
+            }`}
           >
             {bundle.isPopular && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">

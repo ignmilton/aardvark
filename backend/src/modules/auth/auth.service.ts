@@ -28,6 +28,8 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly SALT_ROUNDS = 12;
   private readonly RESET_TOKEN_EXPIRY_HOURS = 1;
+  private readonly MAX_LOGIN_ATTEMPTS = 5;
+  private readonly LOCKOUT_DURATION_MINUTES = 15;
 
   constructor(
     @InjectRepository(User)
@@ -103,6 +105,8 @@ export class AuthService {
         'creditsBalance',
         'preferences',
         'emailVerified',
+        'loginAttempts',
+        'lockoutUntil',
         'createdAt',
         'updatedAt',
       ],
@@ -121,16 +125,46 @@ export class AuthService {
       throw new UnauthorizedException('Account is suspended');
     }
 
+    // Check if account is locked out
+    if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+      const remainingMinutes = Math.ceil(
+        (user.lockoutUntil.getTime() - Date.now()) / 60000,
+      );
+      throw new UnauthorizedException(
+        `Account is temporarily locked. Try again in ${remainingMinutes} minute(s).`,
+      );
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
+      // Track failed attempt
+      const attempts = (user.loginAttempts || 0) + 1;
+      const updateData: Partial<User> = { loginAttempts: attempts } as any;
+
+      if (attempts >= this.MAX_LOGIN_ATTEMPTS) {
+        const lockoutUntil = new Date();
+        lockoutUntil.setMinutes(lockoutUntil.getMinutes() + this.LOCKOUT_DURATION_MINUTES);
+        (updateData as any).lockoutUntil = lockoutUntil;
+        this.logger.warn(`Account locked for ${email} after ${attempts} failed attempts`);
+      }
+
+      await this.userRepository.update(user.id, updateData);
       return null;
     }
 
-    // Remove password hash from return
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    return userWithoutPassword as User;
+    // Clear login attempts on successful login
+    if (user.loginAttempts > 0 || user.lockoutUntil) {
+      await this.userRepository.update(user.id, {
+        loginAttempts: 0,
+        lockoutUntil: null,
+      });
+    }
+
+    // Remove sensitive fields from return
+    const { passwordHash: _, loginAttempts: _la, lockoutUntil: _lu, ...userWithoutSensitive } = user;
+    return userWithoutSensitive as User;
   }
 
   /**
@@ -303,9 +337,10 @@ export class AuthService {
       passwordResetExpires: expiresAt,
     });
 
-    // In production, send email via configured email service
-    const resetUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/auth/reset-password?token=${resetToken}`;
-    this.logger.log(`Password reset requested for ${email}. Reset URL: ${resetUrl}`);
+    // TODO: Send email via configured email service (e.g., SendGrid, SES)
+    const resetUrl = `${this.configService.get('appUrl', 'http://localhost:3000')}/auth/reset-password?token=${resetToken}`;
+    this.logger.log(`Password reset requested for ${email}`);
+    // Never log tokens/URLs in production - the URL should only be sent via email
   }
 
   /**

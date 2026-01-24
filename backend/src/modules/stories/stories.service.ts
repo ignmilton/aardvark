@@ -53,7 +53,7 @@ export class StoriesService {
   }> {
     const {
       page = 1,
-      limit = 20,
+      limit: rawLimit = 20,
       category,
       tags,
       status,
@@ -64,6 +64,9 @@ export class StoriesService {
       sortBy = 'created',
       sortOrder = 'desc',
     } = query;
+
+    // Cap limit to prevent resource exhaustion
+    const limit = Math.min(Math.max(1, rawLimit), 100);
 
     const where: FindOptionsWhere<Story> = {};
 

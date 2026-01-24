@@ -25,7 +25,8 @@ export class MessagingService {
    * Get user's conversations with pagination
    */
   async getConversations(userId: string, query: ConversationQueryDto) {
-    const { page = 1, limit = 20, archived = false } = query;
+    const { page = 1, limit: rawLimit = 20, archived = false } = query;
+    const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const queryBuilder = this.conversationRepository
       .createQueryBuilder('conversation')
@@ -105,7 +106,8 @@ export class MessagingService {
    * Get messages in a conversation with pagination
    */
   async getMessages(userId: string, conversationId: string, query: MessageQueryDto) {
-    const { page = 1, limit = 50, before } = query;
+    const { page = 1, limit: rawLimit = 50, before } = query;
+    const limit = Math.min(Math.max(1, rawLimit), 100);
 
     // Verify user is part of conversation
     const conversation = await this.conversationRepository.findOne({

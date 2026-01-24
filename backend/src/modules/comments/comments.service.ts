@@ -85,7 +85,9 @@ export class CommentsService {
    * Get comments with pagination
    */
   async findAll(query: CommentQueryDto) {
-    const { storyId, segmentId, parentCommentId, rootOnly, page = 1, limit = 20, sortBy = 'recent' } = query;
+    const { storyId, segmentId, parentCommentId, rootOnly, page = 1, limit: rawLimit = 20, sortBy = 'recent' } = query;
+    // Cap limit to prevent resource exhaustion
+    const limit = Math.min(Math.max(1, rawLimit), 100);
 
     const queryBuilder = this.commentRepository
       .createQueryBuilder('comment')
@@ -155,7 +157,9 @@ export class CommentsService {
   /**
    * Get comments for a story with threaded structure
    */
-  async getThreadedComments(storyId: string, segmentId?: string, page = 1, limit = 20) {
+  async getThreadedComments(storyId: string, segmentId?: string, page = 1, rawLimit = 20) {
+    // Cap limit to prevent resource exhaustion
+    const limit = Math.min(Math.max(1, rawLimit), 50);
     const queryBuilder = this.commentRepository
       .createQueryBuilder('comment')
       .leftJoinAndSelect('comment.user', 'user')

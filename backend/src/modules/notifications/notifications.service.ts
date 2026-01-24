@@ -57,7 +57,8 @@ export class NotificationsService {
    * Get notifications for a user with pagination and filters
    */
   async getUserNotifications(userId: string, query: NotificationQueryDto) {
-    const { unreadOnly, page = 1, limit = 20 } = query;
+    const { unreadOnly, page = 1, limit: rawLimit = 20 } = query;
+    const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const queryBuilder = this.notificationRepository
       .createQueryBuilder('notification')
@@ -164,7 +165,7 @@ export class NotificationsService {
   }
 
   /**
-   * Send notification to all followers of a user
+   * Send notification to all followers of a user (batched to prevent memory/DB overload)
    */
   async notifyFollowers(
     authorId: string,
@@ -174,6 +175,8 @@ export class NotificationsService {
     data: Record<string, unknown>,
     linkUrl?: string,
   ): Promise<void> {
+    const BATCH_SIZE = 100;
+
     // Get all followers of the author
     const follows = await this.followRepository.find({
       where: { followingId: authorId },
@@ -187,25 +190,29 @@ export class NotificationsService {
       return;
     }
 
-    // Create notifications for all followers
-    const notifications = followerIds.map((followerId) =>
-      this.notificationRepository.create({
-        userId: followerId,
-        type,
-        title,
-        message,
-        data,
-        linkUrl: linkUrl || null,
-        isRead: false,
-        readAt: null,
-      }),
-    );
+    // Process in batches to avoid memory and DB overload
+    for (let i = 0; i < followerIds.length; i += BATCH_SIZE) {
+      const batch = followerIds.slice(i, i + BATCH_SIZE);
 
-    const savedNotifications = await this.notificationRepository.save(notifications);
+      const notifications = batch.map((followerId) =>
+        this.notificationRepository.create({
+          userId: followerId,
+          type,
+          title,
+          message,
+          data,
+          linkUrl: linkUrl || null,
+          isRead: false,
+          readAt: null,
+        }),
+      );
 
-    // Send real-time notifications to all followers
-    for (const notification of savedNotifications) {
-      await this.sendRealTimeNotification(notification.userId, notification);
+      const savedNotifications = await this.notificationRepository.save(notifications);
+
+      // Send real-time notifications for this batch
+      for (const notification of savedNotifications) {
+        await this.sendRealTimeNotification(notification.userId, notification);
+      }
     }
 
     this.logger.log(`Notified ${followerIds.length} followers of author ${authorId}`);
