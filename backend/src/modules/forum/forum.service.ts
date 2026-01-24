@@ -104,8 +104,10 @@ export class ForumService {
       pinnedOnly,
       sortBy = 'recent',
       page = 1,
-      limit = 20,
+      limit: rawLimit = 20,
     } = query;
+    // Cap limit to prevent resource exhaustion
+    const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const queryBuilder = this.threadRepository
       .createQueryBuilder('thread')
@@ -311,7 +313,9 @@ export class ForumService {
    * Get posts for a thread
    */
   async getPosts(threadId: string, query: PostQueryDto) {
-    const { page = 1, limit = 20, sortBy = 'oldest' } = query;
+    const { page = 1, limit: rawLimit = 20, sortBy = 'oldest' } = query;
+    // Cap limit to prevent resource exhaustion
+    const limit = Math.min(Math.max(1, rawLimit), 50);
 
     // Verify thread exists
     const thread = await this.threadRepository.findOne({

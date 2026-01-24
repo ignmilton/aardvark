@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReviewDashboard } from '@/components/submissions';
@@ -266,27 +267,37 @@ export default function StoryEditorPage() {
     const token = getToken();
     if (!token || !story || !newVarName.trim()) return;
 
-    const created = await stateVariablesApi.create({
-      storyId: story.id,
-      name: newVarName.trim(),
-      displayName: newVarDisplayName.trim() || newVarName.trim(),
-      type: newVarType,
-      defaultValue: newVarType === 'boolean' ? false : newVarType === 'number' ? 0 : '',
-    }, token);
+    try {
+      const created = await stateVariablesApi.create({
+        storyId: story.id,
+        name: newVarName.trim(),
+        displayName: newVarDisplayName.trim() || newVarName.trim(),
+        type: newVarType as 'boolean' | 'number' | 'string' | 'array',
+        defaultValue: newVarType === 'boolean' ? false : newVarType === 'number' ? 0 : '',
+      }, token);
 
-    setStateVariables((prev) => [...prev, created]);
-    setNewVarName('');
-    setNewVarDisplayName('');
-    setNewVarType('boolean');
-    setShowAddVariable(false);
+      setStateVariables((prev) => [...prev, created]);
+      setNewVarName('');
+      setNewVarDisplayName('');
+      setNewVarType('boolean');
+      setShowAddVariable(false);
+      toast.success('Variable created');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create variable');
+    }
   };
 
   const handleDeleteVariable = async (id: string) => {
     const token = getToken();
     if (!token) return;
 
-    await stateVariablesApi.delete(id, token);
-    setStateVariables((prev) => prev.filter((v) => v.id !== id));
+    try {
+      await stateVariablesApi.delete(id, token);
+      setStateVariables((prev) => prev.filter((v) => v.id !== id));
+      toast.success('Variable deleted');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete variable');
+    }
   };
 
   // Settings save

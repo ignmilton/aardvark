@@ -6,16 +6,16 @@ services:
     image: postgres:16-alpine
     container_name: aardvark-postgres
     environment:
-      POSTGRES_USER: aardvark
-      POSTGRES_PASSWORD: aardvark_dev_password
-      POSTGRES_DB: aardvark
+      POSTGRES_USER: ${POSTGRES_USER:-aardvark}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aardvark_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-aardvark}
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U aardvark -d aardvark']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-aardvark} -d ${POSTGRES_DB:-aardvark}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -62,8 +62,8 @@ services:
     image: minio/minio:latest
     container_name: aardvark-minio
     environment:
-      MINIO_ROOT_USER: aardvark_minio
-      MINIO_ROOT_PASSWORD: aardvark_minio_secret
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-aardvark_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-aardvark_minio_secret}
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -94,17 +94,17 @@ services:
     container_name: aardvark-backend
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://aardvark:aardvark_dev_password@postgres:5432/aardvark
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aardvark}:${POSTGRES_PASSWORD:-aardvark_dev_password}@postgres:5432/${POSTGRES_DB:-aardvark}
       REDIS_URL: redis://redis:6379
       ELASTICSEARCH_NODE: http://elasticsearch:9200
       S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: aardvark_minio
-      S3_SECRET_KEY: aardvark_minio_secret
-      S3_BUCKET: aardvark-uploads
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-aardvark_minio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-aardvark_minio_secret}
+      S3_BUCKET: ${S3_BUCKET:-aardvark-uploads}
       SMTP_HOST: mailhog
       SMTP_PORT: 1025
-      JWT_SECRET: dev_jwt_secret_change_in_production
-      JWT_REFRESH_SECRET: dev_refresh_secret_change_in_production
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
     ports:
       - '4000:4000'
     volumes:

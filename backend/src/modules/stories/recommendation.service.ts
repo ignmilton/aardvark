@@ -48,18 +48,21 @@ export class RecommendationService {
   ): Promise<RecommendedStory[]> {
     const recommendations: RecommendedStory[] = [];
 
-    // Get user's reading history and preferences
-    const userProgress = await this.progressRepository.find({
-      where: { userId },
-      relations: ['story'],
-      take: 50,
-      order: { lastReadAt: 'DESC' },
-    });
+    // Get user's reading history and preferences using query builder
+    // to avoid N+1 queries and select only needed fields
+    const userProgress = await this.progressRepository
+      .createQueryBuilder('progress')
+      .leftJoinAndSelect('progress.story', 'story')
+      .where('progress.userId = :userId', { userId })
+      .orderBy('progress.lastReadAt', 'DESC')
+      .take(50)
+      .getMany();
 
-    const userRatings = await this.ratingRepository.find({
-      where: { userId },
-      relations: ['story'],
-    });
+    const userRatings = await this.ratingRepository
+      .createQueryBuilder('rating')
+      .leftJoinAndSelect('rating.story', 'story')
+      .where('rating.userId = :userId', { userId })
+      .getMany();
 
     // Get IDs of stories user has already read
     const readStoryIds = new Set(userProgress.map((p) => p.storyId));
