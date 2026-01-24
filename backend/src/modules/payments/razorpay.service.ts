@@ -109,9 +109,17 @@ export class RazorpayService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    this.keyId = this.configService.get<string>('RAZORPAY_KEY_ID') || 'rzp_test_mock';
-    this.keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || 'mock_secret';
-    this.webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET') || 'mock_webhook';
+    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
+    const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
+    const webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET');
+
+    if (!keyId || !keySecret || !webhookSecret) {
+      throw new Error('Razorpay credentials not configured. Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET environment variables.');
+    }
+
+    this.keyId = keyId;
+    this.keySecret = keySecret;
+    this.webhookSecret = webhookSecret;
   }
 
   /**

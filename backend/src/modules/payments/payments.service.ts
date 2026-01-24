@@ -17,12 +17,13 @@ export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
 
   constructor(private readonly configService: ConfigService) {
-    this.stripe = new Stripe(
-      this.configService.get<string>('STRIPE_SECRET_KEY') || 'sk_test_mock',
-      {
-        apiVersion: '2023-10-16',
-      }
-    );
+    const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
+    if (!stripeKey) {
+      throw new Error('Stripe secret key not configured. Set STRIPE_SECRET_KEY environment variable.');
+    }
+    this.stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16',
+    });
   }
 
   /**

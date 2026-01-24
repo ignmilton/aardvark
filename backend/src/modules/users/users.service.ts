@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, ILike } from 'typeorm';
-import { User, Follow } from '@/database/entities';
+import { User, Follow, ReaderProgress } from '@/database/entities';
 import { UpdateUserDto, UserQueryDto } from './dto';
-import { UserRole, UserProfile, UserStats } from '@aardvark/shared';
+import { UserRole, UserProfile, UserStats, UserBadge } from '@aardvark/shared';
 
 @Injectable()
 export class UsersService {
@@ -17,6 +17,8 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Follow)
     private readonly followRepository: Repository<Follow>,
+    @InjectRepository(ReaderProgress)
+    private readonly progressRepository: Repository<ReaderProgress>,
   ) {}
 
   /**
@@ -62,6 +64,7 @@ export class UsersService {
     }
 
     const stats = await this.getUserStats(user.id);
+    const badges = this.computeBadges(stats, user);
 
     let isFollowing: boolean | undefined;
     if (currentUserId && currentUserId !== user.id) {
@@ -83,7 +86,7 @@ export class UsersService {
       isPremium: user.isPremium,
       createdAt: user.createdAt,
       stats,
-      badges: [], // TODO: Implement badges system
+      badges,
       isFollowing,
     };
   }
@@ -116,9 +119,14 @@ export class UsersService {
         ? publishedStories.reduce((sum, s) => sum + s.averageRating * s.ratingsCount, 0) / totalRatings
         : 0;
 
+    // Calculate stories read from reader progress
+    const storiesRead = await this.progressRepository.count({
+      where: { userId, isCompleted: true },
+    });
+
     return {
       storiesPublished: publishedStories.length,
-      storiesRead: 0, // TODO: Calculate from reader progress
+      storiesRead,
       totalReads,
       totalRatings,
       averageRating: Math.round(averageRating * 10) / 10,
@@ -127,6 +135,53 @@ export class UsersService {
       commentsCount: user.comments?.length || 0,
       contributedBranches: user.segments?.filter((s) => s.storyId !== s.author?.id).length || 0,
     };
+  }
+
+  /**
+   * Compute achievement badges based on user stats and account info
+   */
+  private computeBadges(stats: UserStats, user: User): UserBadge[] {
+    const badges: UserBadge[] = [];
+    const earnedAt = user.createdAt;
+
+    if (stats.storiesPublished >= 1) {
+      badges.push({ id: 'first-story', name: 'First Story', description: 'Published your first story', iconUrl: '/badges/first-story.svg', earnedAt, rarity: 'common' });
+    }
+    if (stats.storiesPublished >= 5) {
+      badges.push({ id: 'storyteller', name: 'Storyteller', description: 'Published 5 stories', iconUrl: '/badges/storyteller.svg', earnedAt, rarity: 'uncommon' });
+    }
+    if (stats.storiesPublished >= 20) {
+      badges.push({ id: 'prolific-author', name: 'Prolific Author', description: 'Published 20 stories', iconUrl: '/badges/prolific-author.svg', earnedAt, rarity: 'rare' });
+    }
+    if (stats.storiesRead >= 10) {
+      badges.push({ id: 'avid-reader', name: 'Avid Reader', description: 'Completed 10 stories', iconUrl: '/badges/avid-reader.svg', earnedAt, rarity: 'uncommon' });
+    }
+    if (stats.storiesRead >= 50) {
+      badges.push({ id: 'bookworm', name: 'Bookworm', description: 'Completed 50 stories', iconUrl: '/badges/bookworm.svg', earnedAt, rarity: 'rare' });
+    }
+    if (stats.totalReads >= 100) {
+      badges.push({ id: 'popular', name: 'Popular', description: 'Stories read 100 times total', iconUrl: '/badges/popular.svg', earnedAt, rarity: 'uncommon' });
+    }
+    if (stats.totalReads >= 1000) {
+      badges.push({ id: 'famous', name: 'Famous', description: 'Stories read 1,000 times total', iconUrl: '/badges/famous.svg', earnedAt, rarity: 'epic' });
+    }
+    if (stats.followersCount >= 10) {
+      badges.push({ id: 'influencer', name: 'Influencer', description: 'Gained 10 followers', iconUrl: '/badges/influencer.svg', earnedAt, rarity: 'uncommon' });
+    }
+    if (stats.followersCount >= 100) {
+      badges.push({ id: 'celebrity', name: 'Celebrity', description: 'Gained 100 followers', iconUrl: '/badges/celebrity.svg', earnedAt, rarity: 'epic' });
+    }
+    if (stats.contributedBranches >= 5) {
+      badges.push({ id: 'collaborator', name: 'Collaborator', description: 'Contributed 5 branches to other stories', iconUrl: '/badges/collaborator.svg', earnedAt, rarity: 'uncommon' });
+    }
+    if (stats.averageRating >= 4.5 && stats.totalRatings >= 10) {
+      badges.push({ id: 'acclaimed', name: 'Acclaimed', description: 'Average rating of 4.5+ with 10+ ratings', iconUrl: '/badges/acclaimed.svg', earnedAt, rarity: 'rare' });
+    }
+    if (user.isPremium) {
+      badges.push({ id: 'premium', name: 'Premium Member', description: 'Active premium subscriber', iconUrl: '/badges/premium.svg', earnedAt, rarity: 'rare' });
+    }
+
+    return badges;
   }
 
   /**
