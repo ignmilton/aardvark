@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  */
 export function MobileNav() {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   // Hide on reading pages
   if (pathname?.startsWith('/read/')) {
@@ -25,7 +25,7 @@ export function MobileNav() {
     { href: '/create', label: 'Write', icon: PenTool, authRequired: true },
     { href: '/library', label: 'Library', icon: BookOpen, authRequired: true },
     {
-      href: isAuthenticated ? '/profile' : '/login',
+      href: isAuthenticated && user ? `/users/${user.username}` : '/login',
       label: isAuthenticated ? 'Profile' : 'Login',
       icon: User,
     },
