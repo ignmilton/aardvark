@@ -126,13 +126,14 @@ export function SubmissionForm({
 
           {/* Choice Text - What connects to your branch */}
           <div>
-            <label className="block text-sm font-medium mb-2">
+            <label htmlFor="submission-choice-text" className="block text-sm font-medium mb-2">
               Choice Text <span className="text-destructive">*</span>
             </label>
             <p className="text-xs text-muted-foreground mb-2">
               This is the choice readers will see that leads to your branch
             </p>
             <input
+              id="submission-choice-text"
               type="text"
               value={choiceText}
               onChange={(e) => setChoiceText(e.target.value)}
@@ -144,10 +145,11 @@ export function SubmissionForm({
 
           {/* Segment Title */}
           <div>
-            <label className="block text-sm font-medium mb-2">
+            <label htmlFor="submission-segment-title" className="block text-sm font-medium mb-2">
               Segment Title (Optional)
             </label>
             <input
+              id="submission-segment-title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -159,10 +161,11 @@ export function SubmissionForm({
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium mb-2">
+            <label htmlFor="submission-content" className="block text-sm font-medium mb-2">
               Content <span className="text-destructive">*</span>
             </label>
             <textarea
+              id="submission-content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Write your story content here..."
@@ -178,10 +181,12 @@ export function SubmissionForm({
           <div className="border rounded-lg p-4 bg-muted/30">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
+                id="submission-is-ending"
                 type="checkbox"
                 checked={isEnding}
                 onChange={(e) => setIsEnding(e.target.checked)}
                 className="w-4 h-4"
+                aria-describedby="ending-type-section"
               />
               <span className="text-sm font-medium">This is an ending segment</span>
             </label>
@@ -217,19 +222,21 @@ export function SubmissionForm({
 
           {/* Submission Note */}
           <div>
-            <label className="block text-sm font-medium mb-2">
+            <label htmlFor="submission-note" className="block text-sm font-medium mb-2">
               Note to Author <span className="text-destructive">*</span>
             </label>
-            <p className="text-xs text-muted-foreground mb-2">
+            <p id="submission-note-desc" className="text-xs text-muted-foreground mb-2">
               Explain why this branch fits the story and any notes for the author
             </p>
             <textarea
+              id="submission-note"
               value={submissionNote}
               onChange={(e) => setSubmissionNote(e.target.value)}
               placeholder="I think this branch would be interesting because..."
               rows={3}
               className="w-full px-3 py-2 border rounded-md resize-none"
               maxLength={1000}
+              aria-describedby="submission-note-desc"
             />
           </div>
         </div>

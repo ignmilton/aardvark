@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { HeroSection } from '@/components/home/hero-section';
+import { ContinueReading } from '@/components/home/continue-reading';
 import { FeaturedStories } from '@/components/home/featured-stories';
 import { TrendingStories } from '@/components/home/trending-stories';
 import { CategoryGrid } from '@/components/home/category-grid';
@@ -19,6 +20,9 @@ export default function HomePage() {
     <div className="flex flex-col">
       {/* Hero Section */}
       <HeroSection />
+
+      {/* Continue Reading (for authenticated users) */}
+      <ContinueReading />
 
       {/* Featured Stories Carousel */}
       <section className="py-12 md:py-16">

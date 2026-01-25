@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ReaderHeader, ReaderContent, ChoiceList, ProgressSidebar } from '@/components/reader';
+import { ReaderHeader, ReaderContent, ChoiceList, ProgressSidebar, EndingSummary } from '@/components/reader';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { storiesApi, segmentsApi, choicesApi, progressApi } from '@/lib/api';
@@ -134,6 +134,7 @@ export default function StoryReaderPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<number>(Date.now());
+  const [totalReadingTime, setTotalReadingTime] = useState<number>(0);
 
   // Load story and progress
   useEffect(() => {
@@ -174,6 +175,7 @@ export default function StoryReaderPage() {
         if (!choice) return;
 
         const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+        setTotalReadingTime((prev) => prev + timeSpent);
 
         // Update progress locally
         const updatedProgress: Progress = {
@@ -349,6 +351,26 @@ export default function StoryReaderPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [story, progress]);
 
+  // Handle rating submission
+  const handleRate = useCallback(async (rating: number) => {
+    if (!story) return;
+    const token = getToken();
+    if (token) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/${story.id}/rate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ rating }),
+        });
+      } catch {
+        // Silent fail for rating
+      }
+    }
+  }, [story]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -413,16 +435,19 @@ export default function StoryReaderPage() {
             disabled={isTransitioning || segment.isEnding}
           />
 
-          {/* Ending actions */}
+          {/* Ending summary with stats */}
           {segment.isEnding && (
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-              <Button onClick={handleReset} variant="outline" size="lg">
-                Start Over
-              </Button>
-              <Button onClick={() => router.push(`/story/${story.slug}`)} size="lg">
-                View Story Details
-              </Button>
-            </div>
+            <EndingSummary
+              storyTitle={story.title}
+              storySlug={story.slug}
+              endingType={segment.endingType}
+              segmentsVisited={progress.visitedSegmentIds.length}
+              choicesMade={progress.choiceHistory.length}
+              bookmarksCount={progress.bookmarks.length}
+              totalTimeSeconds={totalReadingTime + Math.floor((Date.now() - startTime) / 1000)}
+              onRestart={handleReset}
+              onRate={handleRate}
+            />
           )}
 
           {/* Toggle sidebar button (mobile) */}
