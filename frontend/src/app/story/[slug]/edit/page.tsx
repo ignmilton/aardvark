@@ -33,11 +33,11 @@ function EditorSkeleton() {
   );
 }
 
-// Types
+// Types - Extended from shared Story type
 interface Story {
   id: string;
   title: string;
-  slug: string;
+  slug?: string;
   description: string;
   status: string;
   collaborationMode: string;
@@ -107,7 +107,7 @@ function getToken(): string | undefined {
 export default function StoryEditorPage() {
   const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
+  const slug = params?.slug as string;
 
   const [story, setStory] = useState<Story | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -168,7 +168,7 @@ export default function StoryEditorPage() {
         if (token && storyData.collaborationMode !== 'private') {
           try {
             const subsData = await branchSubmissionsApi.getByStory(storyData.id, token);
-            setSubmissions(subsData?.submissions || []);
+            setSubmissions((subsData as any) || []);
           } catch {
             // No submissions
           }
@@ -190,15 +190,14 @@ export default function StoryEditorPage() {
 
     const created = await segmentsApi.create({
       storyId: story.id,
-      title: segment.title || null,
+      title: segment.title || undefined,
       content: segment.content || '',
-      contentMarkdown: segment.contentMarkdown || null,
+      contentMarkdown: segment.contentMarkdown || undefined,
       position: segment.position || { x: 250, y: 250 },
-      isRootSegment: segments.length === 0,
       isEnding: segment.isEnding || false,
-      endingType: segment.endingType || null,
+      endingType: segment.endingType || undefined,
       stateEffects: segment.stateEffects || [],
-    }, token);
+    } as any, token);
 
     setSegments((prev) => [...prev, created]);
     return created;
@@ -208,7 +207,7 @@ export default function StoryEditorPage() {
     const token = getToken();
     if (!token) return;
 
-    await segmentsApi.update(id, data, token);
+    await segmentsApi.update(id, data as any, token);
     setSegments((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...data } : s))
     );
@@ -228,12 +227,12 @@ export default function StoryEditorPage() {
     if (!token) throw new Error('Not authenticated');
 
     const created = await choicesApi.create({
-      segmentId: choice.segmentId,
-      nextSegmentId: choice.nextSegmentId,
+      segmentId: choice.segmentId!,
+      nextSegmentId: choice.nextSegmentId!,
       choiceText: choice.choiceText || 'New choice',
       order: choices.filter((c) => c.segmentId === choice.segmentId).length + 1,
       conditions: [],
-    }, token);
+    } as any, token);
 
     setChoices((prev) => [...prev, created]);
     return created;
@@ -274,7 +273,9 @@ export default function StoryEditorPage() {
         displayName: newVarDisplayName.trim() || newVarName.trim(),
         type: newVarType as 'boolean' | 'number' | 'string' | 'array',
         defaultValue: newVarType === 'boolean' ? false : newVarType === 'number' ? 0 : '',
-      }, token);
+        description: null,
+        isVisible: true,
+      } as any, token);
 
       setStateVariables((prev) => [...prev, created]);
       setNewVarName('');
@@ -308,7 +309,7 @@ export default function StoryEditorPage() {
     await storiesApi.update(story.id, {
       title: settingsTitle,
       description: settingsDescription,
-      collaborationMode: settingsCollabMode,
+      collaborationMode: settingsCollabMode as any,
     }, token);
 
     setStory((prev) => prev ? {
@@ -641,7 +642,7 @@ export default function StoryEditorPage() {
               const token = getToken();
               if (!token) return;
 
-              await branchSubmissionsApi.review(submissionId, { status, reviewNote }, token);
+              await branchSubmissionsApi.review(submissionId, { status, reviewNote } as any, token);
               setSubmissions((prev) =>
                 prev.map((s) =>
                   s.id === submissionId

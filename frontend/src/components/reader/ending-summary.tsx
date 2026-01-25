@@ -206,7 +206,7 @@ export function EndingSummary({
       <div className="text-center p-6 border rounded-lg">
         <p className="font-medium mb-3">Share your journey</p>
         <div className="flex justify-center gap-2 flex-wrap">
-          {typeof navigator !== 'undefined' && navigator.share && (
+          {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
             <Button variant="outline" size="sm" onClick={handleShare}>
               <Share2 className="h-4 w-4 mr-2" />
               Share

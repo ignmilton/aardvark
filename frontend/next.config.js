@@ -49,6 +49,9 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
   reactStrictMode: true,
 
+  // Transpile shared package
+  transpilePackages: ['@aardvark/shared'],
+
   // Enable standalone output for Docker deployment
   output: 'standalone',
 

@@ -11,8 +11,8 @@ import { storiesApi, segmentsApi, choicesApi, progressApi } from '@/lib/api';
 interface Story {
   id: string;
   title: string;
-  slug: string;
-  rootSegmentId: string;
+  slug?: string;
+  rootSegmentId: string | null;
 }
 
 interface Segment {
@@ -124,7 +124,7 @@ function saveLocalProgress(storyId: string, progress: Progress): void {
 export default function StoryReaderPage() {
   const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
+  const slug = params?.slug as string;
 
   const [story, setStory] = useState<Story | null>(null);
   const [segment, setSegment] = useState<Segment | null>(null);
@@ -145,7 +145,7 @@ export default function StoryReaderPage() {
         setStory(storyData);
 
         // Load or create progress
-        const progressData = await loadProgress(storyData.id, storyData.rootSegmentId);
+        const progressData = await loadProgress(storyData.id, storyData.rootSegmentId!);
         setProgress(progressData);
 
         // Load current segment with choices
@@ -326,8 +326,8 @@ export default function StoryReaderPage() {
 
     const newProgress: Progress = {
       id: progress?.id || `local-${story.id}`,
-      currentSegmentId: story.rootSegmentId,
-      visitedSegmentIds: [story.rootSegmentId],
+      currentSegmentId: story.rootSegmentId!,
+      visitedSegmentIds: [story.rootSegmentId!],
       choiceHistory: [],
       stateVariables: {},
       bookmarks: [],
@@ -344,7 +344,7 @@ export default function StoryReaderPage() {
     saveLocalProgress(story.id, newProgress);
     setProgress(newProgress);
 
-    const segmentData = await loadSegmentWithChoices(story.rootSegmentId);
+    const segmentData = await loadSegmentWithChoices(story.rootSegmentId!);
     setSegment(segmentData);
     setStartTime(Date.now());
 
@@ -409,7 +409,7 @@ export default function StoryReaderPage() {
     <div className="min-h-screen bg-background">
       <ReaderHeader
         storyTitle={story.title}
-        storySlug={story.slug}
+        storySlug={story.slug || slug}
         segmentTitle={segment.title}
         segmentNumber={segmentNumber}
         totalVisited={progress.visitedSegmentIds.length}
@@ -439,7 +439,7 @@ export default function StoryReaderPage() {
           {segment.isEnding && (
             <EndingSummary
               storyTitle={story.title}
-              storySlug={story.slug}
+              storySlug={story.slug || slug}
               endingType={segment.endingType}
               segmentsVisited={progress.visitedSegmentIds.length}
               choicesMade={progress.choiceHistory.length}
