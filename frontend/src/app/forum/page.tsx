@@ -67,7 +67,7 @@ export default function ForumPage() {
           success: boolean;
           data: ForumThread[];
           meta: { total: number };
-        }>(`/forum/categories/${selectedCategory}/threads?page=${page}&limit=20`);
+        }>(`/forum/threads?category=${selectedCategory}&page=${page}&limit=20`);
         setThreads(response.data || []);
         setTotalThreads(response.meta?.total || 0);
       } catch (error) {

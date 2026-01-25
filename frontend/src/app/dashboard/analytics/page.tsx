@@ -35,7 +35,7 @@ export default function AnalyticsPage() {
       try {
         const token = localStorage.getItem('token') || '';
         const response = await fetchApi<{ success: boolean; data: AnalyticsData }>(
-          `/analytics/author?period=${period}`,
+          `/analytics/dashboard?period=${period}`,
           { token },
         );
         setData(response.data);
