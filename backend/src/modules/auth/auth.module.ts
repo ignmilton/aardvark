@@ -8,7 +8,8 @@ import { AuthService } from './auth.service';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
-import { User } from '@/database/entities';
+import { BanCheckGuard } from './guards/ban-check.guard';
+import { User, UserBan } from '@/database/entities';
 
 /**
  * Authentication module providing JWT-based authentication,
@@ -16,7 +17,7 @@ import { User } from '@/database/entities';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, UserBan]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -30,7 +31,7 @@ import { User } from '@/database/entities';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenBlacklistService, JwtStrategy, LocalStrategy],
-  exports: [AuthService, TokenBlacklistService, JwtModule],
+  providers: [AuthService, TokenBlacklistService, JwtStrategy, LocalStrategy, BanCheckGuard],
+  exports: [AuthService, TokenBlacklistService, JwtModule, BanCheckGuard],
 })
 export class AuthModule {}

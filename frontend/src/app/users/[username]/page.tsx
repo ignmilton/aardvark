@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
+import { useAuth } from '@/components/providers/auth-provider';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { UserPlus, UserMinus, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface UserProfile {
   id: string;
@@ -36,22 +40,49 @@ interface UserStory {
 export default function UserProfilePage() {
   const params = useParams();
   const username = params.username as string;
+  const { user: currentUser, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stories, setStories] = useState<UserStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'stories' | 'about'>('stories');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  const isOwnProfile = currentUser?.username === username;
 
   useEffect(() => {
     async function loadProfile() {
       setLoading(true);
       try {
+        const token = localStorage.getItem('accessToken');
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const [profileRes, storiesRes] = await Promise.all([
           fetchApi<{ success: boolean; data: UserProfile }>(`/users/${username}`),
           fetchApi<{ success: boolean; data: UserStory[] }>(`/users/${username}/stories`),
         ]);
         setProfile(profileRes.data);
         setStories(storiesRes.data || []);
+
+        // Check if current user is following this profile
+        if (isAuthenticated && token && currentUser?.username !== username) {
+          try {
+            const followRes = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL}/users/${username}/follow-status`,
+              { headers }
+            );
+            if (followRes.ok) {
+              const data = await followRes.json();
+              setIsFollowing(data.data?.isFollowing || false);
+            }
+          } catch {
+            // Follow status endpoint may not exist, ignore
+          }
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to load profile');
       } finally {
@@ -59,7 +90,51 @@ export default function UserProfilePage() {
       }
     }
     loadProfile();
-  }, [username]);
+  }, [username, isAuthenticated, currentUser?.username]);
+
+  const handleFollowToggle = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to follow users');
+      return;
+    }
+
+    const token = localStorage.getItem('accessToken');
+    if (!token || !profile) return;
+
+    setFollowLoading(true);
+    try {
+      const endpoint = isFollowing
+        ? `/users/${profile.id}/unfollow`
+        : `/users/${profile.id}/follow`;
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update follow status');
+      }
+
+      setIsFollowing(!isFollowing);
+      setProfile(prev => prev ? {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          followersCount: prev.stats.followersCount + (isFollowing ? -1 : 1),
+        },
+      } : null);
+
+      toast.success(isFollowing ? 'Unfollowed successfully' : 'Following!');
+    } catch (error) {
+      toast.error('Failed to update follow status');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -90,8 +165,40 @@ export default function UserProfilePage() {
             )}
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">{profile.displayName}</h1>
-            <p className="text-muted-foreground">@{profile.username}</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">{profile.displayName}</h1>
+                <p className="text-muted-foreground">@{profile.username}</p>
+              </div>
+              {!isOwnProfile && (
+                <Button
+                  variant={isFollowing ? 'outline' : 'default'}
+                  size="sm"
+                  onClick={handleFollowToggle}
+                  disabled={followLoading}
+                  className="shrink-0"
+                >
+                  {followLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : isFollowing ? (
+                    <>
+                      <UserMinus className="h-4 w-4 mr-1" aria-hidden="true" />
+                      Unfollow
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4 mr-1" aria-hidden="true" />
+                      Follow
+                    </>
+                  )}
+                </Button>
+              )}
+              {isOwnProfile && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/settings">Edit Profile</Link>
+                </Button>
+              )}
+            </div>
             {profile.bio && <p className="mt-2 text-sm">{profile.bio}</p>}
             <div className="flex gap-6 mt-3 text-sm text-muted-foreground">
               <span><strong className="text-foreground">{profile.stats.storiesPublished}</strong> stories</span>

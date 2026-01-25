@@ -12,7 +12,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/modules/auth/guards/roles.guard';
+import { BanCheckGuard } from '@/modules/auth/guards/ban-check.guard';
 import { Public } from '@/modules/auth/decorators/public.decorator';
+import { Roles } from '@/modules/auth/decorators/roles.decorator';
 import { StoriesService } from './stories.service';
 import { RecommendationService } from './recommendation.service';
 import { CreateStoryDto, UpdateStoryDto, StoryQueryParams, UserRole } from '@aardvark/shared';
@@ -30,11 +33,14 @@ export class StoriesController {
 
   /**
    * Create a new story
+   * Only users with AUTHOR, MODERATOR, or ADMIN role can create stories
+   * Banned users are prevented from creating stories
    */
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, BanCheckGuard)
+  @Roles(UserRole.AUTHOR, UserRole.MODERATOR, UserRole.ADMIN)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Create a new story' })
+  @ApiOperation({ summary: 'Create a new story (authors only)' })
   create(
     @Request() req: { user: { userId: string } },
     @Body() createDto: CreateStoryDto,
@@ -159,9 +165,10 @@ export class StoriesController {
 
   /**
    * Update a story
+   * Banned users are prevented from updating stories
    */
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, BanCheckGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update a story' })
   update(
@@ -179,9 +186,10 @@ export class StoriesController {
 
   /**
    * Delete a story
+   * Banned users are prevented from deleting stories
    */
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, BanCheckGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Delete a story' })
   remove(
@@ -193,9 +201,10 @@ export class StoriesController {
 
   /**
    * Publish a story
+   * Banned users are prevented from publishing stories
    */
   @Post(':id/publish')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, BanCheckGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Publish a story' })
   publish(

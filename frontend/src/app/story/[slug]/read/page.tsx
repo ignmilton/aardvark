@@ -429,12 +429,14 @@ export default function StoryReaderPage() {
           <button
             onClick={() => setShowSidebar(true)}
             className="fixed bottom-20 right-4 lg:hidden z-30 p-3 bg-primary text-primary-foreground rounded-full shadow-lg"
+            aria-label="Show reading progress"
           >
             <svg
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"

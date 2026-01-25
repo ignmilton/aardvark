@@ -562,12 +562,14 @@ export class ModerationService {
       where: { isActive: true },
     });
 
-    const totalActiveWarnings = await this.userWarningRepository.count({
-      where: {
-        acknowledged: false,
-        expiresAt: Not(LessThan(new Date())),
-      },
-    });
+    // Count active warnings: not acknowledged AND (no expiry OR expiry in future)
+    // Fixed: The original query used Not(LessThan(new Date())) which had incorrect logic
+    // for null expiresAt values. Now we properly handle both cases.
+    const totalActiveWarnings = await this.userWarningRepository
+      .createQueryBuilder('warning')
+      .where('warning.acknowledged = :acknowledged', { acknowledged: false })
+      .andWhere('(warning.expiresAt IS NULL OR warning.expiresAt > :now)', { now: new Date() })
+      .getCount();
 
     // Get pending flags
     const pendingFlags = await this.contentFlagRepository.count({

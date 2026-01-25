@@ -7,20 +7,45 @@ import {
   Min,
   Max,
   MaxLength,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+/**
+ * Custom validator to ensure rating is in 0.5 increments (half-star precision)
+ */
+@ValidatorConstraint({ name: 'isHalfStarIncrement', async: false })
+export class IsHalfStarIncrement implements ValidatorConstraintInterface {
+  validate(rating: number, args: ValidationArguments): boolean {
+    // Check if the rating is a valid half-star increment (1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5)
+    return rating >= 1 && rating <= 5 && (rating * 2) % 1 === 0;
+  }
+
+  defaultMessage(args: ValidationArguments): string {
+    return 'Rating must be in 0.5 increments (e.g., 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5)';
+  }
+}
 
 export class CreateRatingDto {
   @ApiProperty({ description: 'Story ID' })
   @IsUUID()
   storyId: string;
 
-  @ApiProperty({ description: 'Rating (1-5)', minimum: 1, maximum: 5 })
+  @ApiProperty({
+    description: 'Rating (1-5 with half-star precision)',
+    minimum: 1,
+    maximum: 5,
+    example: 4.5,
+  })
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 1 })
   @Min(1)
   @Max(5)
+  @Validate(IsHalfStarIncrement)
   rating: number;
 
   @ApiPropertyOptional({ description: 'Review title', maxLength: 200 })
@@ -37,12 +62,18 @@ export class CreateRatingDto {
 }
 
 export class UpdateRatingDto {
-  @ApiPropertyOptional({ description: 'Rating (1-5)', minimum: 1, maximum: 5 })
+  @ApiPropertyOptional({
+    description: 'Rating (1-5 with half-star precision)',
+    minimum: 1,
+    maximum: 5,
+    example: 4.5,
+  })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 1 })
   @Min(1)
   @Max(5)
+  @Validate(IsHalfStarIncrement)
   rating?: number;
 
   @ApiPropertyOptional({ description: 'Review title', maxLength: 200 })

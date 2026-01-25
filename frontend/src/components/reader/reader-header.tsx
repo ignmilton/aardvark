@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { AccessibilitySettings } from '@/components/a11y/accessibility-settings';
 
 interface ReaderHeaderProps {
   storyTitle: string;
@@ -35,13 +36,14 @@ export function ReaderHeader({
           <Link
             href={`/story/${storySlug}`}
             className="flex-shrink-0 p-2 -ml-2 rounded-md hover:bg-muted transition-colors"
-            title="Back to story page"
+            aria-label="Back to story page"
           >
             <svg
               className="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -62,6 +64,9 @@ export function ReaderHeader({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Accessibility settings */}
+          <AccessibilitySettings />
+
           {/* Bookmark button */}
           {onBookmark && (
             <button
@@ -72,13 +77,15 @@ export function ReaderHeader({
                   ? 'text-primary bg-primary/10'
                   : 'hover:bg-muted text-muted-foreground'
               )}
-              title={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+              aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+              aria-pressed={isBookmarked}
             >
               <svg
                 className="w-5 h-5"
                 fill={isBookmarked ? 'currentColor' : 'none'}
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -104,6 +111,7 @@ export function ReaderHeader({
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -136,6 +144,7 @@ export function ReaderHeader({
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
+                          aria-hidden="true"
                         >
                           <path
                             strokeLinecap="round"
@@ -158,6 +167,7 @@ export function ReaderHeader({
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        aria-hidden="true"
                       >
                         <path
                           strokeLinecap="round"

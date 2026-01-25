@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual } from 'typeorm';
+import { Repository, Between, MoreThanOrEqual, DataSource } from 'typeorm';
 import {
   AuthorEarning,
   AuthorPayoutAccount,
@@ -30,6 +30,7 @@ export class EarningsService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly paymentsService: PaymentsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -276,50 +277,78 @@ export class EarningsService {
 
   /**
    * Request a payout
+   * Uses database transaction with pessimistic locking to prevent race conditions
    */
   async requestPayout(authorId: string, amount?: number): Promise<Payout> {
-    const account = await this.accountRepository.findOne({ where: { authorId } });
+    return this.dataSource.transaction(async (manager) => {
+      const accountRepo = manager.getRepository(AuthorPayoutAccount);
+      const payoutRepo = manager.getRepository(Payout);
+      const earningRepo = manager.getRepository(AuthorEarning);
 
-    if (!account || !account.payoutsEnabled) {
-      throw new BadRequestException('Payout account not set up or not verified');
-    }
+      // Lock the account row to prevent concurrent payout requests
+      const account = await accountRepo.findOne({
+        where: { authorId },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    const pendingBalance = await this.getPendingBalance(authorId);
+      if (!account || !account.payoutsEnabled) {
+        throw new BadRequestException('Payout account not set up or not verified');
+      }
 
-    // Use specified amount or full balance
-    const payoutAmount = amount || pendingBalance;
+      // Check for pending payouts within the transaction (with lock)
+      const pendingPayout = await payoutRepo.findOne({
+        where: {
+          authorId,
+          status: 'pending',
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    if (payoutAmount < MIN_PAYOUT_AMOUNT) {
-      throw new BadRequestException(
-        `Minimum payout amount is $${MIN_PAYOUT_AMOUNT / 100}`,
-      );
-    }
+      if (pendingPayout) {
+        throw new BadRequestException('You already have a pending payout request');
+      }
 
-    if (payoutAmount > pendingBalance) {
-      throw new BadRequestException('Insufficient balance');
-    }
+      // Calculate pending balance within transaction
+      const totalEarned = await earningRepo
+        .createQueryBuilder('earning')
+        .select('COALESCE(SUM(earning.netAmount), 0)', 'total')
+        .where('earning.authorId = :authorId', { authorId })
+        .getRawOne();
 
-    // Check for pending payouts
-    const pendingPayout = await this.payoutRepository.findOne({
-      where: {
+      const totalPaidOut = await payoutRepo
+        .createQueryBuilder('payout')
+        .select('COALESCE(SUM(payout.amount), 0)', 'total')
+        .where('payout.authorId = :authorId', { authorId })
+        .andWhere('payout.status = :status', { status: 'completed' })
+        .getRawOne();
+
+      const earned = parseInt(totalEarned?.total || '0', 10);
+      const paidOut = parseInt(totalPaidOut?.total || '0', 10);
+      const pendingBalance = earned - paidOut;
+
+      // Use specified amount or full balance
+      const payoutAmount = amount || pendingBalance;
+
+      if (payoutAmount < MIN_PAYOUT_AMOUNT) {
+        throw new BadRequestException(
+          `Minimum payout amount is $${MIN_PAYOUT_AMOUNT / 100}`,
+        );
+      }
+
+      if (payoutAmount > pendingBalance) {
+        throw new BadRequestException('Insufficient balance');
+      }
+
+      // Create payout record
+      const payout = payoutRepo.create({
         authorId,
+        amount: payoutAmount,
+        currency: account.currency,
         status: 'pending',
-      },
+      });
+
+      return payoutRepo.save(payout);
     });
-
-    if (pendingPayout) {
-      throw new BadRequestException('You already have a pending payout request');
-    }
-
-    // Create payout record
-    const payout = this.payoutRepository.create({
-      authorId,
-      amount: payoutAmount,
-      currency: account.currency,
-      status: 'pending',
-    });
-
-    return this.payoutRepository.save(payout);
   }
 
   /**

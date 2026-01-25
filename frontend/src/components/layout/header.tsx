@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import {
   Coins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { debounce } from '@/lib/utils';
 
 /**
  * Main header/navigation component for the application.
@@ -40,10 +41,39 @@ import { cn } from '@/lib/utils';
  */
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { user, isAuthenticated, logout, isPremium } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle search submission
+  const handleSearch = useCallback((query: string) => {
+    if (query.trim()) {
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      setSearchOpen(false);
+      setSearchQuery('');
+    }
+  }, [router]);
+
+  // Handle keyboard submit
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch(searchQuery);
+    } else if (e.key === 'Escape') {
+      setSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
+
+  // Focus search input when opened on mobile
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
 
   // Hide header on reading pages
   if (pathname?.startsWith('/read/')) {
@@ -94,14 +124,25 @@ export function Header() {
 
         {/* Search Bar */}
         <div className="hidden md:flex flex-1 max-w-md mx-6">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <form
+            className="relative w-full"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSearch(searchQuery);
+            }}
+            role="search"
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
               type="search"
               placeholder="Search stories, authors..."
               className="pl-10 pr-4 w-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              aria-label="Search stories and authors"
             />
-          </div>
+          </form>
         </div>
 
         {/* Right Side Actions */}
@@ -252,15 +293,26 @@ export function Header() {
       {/* Mobile Search Bar */}
       {searchOpen && (
         <div className="md:hidden px-4 pb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <form
+            className="relative"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSearch(searchQuery);
+            }}
+            role="search"
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
+              ref={searchInputRef}
               type="search"
               placeholder="Search stories, authors..."
               className="pl-10 pr-4 w-full"
-              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              aria-label="Search stories and authors"
             />
-          </div>
+          </form>
         </div>
       )}
 

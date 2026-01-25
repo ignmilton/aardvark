@@ -7,7 +7,10 @@ import {
   Req,
   UseGuards,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { CreditsService } from './credits.service';
 import {
@@ -17,9 +20,9 @@ import {
   TransactionHistoryQueryDto,
 } from './dto';
 
-// In-memory ad session store (use Redis in production for multi-instance)
-const adSessions = new Map<string, { userId: string; startedAt: number }>();
 const AD_MIN_DURATION_MS = 25_000; // Minimum 25 seconds must elapse
+const AD_SESSION_TTL_MS = 600_000; // 10 minute session expiry
+const MAX_ADS_PER_DAY = 50; // Maximum ads a user can watch per day
 
 /**
  * Controller for credit operations.
@@ -28,7 +31,10 @@ const AD_MIN_DURATION_MS = 25_000; // Minimum 25 seconds must elapse
 @Controller('credits')
 @UseGuards(JwtAuthGuard)
 export class CreditsController {
-  constructor(private readonly creditsService: CreditsService) {}
+  constructor(
+    private readonly creditsService: CreditsService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   /**
    * Get current credit balance
@@ -155,25 +161,31 @@ export class CreditsController {
    * Start an ad session (server-side verification token).
    * Client must call this before showing an ad, then submit the token
    * when claiming the reward. Server verifies minimum time elapsed.
+   * Uses Redis for multi-instance support.
    * POST /credits/ad-session
    */
   @Post('ad-session')
   async startAdSession(@Req() req: any) {
     const userId = req.user.id;
 
+    // Check daily ad limit before starting new session
+    const dailyCount = await this.getDailyAdCount(userId);
+    if (dailyCount >= MAX_ADS_PER_DAY) {
+      throw new BadRequestException(
+        `Daily ad limit reached (${MAX_ADS_PER_DAY} ads per day). Try again tomorrow.`,
+      );
+    }
+
     // Generate a unique session token
     const sessionToken = `${userId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-    // Store session with start time
-    adSessions.set(sessionToken, { userId, startedAt: Date.now() });
-
-    // Clean up old sessions (>10 min old)
-    const cutoff = Date.now() - 600_000;
-    for (const [key, session] of adSessions) {
-      if (session.startedAt < cutoff) {
-        adSessions.delete(key);
-      }
-    }
+    // Store session in Redis with TTL
+    const cacheKey = `ad_session:${sessionToken}`;
+    await this.cacheManager.set(
+      cacheKey,
+      { userId, startedAt: Date.now() },
+      AD_SESSION_TTL_MS,
+    );
 
     return {
       success: true,
@@ -182,7 +194,44 @@ export class CreditsController {
   }
 
   /**
+   * Get the count of ads watched by a user today
+   */
+  private async getDailyAdCount(userId: string): Promise<number> {
+    // Check Redis cache first for daily count
+    const cacheKey = `ad_daily_count:${userId}`;
+    const cached = await this.cacheManager.get<number>(cacheKey);
+    if (cached !== undefined && cached !== null) {
+      return cached;
+    }
+
+    // Fall back to database count
+    const count = await this.creditsService.getTodayAdWatchCount(userId);
+
+    // Cache for 5 minutes to reduce DB queries
+    await this.cacheManager.set(cacheKey, count, 300_000);
+
+    return count;
+  }
+
+  /**
+   * Increment the daily ad count in cache
+   */
+  private async incrementDailyAdCount(userId: string): Promise<void> {
+    const cacheKey = `ad_daily_count:${userId}`;
+    const current = await this.cacheManager.get<number>(cacheKey) || 0;
+
+    // Calculate TTL until end of day
+    const now = new Date();
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+    const ttlMs = endOfDay.getTime() - now.getTime();
+
+    await this.cacheManager.set(cacheKey, current + 1, ttlMs);
+  }
+
+  /**
    * Reward for watching an ad (with server-side verification)
+   * Uses Redis for session verification and enforces daily limits.
    * POST /credits/ad-reward
    */
   @Post('ad-reward')
@@ -192,9 +241,19 @@ export class CreditsController {
   ) {
     const userId = req.user.id;
 
+    // Check daily ad limit
+    const dailyCount = await this.getDailyAdCount(userId);
+    if (dailyCount >= MAX_ADS_PER_DAY) {
+      throw new BadRequestException(
+        `Daily ad limit reached (${MAX_ADS_PER_DAY} ads per day). Try again tomorrow.`,
+      );
+    }
+
     // Verify session token if provided
     if (dto.sessionToken) {
-      const session = adSessions.get(dto.sessionToken);
+      const cacheKey = `ad_session:${dto.sessionToken}`;
+      const session = await this.cacheManager.get<{ userId: string; startedAt: number }>(cacheKey);
+
       if (!session) {
         throw new BadRequestException('Invalid or expired ad session');
       }
@@ -210,8 +269,8 @@ export class CreditsController {
         );
       }
 
-      // Consume the session token (one-time use)
-      adSessions.delete(dto.sessionToken);
+      // Consume the session token (one-time use) - delete from Redis
+      await this.cacheManager.del(cacheKey);
     }
 
     const transaction = await this.creditsService.rewardAdWatch(userId, dto);
@@ -222,6 +281,9 @@ export class CreditsController {
         data: { creditsAwarded: 0, message: 'Ad not completed' },
       };
     }
+
+    // Increment daily ad count in cache
+    await this.incrementDailyAdCount(userId);
 
     return {
       success: true,
