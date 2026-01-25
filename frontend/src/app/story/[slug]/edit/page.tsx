@@ -319,6 +319,45 @@ export default function StoryEditorPage() {
     } : null);
   };
 
+  // Publish story
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const handlePublish = async () => {
+    const token = getToken();
+    if (!token || !story) return;
+
+    // Validate story has content
+    if (segments.length === 0) {
+      toast.error('Add at least one segment before publishing');
+      return;
+    }
+
+    // Check for root segment
+    const rootSegment = segments.find(s => s.isRootSegment);
+    if (!rootSegment) {
+      toast.error('Your story needs a starting segment');
+      return;
+    }
+
+    // Check for at least one ending
+    const hasEnding = segments.some(s => s.isEnding);
+    if (!hasEnding) {
+      toast.error('Your story needs at least one ending');
+      return;
+    }
+
+    setIsPublishing(true);
+    try {
+      await storiesApi.publish(story.id, token);
+      setStory(prev => prev ? { ...prev, status: 'published' } : null);
+      toast.success('Story published successfully!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to publish story');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen flex flex-col">
@@ -421,7 +460,19 @@ export default function StoryEditorPage() {
           <Button variant="outline" size="sm" asChild>
             <Link href={`/story/${slug}/read`}>Preview</Link>
           </Button>
-          <Button size="sm">Publish</Button>
+          {story.status === 'draft' ? (
+            <Button
+              size="sm"
+              onClick={handlePublish}
+              disabled={isPublishing}
+            >
+              {isPublishing ? 'Publishing...' : 'Publish'}
+            </Button>
+          ) : (
+            <Button size="sm" variant="secondary" disabled>
+              Published
+            </Button>
+          )}
         </div>
       </header>
 
@@ -458,8 +509,9 @@ export default function StoryEditorPage() {
               <div className="mb-6 p-4 border rounded-lg space-y-3">
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Name (code)</label>
+                    <label htmlFor="var-name" className="block text-sm font-medium mb-1">Name (code)</label>
                     <input
+                      id="var-name"
                       type="text"
                       value={newVarName}
                       onChange={(e) => setNewVarName(e.target.value)}
@@ -468,8 +520,9 @@ export default function StoryEditorPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Display Name</label>
+                    <label htmlFor="var-display" className="block text-sm font-medium mb-1">Display Name</label>
                     <input
+                      id="var-display"
                       type="text"
                       value={newVarDisplayName}
                       onChange={(e) => setNewVarDisplayName(e.target.value)}
@@ -478,8 +531,9 @@ export default function StoryEditorPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Type</label>
+                    <label htmlFor="var-type" className="block text-sm font-medium mb-1">Type</label>
                     <select
+                      id="var-type"
                       value={newVarType}
                       onChange={(e) => setNewVarType(e.target.value)}
                       className="w-full px-3 py-2 border rounded-md text-sm"
@@ -543,8 +597,9 @@ export default function StoryEditorPage() {
             <h2 className="text-xl font-semibold mb-6">Story Settings</h2>
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium mb-2">Title</label>
+                <label htmlFor="story-title" className="block text-sm font-medium mb-2">Title</label>
                 <input
+                  id="story-title"
                   type="text"
                   value={settingsTitle}
                   onChange={(e) => setSettingsTitle(e.target.value)}
@@ -552,8 +607,9 @@ export default function StoryEditorPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
+                <label htmlFor="story-description" className="block text-sm font-medium mb-2">Description</label>
                 <textarea
+                  id="story-description"
                   value={settingsDescription}
                   onChange={(e) => setSettingsDescription(e.target.value)}
                   rows={3}
@@ -561,8 +617,9 @@ export default function StoryEditorPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Collaboration Mode</label>
+                <label htmlFor="collab-mode" className="block text-sm font-medium mb-2">Collaboration Mode</label>
                 <select
+                  id="collab-mode"
                   value={settingsCollabMode}
                   onChange={(e) => setSettingsCollabMode(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md"
