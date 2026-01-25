@@ -209,8 +209,24 @@ export class PaymentsController {
    * DELETE /payments/payment-methods/:id
    */
   @Delete('payment-methods/:id')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deletePaymentMethod(@Param('id') paymentMethodId: string) {
+  async deletePaymentMethod(
+    @Req() req: any,
+    @Param('id') paymentMethodId: string,
+  ) {
+    const userId = req.user.id;
+    const email = req.user.email;
+
+    // Verify the payment method belongs to the user's customer
+    const customer = await this.paymentsService.getOrCreateCustomer(userId, email);
+    const paymentMethods = await this.paymentsService.listPaymentMethods(customer.id);
+
+    const ownsPaymentMethod = paymentMethods.some(pm => pm.id === paymentMethodId);
+    if (!ownsPaymentMethod) {
+      throw new NotFoundException('Payment method not found');
+    }
+
     await this.paymentsService.detachPaymentMethod(paymentMethodId);
   }
 

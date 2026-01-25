@@ -9,6 +9,7 @@ import { Repository, In } from 'typeorm';
 import { StorySegment, Story, Choice, User } from '@/database/entities';
 import { CreateSegmentDto, UpdateSegmentDto, SegmentQueryDto, BulkUpdatePositionsDto } from './dto';
 import { CollaborationMode } from '@aardvark/shared';
+import * as sanitizeHtml from 'sanitize-html';
 
 @Injectable()
 export class SegmentsService {
@@ -69,12 +70,15 @@ export class SegmentsService {
       parentSegmentIds.push(createDto.parentSegmentId);
     }
 
+    // Sanitize content to prevent XSS
+    const sanitizedContent = this.sanitizeContent(createDto.content);
+
     // Create the segment
     const segment = this.segmentRepository.create({
       storyId: createDto.storyId,
       authorId,
       title: createDto.title || null,
-      content: createDto.content,
+      content: sanitizedContent,
       contentMarkdown: createDto.contentMarkdown || null,
       position: createDto.position || { x: 0, y: 0 },
       parentSegmentIds,
@@ -186,11 +190,13 @@ export class SegmentsService {
       throw new ForbiddenException(canEdit.reason);
     }
 
-    // Recalculate word count if content changed
+    // Recalculate word count and sanitize if content changed
     if (updateDto.content) {
-      const plainText = this.stripHtml(updateDto.content);
+      const sanitizedContent = this.sanitizeContent(updateDto.content);
+      const plainText = this.stripHtml(sanitizedContent);
       segment.wordCount = this.countWords(plainText);
       segment.estimatedReadTime = Math.ceil(segment.wordCount / 200);
+      updateDto.content = sanitizedContent;
     }
 
     // Increment version
@@ -494,5 +500,54 @@ export class SegmentsService {
 
   private countWords(text: string): number {
     return text.split(/\s+/).filter((word) => word.length > 0).length;
+  }
+
+  /**
+   * Sanitize HTML content to prevent XSS attacks.
+   * Allows rich text formatting while stripping dangerous elements.
+   */
+  private sanitizeContent(html: string): string {
+    return sanitizeHtml(html, {
+      allowedTags: [
+        // Text formatting
+        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'ins',
+        'mark', 'sub', 'sup', 'small',
+        // Headings
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        // Lists
+        'ul', 'ol', 'li',
+        // Block elements
+        'blockquote', 'pre', 'code', 'hr', 'div', 'span',
+        // Links (with restricted attributes)
+        'a',
+        // Images (with restricted attributes)
+        'img',
+        // Tables
+        'table', 'thead', 'tbody', 'tr', 'th', 'td',
+        // Media
+        'figure', 'figcaption',
+      ],
+      allowedAttributes: {
+        a: ['href', 'target', 'rel', 'title'],
+        img: ['src', 'alt', 'title', 'width', 'height'],
+        '*': ['class', 'id'],
+        table: ['border', 'cellpadding', 'cellspacing'],
+        th: ['colspan', 'rowspan'],
+        td: ['colspan', 'rowspan'],
+      },
+      allowedSchemes: ['http', 'https', 'mailto'],
+      transformTags: {
+        a: (tagName, attribs) => ({
+          tagName,
+          attribs: {
+            ...attribs,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          },
+        }),
+      },
+      // Strip all dangerous tags
+      disallowedTagsMode: 'discard',
+    });
   }
 }
