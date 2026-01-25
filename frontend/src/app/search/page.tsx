@@ -26,9 +26,9 @@ interface SearchResponse {
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [query, setQuery] = useState(searchParams.get('q') || '');
-  const [category, setCategory] = useState(searchParams.get('category') || '');
-  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'relevance');
+  const [query, setQuery] = useState(searchParams?.get('q') || '');
+  const [category, setCategory] = useState(searchParams?.get('category') || '');
+  const [sortBy, setSortBy] = useState(searchParams?.get('sort') || 'relevance');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);

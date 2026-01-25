@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Lora, JetBrains_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { AuthProvider } from '@/components/providers/auth-provider';
@@ -13,24 +12,9 @@ import { AnnouncerProvider } from '@/components/a11y/announcer';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import '@/styles/globals.css';
 
-// Font configurations
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
-});
-
-const lora = Lora({
-  subsets: ['latin'],
-  variable: '--font-reading',
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  display: 'swap',
-});
+// Font CSS variables are defined in globals.css using system fonts
+// This avoids the need to fetch fonts during build while maintaining good typography
+// In production, Google Fonts can be loaded via CSS @import for enhanced typography
 
 // Metadata for SEO
 export const metadata: Metadata = {
@@ -132,7 +116,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} ${lora.variable} ${jetbrainsMono.variable}`}
+      className="font-sans"
     >
       <head>
         {/* PWA meta tags */}

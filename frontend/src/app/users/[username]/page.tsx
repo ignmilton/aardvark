@@ -39,7 +39,7 @@ interface UserStory {
 
 export default function UserProfilePage() {
   const params = useParams();
-  const username = params.username as string;
+  const username = params?.username as string;
   const { user: currentUser, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stories, setStories] = useState<UserStory[]>([]);

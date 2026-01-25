@@ -33,7 +33,6 @@ import {
   Coins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { debounce } from '@/lib/utils';
 
 /**
  * Main header/navigation component for the application.

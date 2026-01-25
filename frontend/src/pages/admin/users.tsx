@@ -1,5 +1,10 @@
 'use client';
 
+// Prevent static generation for this admin page
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import {

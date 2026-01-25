@@ -70,7 +70,7 @@ const PLANS: Plan[] = [
 
 export default function PremiumPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isPremium } = useAuth();
+  const { isAuthenticated, isPremium } = useAuth();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly');
   const [isProcessing, setIsProcessing] = useState(false);
 

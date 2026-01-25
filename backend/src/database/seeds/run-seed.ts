@@ -9,6 +9,14 @@ import {
   Tag,
   StoryStateVariable,
 } from '../entities';
+import {
+  UserRole,
+  AccountStatus,
+  SubscriptionStatus,
+  StoryCategory,
+  CollaborationMode,
+  StoryStatus,
+} from '@aardvark/shared';
 
 const SALT_ROUNDS = 12;
 
@@ -31,11 +39,12 @@ async function seed(ds: DataSource) {
     email: 'admin@aardvark.dev',
     passwordHash,
     displayName: 'Platform Admin',
-    role: 'admin',
-    accountStatus: 'active',
+    role: UserRole.ADMIN,
+    accountStatus: AccountStatus.ACTIVE,
+    subscriptionStatus: SubscriptionStatus.ACTIVE,
     creditsBalance: 1000,
-    isPremium: true,
     bio: 'Platform administrator.',
+    emailVerified: true,
   });
 
   const moderator = userRepo.create({
@@ -43,11 +52,12 @@ async function seed(ds: DataSource) {
     email: 'mod@aardvark.dev',
     passwordHash,
     displayName: 'Content Moderator',
-    role: 'moderator',
-    accountStatus: 'active',
+    role: UserRole.MODERATOR,
+    accountStatus: AccountStatus.ACTIVE,
+    subscriptionStatus: SubscriptionStatus.NONE,
     creditsBalance: 500,
-    isPremium: false,
     bio: 'Community moderator keeping things safe.',
+    emailVerified: true,
   });
 
   const author = userRepo.create({
@@ -55,11 +65,12 @@ async function seed(ds: DataSource) {
     email: 'author@aardvark.dev',
     passwordHash,
     displayName: 'Jane Storyteller',
-    role: 'author',
-    accountStatus: 'active',
+    role: UserRole.AUTHOR,
+    accountStatus: AccountStatus.ACTIVE,
+    subscriptionStatus: SubscriptionStatus.ACTIVE,
     creditsBalance: 200,
-    isPremium: true,
     bio: 'Interactive fiction enthusiast and author of branching narratives.',
+    emailVerified: true,
   });
 
   const reader = userRepo.create({
@@ -67,11 +78,12 @@ async function seed(ds: DataSource) {
     email: 'reader@aardvark.dev',
     passwordHash,
     displayName: 'Alex Reader',
-    role: 'reader',
-    accountStatus: 'active',
+    role: UserRole.READER,
+    accountStatus: AccountStatus.ACTIVE,
+    subscriptionStatus: SubscriptionStatus.NONE,
     creditsBalance: 50,
-    isPremium: false,
     bio: 'Love reading interactive stories!',
+    emailVerified: true,
   });
 
   const reader2 = userRepo.create({
@@ -79,11 +91,12 @@ async function seed(ds: DataSource) {
     email: 'reader2@aardvark.dev',
     passwordHash,
     displayName: 'Sam Explorer',
-    role: 'reader',
-    accountStatus: 'active',
+    role: UserRole.READER,
+    accountStatus: AccountStatus.ACTIVE,
+    subscriptionStatus: SubscriptionStatus.NONE,
     creditsBalance: 30,
-    isPremium: false,
     bio: 'Always looking for the next adventure.',
+    emailVerified: true,
   });
 
   const savedUsers = await userRepo.save([admin, moderator, author, reader, reader2]);
@@ -92,67 +105,67 @@ async function seed(ds: DataSource) {
 
   // --- Tags ---
   console.log('Creating tags...');
-  const tags = [
-    { name: 'Fantasy', type: 'genre', description: 'Magic, mythical creatures, and otherworldly settings' },
-    { name: 'Sci-Fi', type: 'genre', description: 'Futuristic technology, space exploration, and science' },
-    { name: 'Mystery', type: 'genre', description: 'Puzzles, detective work, and suspense' },
-    { name: 'Romance', type: 'genre', description: 'Love stories and relationships' },
-    { name: 'Horror', type: 'genre', description: 'Fear, suspense, and the supernatural' },
-    { name: 'Thriller', type: 'genre', description: 'Fast-paced tension and excitement' },
-    { name: 'Adventure', type: 'theme', description: 'Exploration and quests' },
-    { name: 'Coming of Age', type: 'theme', description: 'Growth and self-discovery' },
-    { name: 'Dystopian', type: 'theme', description: 'Dark futures and societal collapse' },
-    { name: 'Time Travel', type: 'theme', description: 'Journeys through time' },
+  const tagsData = [
+    { name: 'Fantasy', slug: 'fantasy', type: 'genre', description: 'Magic, mythical creatures, and otherworldly settings' },
+    { name: 'Sci-Fi', slug: 'sci-fi', type: 'genre', description: 'Futuristic technology, space exploration, and science' },
+    { name: 'Mystery', slug: 'mystery', type: 'genre', description: 'Puzzles, detective work, and suspense' },
+    { name: 'Romance', slug: 'romance', type: 'genre', description: 'Love stories and relationships' },
+    { name: 'Horror', slug: 'horror', type: 'genre', description: 'Fear, suspense, and the supernatural' },
+    { name: 'Thriller', slug: 'thriller', type: 'genre', description: 'Fast-paced tension and excitement' },
+    { name: 'Adventure', slug: 'adventure', type: 'theme', description: 'Exploration and quests' },
+    { name: 'Coming of Age', slug: 'coming-of-age', type: 'theme', description: 'Growth and self-discovery' },
+    { name: 'Dystopian', slug: 'dystopian', type: 'theme', description: 'Dark futures and societal collapse' },
+    { name: 'Time Travel', slug: 'time-travel', type: 'theme', description: 'Journeys through time' },
   ];
 
-  const savedTags = await tagRepo.save(
-    tags.map((t) => tagRepo.create(t as any)),
-  );
+  const tagEntities = tagsData.map((t) => tagRepo.create(t as any));
+  const savedTags = await tagRepo.save(tagEntities as any);
   console.log(`  Created ${savedTags.length} tags`);
 
   // --- Sample Story ---
   console.log('Creating sample story...');
   const story = storyRepo.create({
     title: 'The Enchanted Forest',
-    slug: 'the-enchanted-forest',
     description: 'A branching adventure through a magical forest where every choice shapes your destiny. Will you befriend the ancient spirits or challenge the dark forces within?',
     authorId: savedAuthor.id,
-    category: 'fantasy',
-    collaborationMode: 'moderated',
-    status: 'published',
+    category: StoryCategory.FANTASY,
+    collaborationMode: CollaborationMode.MODERATED,
+    status: StoryStatus.PUBLISHED,
     isPremium: false,
     creditCost: 0,
     nsfwFlag: false,
     language: 'en',
     tags: ['fantasy', 'adventure', 'magic'],
     contentWarnings: [],
-    totalReads: 142,
+    viewCount: 142,
     averageRating: 4.2,
-    ratingCount: 18,
+    ratingsCount: 18,
   });
 
   const savedStory = await storyRepo.save(story);
 
   // --- State Variables ---
-  const stateVars = [
-    stateVarRepo.create({
-      storyId: savedStory.id,
-      name: 'trust_spirit',
-      type: 'number',
-      defaultValue: '0',
-      minValue: -10,
-      maxValue: 10,
-      displayToReader: true,
-    }),
-    stateVarRepo.create({
-      storyId: savedStory.id,
-      name: 'has_amulet',
-      type: 'boolean',
-      defaultValue: 'false',
-      displayToReader: false,
-    }),
-  ];
-  await stateVarRepo.save(stateVars);
+  const stateVar1 = stateVarRepo.create({
+    storyId: savedStory.id,
+    name: 'trust_spirit',
+    displayName: 'Spirit Trust',
+    type: 'number',
+    defaultValue: 0,
+    minValue: -10,
+    maxValue: 10,
+    isVisible: true,
+  } as any);
+
+  const stateVar2 = stateVarRepo.create({
+    storyId: savedStory.id,
+    name: 'has_amulet',
+    displayName: 'Has Amulet',
+    type: 'boolean',
+    defaultValue: false,
+    isVisible: false,
+  } as any);
+
+  await stateVarRepo.save([stateVar1, stateVar2] as any);
 
   // --- Segments ---
   const rootSegment = segmentRepo.create({
@@ -275,21 +288,20 @@ async function seed(ds: DataSource) {
   console.log('Creating premium story...');
   const premiumStory = storyRepo.create({
     title: 'Starship Odyssey',
-    slug: 'starship-odyssey',
     description: 'Command a starship through the uncharted sectors of the galaxy. Every decision affects your crew, your mission, and the fate of humanity.',
     authorId: savedAuthor.id,
-    category: 'sci_fi',
-    collaborationMode: 'private',
-    status: 'published',
+    category: StoryCategory.SCI_FI,
+    collaborationMode: CollaborationMode.PRIVATE,
+    status: StoryStatus.PUBLISHED,
     isPremium: true,
     creditCost: 15,
     nsfwFlag: false,
     language: 'en',
     tags: ['sci-fi', 'space', 'strategy'],
-    contentWarnings: ['violence'],
-    totalReads: 67,
+    contentWarnings: [],
+    viewCount: 67,
     averageRating: 4.7,
-    ratingCount: 9,
+    ratingsCount: 9,
   });
 
   await storyRepo.save(premiumStory);

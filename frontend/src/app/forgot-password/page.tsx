@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-password`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
 
       // Always show success message to prevent email enumeration
       setIsSubmitted(true);
-    } catch (error) {
+    } catch {
       // Still show success to prevent email enumeration
       setIsSubmitted(true);
     } finally {

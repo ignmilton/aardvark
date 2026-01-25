@@ -141,16 +141,16 @@ export class AuthService {
     if (!isPasswordValid) {
       // Track failed attempt
       const attempts = (user.loginAttempts || 0) + 1;
-      const updateData: Partial<User> = { loginAttempts: attempts } as any;
+      const updateData: Record<string, any> = { loginAttempts: attempts };
 
       if (attempts >= this.MAX_LOGIN_ATTEMPTS) {
         const lockoutUntil = new Date();
         lockoutUntil.setMinutes(lockoutUntil.getMinutes() + this.LOCKOUT_DURATION_MINUTES);
-        (updateData as any).lockoutUntil = lockoutUntil;
+        updateData.lockoutUntil = lockoutUntil;
         this.logger.warn(`Account locked for ${email} after ${attempts} failed attempts`);
       }
 
-      await this.userRepository.update(user.id, updateData);
+      await this.userRepository.update(user.id, updateData as any);
       return null;
     }
 

@@ -54,7 +54,6 @@ export function CreditBundles({ onPurchaseSuccess }: CreditBundlesProps) {
   const [bundles, setBundles] = useState<CreditBundle[]>(FALLBACK_BUNDLES);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card'>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isLoadingBundles, setIsLoadingBundles] = useState(true);
 
   useEffect(() => {
     async function loadBundles() {
@@ -65,8 +64,6 @@ export function CreditBundles({ onPurchaseSuccess }: CreditBundlesProps) {
         }
       } catch {
         // Use fallback bundles if API is unavailable
-      } finally {
-        setIsLoadingBundles(false);
       }
     }
     loadBundles();

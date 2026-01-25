@@ -53,7 +53,7 @@ type TabId = 'reading' | 'saved' | 'my-stories';
 
 export default function LibraryPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('reading');
   const [readingProgress, setReadingProgress] = useState<ReadingProgress[]>([]);
   const [savedStories, setSavedStories] = useState<SavedStory[]>([]);
