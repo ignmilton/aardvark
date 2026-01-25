@@ -72,6 +72,12 @@ async function fetchApi<T>(endpoint: string, options: FetchOptions = {}): Promis
 export const storiesApi = {
   getBySlug: (slug: string) => fetchApi<Story>(`/stories/slug/${slug}`),
   getById: (id: string) => fetchApi<Story>(`/stories/${id}`),
+  create: (data: CreateStoryDto, token: string) =>
+    fetchApi<Story>('/stories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      token,
+    }),
   update: (id: string, data: Partial<UpdateStoryDto>, token: string) =>
     fetchApi<Story>(`/stories/${id}`, {
       method: 'PUT',

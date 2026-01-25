@@ -169,8 +169,8 @@ export function SegmentEditorModal({
           <h2 className="text-lg font-semibold">
             {initialData?.id ? 'Edit Segment' : 'Create Segment'}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-md">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={onClose} className="p-2 hover:bg-muted rounded-md" aria-label="Close modal">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -197,8 +197,9 @@ export function SegmentEditorModal({
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium mb-2">Title (optional)</label>
+            <label htmlFor="segment-title" className="block text-sm font-medium mb-2">Title (optional)</label>
             <Input
+              id="segment-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Chapter title..."
@@ -207,13 +208,14 @@ export function SegmentEditorModal({
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium mb-2">Content</label>
+            <label id="segment-content-label" className="block text-sm font-medium mb-2">Content</label>
             <RichTextEditor
               content={contentHtml}
               onChange={(html, text) => {
                 setContentHtml(html);
                 setContentText(text);
               }}
+              aria-labelledby="segment-content-label"
             />
           </div>
 
@@ -221,6 +223,7 @@ export function SegmentEditorModal({
           <div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
+                id="segment-is-ending"
                 type="checkbox"
                 checked={isEnding}
                 onChange={(e) => setIsEnding(e.target.checked)}
@@ -230,11 +233,14 @@ export function SegmentEditorModal({
             </label>
 
             {isEnding && (
-              <div className="mt-3 grid grid-cols-4 gap-2">
+              <div className="mt-3 grid grid-cols-4 gap-2" role="radiogroup" aria-label="Ending type">
                 {(['good', 'bad', 'neutral', 'secret'] as const).map((type) => (
                   <button
                     key={type}
                     onClick={() => setEndingType(type)}
+                    role="radio"
+                    aria-checked={endingType === type}
+                    aria-label={`${type} ending`}
                     className={cn(
                       'px-3 py-2 rounded-md border text-sm capitalize',
                       endingType === type
@@ -276,6 +282,7 @@ export function SegmentEditorModal({
                         value={effect.variableId}
                         onChange={(e) => updateStateEffect(index, 'variableId', e.target.value)}
                         className="flex-1 px-2 py-1 rounded border bg-background text-sm"
+                        aria-label={`Variable for effect ${index + 1}`}
                       >
                         {stateVariables.map((v) => (
                           <option key={v.id} value={v.id}>
@@ -287,6 +294,7 @@ export function SegmentEditorModal({
                         value={effect.operation}
                         onChange={(e) => updateStateEffect(index, 'operation', e.target.value)}
                         className="w-24 px-2 py-1 rounded border bg-background text-sm"
+                        aria-label={`Operation for effect ${index + 1}`}
                       >
                         <option value="set">Set</option>
                         <option value="add">Add</option>
@@ -298,12 +306,14 @@ export function SegmentEditorModal({
                         onChange={(e) => updateStateEffect(index, 'value', e.target.value)}
                         placeholder="Value"
                         className="w-24 h-8"
+                        aria-label={`Value for effect ${index + 1}`}
                       />
                       <button
                         onClick={() => removeStateEffect(index)}
                         className="p-1 hover:bg-destructive/10 rounded text-destructive"
+                        aria-label={`Remove effect ${index + 1}`}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
