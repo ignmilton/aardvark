@@ -14,7 +14,10 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -23,7 +26,7 @@ import { PaymentsService } from './payments.service';
 import { RazorpayService } from './razorpay.service';
 import { CreditsService } from '@/modules/credits/credits.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
-import { Subscription, SubscriptionPlan, CreditBundle, User } from '@entities';
+import { Subscription, SubscriptionPlan, CreditBundle, User, Transaction } from '@entities';
 import {
   CreateCreditCheckoutDto,
   CreateSubscriptionCheckoutDto,
@@ -35,6 +38,9 @@ import {
   SetupUPIPayoutAccountDto,
   RequestUPIPayoutDto,
 } from './dto';
+
+// Webhook idempotency key TTL: 7 days (in ms)
+const WEBHOOK_IDEMPOTENCY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Controller for payment operations.
@@ -49,6 +55,7 @@ export class PaymentsController {
     private readonly razorpayService: RazorpayService,
     private readonly creditsService: CreditsService,
     private readonly configService: ConfigService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
     @InjectRepository(Subscription)
     private readonly subscriptionRepository: Repository<Subscription>,
     @InjectRepository(SubscriptionPlan)
@@ -57,6 +64,8 @@ export class PaymentsController {
     private readonly bundleRepository: Repository<CreditBundle>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Transaction)
+    private readonly transactionRepository: Repository<Transaction>,
   ) {}
 
   /**
@@ -441,20 +450,46 @@ export class PaymentsController {
   private async handleCheckoutCompleted(session: any) {
     const userId = session.metadata?.userId;
     const bundleId = session.metadata?.bundleId;
+    const sessionId = session.id;
 
     if (!userId) {
       this.logger.warn('Checkout session missing userId metadata');
       return;
     }
 
+    // Idempotency check - prevent duplicate processing
+    const idempotencyKey = `webhook:checkout:${sessionId}`;
+    const alreadyProcessed = await this.cacheManager.get(idempotencyKey);
+    if (alreadyProcessed) {
+      this.logger.debug(`Checkout session ${sessionId} already processed, skipping`);
+      return;
+    }
+
     // Credit bundle purchase
     if (bundleId) {
+      // Also check database for existing transaction with this reference
+      const existingTx = await this.transactionRepository.findOne({
+        where: {
+          referenceId: session.payment_intent || sessionId,
+          referenceType: 'stripe_payment',
+        },
+      });
+
+      if (existingTx) {
+        this.logger.debug(`Transaction already exists for payment ${session.payment_intent || sessionId}`);
+        await this.cacheManager.set(idempotencyKey, true, WEBHOOK_IDEMPOTENCY_TTL_MS);
+        return;
+      }
+
       await this.creditsService.addCreditsFromPurchase(
         userId,
         bundleId,
-        session.payment_intent || session.id,
+        session.payment_intent || sessionId,
       );
       this.logger.log(`Credits added for user ${userId} from bundle ${bundleId}`);
+
+      // Mark as processed
+      await this.cacheManager.set(idempotencyKey, true, WEBHOOK_IDEMPOTENCY_TTL_MS);
       return;
     }
 
@@ -482,6 +517,9 @@ export class PaymentsController {
         // Duplicate subscription already exists, safe to ignore
         this.logger.debug(`Subscription already exists for stripe ID ${session.subscription}`);
       }
+
+      // Mark as processed
+      await this.cacheManager.set(idempotencyKey, true, WEBHOOK_IDEMPOTENCY_TTL_MS);
     }
   }
 

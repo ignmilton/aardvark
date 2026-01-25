@@ -319,7 +319,8 @@ export class BranchSubmissionsService {
   }
 
   /**
-   * Private: Create segment and choice from approved submission
+   * Private: Create segment and ALL choices from approved submission
+   * Fixed: Previously only the first choice was created; now all choices are created
    */
   private async approveSubmission(
     submission: BranchSubmission,
@@ -329,6 +330,12 @@ export class BranchSubmissionsService {
     const textContent = submission.segmentData.content.replace(/<[^>]*>/g, '');
     const wordCount = textContent.trim().split(/\s+/).filter(Boolean).length;
 
+    // Generate a random offset for position to prevent overlap with other approved segments
+    const randomOffset = {
+      x: Math.floor(Math.random() * 200) - 100, // -100 to +100
+      y: Math.floor(Math.random() * 200) + 100, // +100 to +300 (below parent)
+    };
+
     // Create the segment
     const segment = this.segmentRepository.create({
       storyId: submission.storyId,
@@ -336,7 +343,7 @@ export class BranchSubmissionsService {
       title: submission.segmentData.title,
       content: submission.segmentData.content,
       contentMarkdown: submission.segmentData.contentMarkdown,
-      position: { x: 0, y: 0 }, // Will need to be positioned in editor
+      position: randomOffset, // Use random offset instead of (0,0)
       parentSegmentIds: [submission.parentSegmentId],
       isRootSegment: false,
       isEnding: submission.segmentData.isEnding,
@@ -351,18 +358,20 @@ export class BranchSubmissionsService {
 
     const savedSegment = await this.segmentRepository.save(segment);
 
-    // Create the choice connecting parent to this segment
+    // Create ALL choices connecting parent to this segment (not just the first one)
     if (submission.choicesData.length > 0) {
-      const choiceData = submission.choicesData[0];
-      const choice = this.choiceRepository.create({
-        segmentId: submission.parentSegmentId,
-        nextSegmentId: savedSegment.id,
-        choiceText: choiceData.choiceText,
-        order: choiceData.order,
-        conditions: choiceData.conditions,
-      });
+      const choicesToCreate = submission.choicesData.map((choiceData, index) =>
+        this.choiceRepository.create({
+          segmentId: submission.parentSegmentId,
+          nextSegmentId: savedSegment.id,
+          choiceText: choiceData.choiceText,
+          order: choiceData.order || index + 1,
+          conditions: choiceData.conditions,
+        }),
+      );
 
-      await this.choiceRepository.save(choice);
+      // Save all choices
+      await this.choiceRepository.save(choicesToCreate);
     }
 
     // Update submission with created segment reference

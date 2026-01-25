@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, MoreThanOrEqual } from 'typeorm';
 import {
   Transaction,
   User,
@@ -380,10 +380,23 @@ export class CreditsService {
 
   /**
    * Award credits for watching an ad
+   * Premium users cannot claim ad rewards (they have ad-free experience)
    */
   async rewardAdWatch(userId: string, dto: AdWatchRewardDto): Promise<Transaction | null> {
     if (!dto.completed) {
       return null;
+    }
+
+    // Check if user is premium - premium users cannot claim ad rewards
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isPremium) {
+      throw new ForbiddenException(
+        'Premium subscribers have ad-free access and cannot claim ad rewards.',
+      );
     }
 
     // Check cooldown
@@ -476,5 +489,24 @@ export class CreditsService {
       where: { isActive: true },
       order: { priceInCents: 'ASC' },
     });
+  }
+
+  /**
+   * Get the count of ad watches by a user today
+   * Used for enforcing daily ad limits
+   */
+  async getTodayAdWatchCount(userId: string): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const count = await this.transactionRepository.count({
+      where: {
+        userId,
+        type: TransactionType.AD_WATCH,
+        createdAt: MoreThanOrEqual(today),
+      },
+    });
+
+    return count;
   }
 }
