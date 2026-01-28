@@ -28,3 +28,15 @@ export {
   useLiftBan,
   type UserListQuery,
 } from './use-user-management';
+
+// Mobile gesture hooks
+export { useSwipeGestures } from './use-swipe-gestures';
+export { usePullToRefresh } from './use-pull-to-refresh';
+
+// PWA hooks
+export { usePWAInstall } from './use-pwa-install';
+export { usePushNotifications } from './use-push-notifications';
+export { useOfflineReading } from './use-offline-reading';
+
+// Utility hooks
+export { useKeyboardNav } from './use-keyboard-nav';

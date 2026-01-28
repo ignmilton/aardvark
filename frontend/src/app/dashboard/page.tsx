@@ -61,7 +61,7 @@ export default function DashboardPage() {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [statsRes, storiesRes] = await Promise.allSettled([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/analytics/author/overview`, { headers }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/analytics/dashboard`, { headers }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/me/stories?limit=5&sortBy=updatedAt`, { headers }),
         ]);
 

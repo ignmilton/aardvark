@@ -11,6 +11,8 @@ import {
   UserBan,
   ContentFlag,
   User,
+  BanAppeal,
+  UserMute,
 } from '@/database/entities';
 
 /**
@@ -27,6 +29,8 @@ import {
       UserBan,
       ContentFlag,
       User,
+      BanAppeal,
+      UserMute,
     ]),
   ],
   controllers: [ModerationController],

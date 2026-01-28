@@ -28,6 +28,13 @@ import {
   ModerationQueueQuery,
   ModerationLogQuery,
   AssignReportDto,
+  IssueMuteDto,
+  CreateAppealDto,
+  ReviewAppealDto,
+  AppealsQueueQuery,
+  BulkResolveDto,
+  BulkAssignDto,
+  BulkWarnDto,
 } from './dto/moderation.dto';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/modules/auth/guards/roles.guard';
@@ -280,5 +287,170 @@ export class ModerationController {
       dto.action,
       dto.notes,
     );
+  }
+
+  // ============================================================================
+  // Mutes (Feature restrictions)
+  // ============================================================================
+
+  @Post('mutes')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Issue mute to user (admin/moderator only)' })
+  @ApiResponse({ status: 201, description: 'Mute issued successfully' })
+  @ApiResponse({ status: 400, description: 'User already has active mute' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async issueMute(@Body() dto: IssueMuteDto, @Request() req: any) {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + dto.durationDays);
+
+    return this.moderationService.issueMute(
+      dto.userId,
+      req.user.id,
+      dto.scope,
+      dto.reason,
+      dto.details,
+      expiresAt,
+    );
+  }
+
+  @Delete('mutes/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Lift mute (admin/moderator only)' })
+  @ApiParam({ name: 'id', description: 'Mute ID' })
+  @ApiResponse({ status: 200, description: 'Mute lifted successfully' })
+  async liftMute(@Param('id') id: string, @Request() req: any) {
+    return this.moderationService.liftMute(id, req.user.id);
+  }
+
+  @Get('mutes/:userId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get user mutes (admin/moderator only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'List of user mutes' })
+  async getUserMutes(@Param('userId') userId: string) {
+    return this.moderationService.getUserMutes(userId);
+  }
+
+  // ============================================================================
+  // Appeals
+  // ============================================================================
+
+  @Post('appeals')
+  @ApiOperation({ summary: 'Submit ban appeal (banned users)' })
+  @ApiResponse({ status: 201, description: 'Appeal submitted successfully' })
+  @ApiResponse({ status: 400, description: 'Already have pending appeal' })
+  @ApiResponse({ status: 404, description: 'Ban not found' })
+  async createAppeal(@Body() dto: CreateAppealDto, @Request() req: any) {
+    return this.moderationService.createAppeal(
+      req.user.id,
+      dto.banId,
+      dto.reason,
+      dto.additionalContext,
+    );
+  }
+
+  @Get('appeals/me')
+  @ApiOperation({ summary: 'Get my appeals' })
+  @ApiResponse({ status: 200, description: 'List of user appeals' })
+  async getMyAppeals(@Request() req: any) {
+    return this.moderationService.getUserAppeals(req.user.id);
+  }
+
+  @Get('appeals/queue')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get appeals queue (admin/moderator only)' })
+  @ApiResponse({ status: 200, description: 'List of pending appeals' })
+  async getAppealsQueue(@Query() query: AppealsQueueQuery) {
+    return this.moderationService.getAppealsQueue(query);
+  }
+
+  @Patch('appeals/:id/review')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Review appeal (admin/moderator only)' })
+  @ApiParam({ name: 'id', description: 'Appeal ID' })
+  @ApiResponse({ status: 200, description: 'Appeal reviewed successfully' })
+  async reviewAppeal(
+    @Param('id') id: string,
+    @Body() dto: ReviewAppealDto,
+    @Request() req: any,
+  ) {
+    return this.moderationService.reviewAppeal(
+      id,
+      req.user.id,
+      dto.approved,
+      dto.notes,
+    );
+  }
+
+  // ============================================================================
+  // Bulk Actions
+  // ============================================================================
+
+  @Post('bulk/resolve')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Bulk resolve reports (admin/moderator only)' })
+  @ApiResponse({ status: 200, description: 'Reports resolved' })
+  async bulkResolveReports(@Body() dto: BulkResolveDto, @Request() req: any) {
+    return this.moderationService.bulkResolveReports(
+      dto.reportIds,
+      req.user.id,
+      dto.action,
+      dto.notes,
+    );
+  }
+
+  @Post('bulk/assign')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Bulk assign reports (admin/moderator only)' })
+  @ApiResponse({ status: 200, description: 'Reports assigned' })
+  async bulkAssignReports(@Body() dto: BulkAssignDto, @Request() req: any) {
+    const moderatorId = dto.moderatorId || req.user.id;
+    return this.moderationService.bulkAssignReports(dto.reportIds, moderatorId);
+  }
+
+  @Post('bulk/warn')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Bulk issue warnings (admin/moderator only)' })
+  @ApiResponse({ status: 200, description: 'Warnings issued' })
+  async bulkIssueWarnings(@Body() dto: BulkWarnDto, @Request() req: any) {
+    return this.moderationService.bulkIssueWarnings(
+      dto.userIds,
+      req.user.id,
+      dto.reason,
+      dto.message,
+    );
+  }
+
+  // ============================================================================
+  // Priority Queue
+  // ============================================================================
+
+  @Get('queue/prioritized')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get prioritized moderation queue (admin/moderator only)' })
+  @ApiResponse({ status: 200, description: 'Prioritized list of reports' })
+  async getPrioritizedQueue(@Query() query: ModerationQueueQuery) {
+    return this.moderationService.getPrioritizedReportQueue(query);
+  }
+
+  @Get('users/:userId/strikes')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get user strike count (admin/moderator only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'Strike count' })
+  async getUserStrikes(@Param('userId') userId: string) {
+    const count = await this.moderationService.getUserStrikeCount(userId);
+    return { userId, strikeCount: count };
   }
 }

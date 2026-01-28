@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Client } from '@elastic/elasticsearch';
-import { Story, User, Tag, StoryTag } from '@/database/entities';
+import { Story, User, Tag, StoryTag, SearchHistory } from '@/database/entities';
 import { SearchStoriesDto, SearchUsersDto, AutocompleteDto } from './dto';
 import { StoryStatus, TagType } from '@aardvark/shared';
 
@@ -84,6 +84,8 @@ export class SearchService implements OnModuleInit {
     private readonly tagRepository: Repository<Tag>,
     @InjectRepository(StoryTag)
     private readonly storyTagRepository: Repository<StoryTag>,
+    @InjectRepository(SearchHistory)
+    private readonly searchHistoryRepository: Repository<SearchHistory>,
   ) {}
 
   async onModuleInit() {
@@ -974,5 +976,119 @@ export class SearchService implements OnModuleInit {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  // ============================================================================
+  // Search History Methods
+  // ============================================================================
+
+  /**
+   * Record a search query for a user
+   */
+  async recordSearch(
+    userId: string,
+    query: string,
+    filters?: Record<string, unknown>,
+    resultsCount?: number,
+  ): Promise<SearchHistory> {
+    // Check if this query already exists for the user
+    const existingSearch = await this.searchHistoryRepository.findOne({
+      where: {
+        userId,
+        query: query.toLowerCase().trim(),
+      },
+    });
+
+    if (existingSearch) {
+      // Update existing record
+      existingSearch.searchCount += 1;
+      existingSearch.lastSearchedAt = new Date();
+      if (filters) existingSearch.filters = filters;
+      if (resultsCount !== undefined) existingSearch.resultsCount = resultsCount;
+      return this.searchHistoryRepository.save(existingSearch);
+    }
+
+    // Create new record
+    const searchHistory = this.searchHistoryRepository.create({
+      userId,
+      query: query.toLowerCase().trim(),
+      filters: filters || null,
+      resultsCount: resultsCount ?? 0,
+      searchCount: 1,
+      lastSearchedAt: new Date(),
+    });
+
+    return this.searchHistoryRepository.save(searchHistory);
+  }
+
+  /**
+   * Get user's search history
+   */
+  async getSearchHistory(
+    userId: string,
+    limit = 20,
+  ): Promise<SearchHistory[]> {
+    return this.searchHistoryRepository.find({
+      where: { userId },
+      order: { lastSearchedAt: 'DESC' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Get user's most frequent searches
+   */
+  async getFrequentSearches(
+    userId: string,
+    limit = 10,
+  ): Promise<SearchHistory[]> {
+    return this.searchHistoryRepository.find({
+      where: { userId },
+      order: { searchCount: 'DESC' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Delete a search history entry
+   */
+  async deleteSearchHistory(
+    userId: string,
+    historyId: string,
+  ): Promise<void> {
+    await this.searchHistoryRepository.delete({
+      id: historyId,
+      userId,
+    });
+  }
+
+  /**
+   * Clear all search history for a user
+   */
+  async clearSearchHistory(userId: string): Promise<void> {
+    await this.searchHistoryRepository.delete({ userId });
+  }
+
+  /**
+   * Get trending searches (across all users)
+   */
+  async getTrendingSearches(limit = 10): Promise<{ query: string; count: number }[]> {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const results = await this.searchHistoryRepository
+      .createQueryBuilder('sh')
+      .select('sh.query', 'query')
+      .addSelect('SUM(sh.searchCount)', 'count')
+      .where('sh.lastSearchedAt >= :oneWeekAgo', { oneWeekAgo })
+      .groupBy('sh.query')
+      .orderBy('count', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return results.map(r => ({
+      query: r.query,
+      count: parseInt(r.count, 10),
+    }));
   }
 }

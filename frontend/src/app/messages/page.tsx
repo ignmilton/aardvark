@@ -55,7 +55,7 @@ export default function MessagesPage() {
     async function loadMessages() {
       try {
         const response = await fetchApi<{ success: boolean; data: Message[] }>(
-          `/messages/conversation/${selectedConversation}`,
+          `/messages/conversations/${selectedConversation}`,
           { token },
         );
         setMessages(response.data || []);

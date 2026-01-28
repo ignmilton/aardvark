@@ -24,3 +24,7 @@ export * from './tag.entity';
 export * from './push-subscription.entity';
 export * from './story-unlock.entity';
 export * from './comment-like.entity';
+export * from './reading-list.entity';
+export * from './search-history.entity';
+export * from './ban-appeal.entity';
+export * from './user-mute.entity';

@@ -2,8 +2,11 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Query,
+  Param,
   UseGuards,
+  Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -111,5 +114,63 @@ export class SearchController {
       message: 'Tags reindex completed',
       ...result,
     };
+  }
+
+  // ============================================================================
+  // Search History
+  // ============================================================================
+
+  @Get('history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user search history' })
+  @ApiResponse({ status: 200, description: 'Recent search history' })
+  async getSearchHistory(
+    @Request() req: any,
+    @Query('limit') limit?: number,
+  ) {
+    return this.searchService.getSearchHistory(req.user.id, limit || 20);
+  }
+
+  @Get('history/frequent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user frequent searches' })
+  @ApiResponse({ status: 200, description: 'Most frequent searches' })
+  async getFrequentSearches(
+    @Request() req: any,
+    @Query('limit') limit?: number,
+  ) {
+    return this.searchService.getFrequentSearches(req.user.id, limit || 10);
+  }
+
+  @Get('trending')
+  @ApiOperation({ summary: 'Get trending searches' })
+  @ApiResponse({ status: 200, description: 'Trending searches this week' })
+  async getTrendingSearches(@Query('limit') limit?: number) {
+    return this.searchService.getTrendingSearches(limit || 10);
+  }
+
+  @Delete('history/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a search history entry' })
+  @ApiResponse({ status: 204, description: 'Search history entry deleted' })
+  async deleteSearchHistory(
+    @Request() req: any,
+    @Param('id') id: string,
+  ) {
+    await this.searchService.deleteSearchHistory(req.user.id, id);
+  }
+
+  @Delete('history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Clear all search history' })
+  @ApiResponse({ status: 204, description: 'All search history cleared' })
+  async clearSearchHistory(@Request() req: any) {
+    await this.searchService.clearSearchHistory(req.user.id);
   }
 }

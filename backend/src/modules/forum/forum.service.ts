@@ -16,6 +16,7 @@ import {
 } from '@/database/entities';
 import { User } from '@/database/entities';
 import { UserRole } from '@aardvark/shared';
+import * as sanitizeHtml from 'sanitize-html';
 import {
   CreateThreadDto,
   UpdateThreadDto,
@@ -197,7 +198,7 @@ export class ForumService {
       authorId: userId,
       category: dto.category,
       title: dto.title,
-      content: dto.content,
+      content: this.sanitizeContent(dto.content),
     });
 
     const savedThread = await this.threadRepository.save(thread);
@@ -237,7 +238,7 @@ export class ForumService {
       thread.title = dto.title;
     }
     if (dto.content !== undefined) {
-      thread.content = dto.content;
+      thread.content = this.sanitizeContent(dto.content);
     }
     if (dto.category !== undefined) {
       thread.category = dto.category;
@@ -393,7 +394,7 @@ export class ForumService {
     const post = this.postRepository.create({
       threadId,
       authorId: userId,
-      content: dto.content,
+      content: this.sanitizeContent(dto.content),
       replyToId: dto.replyToId || null,
     });
 
@@ -440,7 +441,7 @@ export class ForumService {
       throw new BadRequestException('Cannot edit posts in a locked thread');
     }
 
-    post.content = dto.content;
+    post.content = this.sanitizeContent(dto.content);
     post.isEdited = true;
 
     return this.postRepository.save(post);
@@ -715,5 +716,38 @@ export class ForumService {
     }
 
     return result;
+  }
+
+  /**
+   * Sanitize HTML content to prevent XSS attacks.
+   * Allows basic formatting while stripping dangerous elements.
+   */
+  private sanitizeContent(html: string): string {
+    return sanitizeHtml(html, {
+      allowedTags: [
+        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'del',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li',
+        'blockquote', 'pre', 'code',
+        'a',
+      ],
+      allowedAttributes: {
+        a: ['href', 'target', 'rel', 'title'],
+        pre: ['class'],
+        code: ['class'],
+      },
+      allowedSchemes: ['http', 'https', 'mailto'],
+      transformTags: {
+        a: (tagName, attribs) => ({
+          tagName,
+          attribs: {
+            ...attribs,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          },
+        }),
+      },
+      disallowedTagsMode: 'discard',
+    });
   }
 }

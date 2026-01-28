@@ -79,6 +79,21 @@ export class UsersController {
     return this.usersService.getFollowing(req.user.id, +page, +limit);
   }
 
+  @Get('me/stories')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user stories' })
+  @ApiResponse({ status: 200, description: 'List of user stories' })
+  async getMyStories(
+    @Request() req: any,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('sortBy') sortBy: 'createdAt' | 'updatedAt' | 'viewCount' = 'updatedAt',
+    @Query('status') status?: 'draft' | 'published',
+  ) {
+    return this.usersService.getUserStories(req.user.id, +page, +limit, sortBy, status);
+  }
+
   @Post('me/upgrade-to-author')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

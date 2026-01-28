@@ -383,6 +383,58 @@ export class UsersService {
   }
 
   /**
+   * Get user's stories with pagination and filtering
+   */
+  async getUserStories(
+    userId: string,
+    page = 1,
+    limit = 10,
+    sortBy: 'createdAt' | 'updatedAt' | 'viewCount' = 'updatedAt',
+    status?: 'draft' | 'published',
+  ) {
+    const storyRepo = this.dataSource.getRepository(Story);
+
+    const queryBuilder = storyRepo.createQueryBuilder('story')
+      .where('story.authorId = :userId', { userId });
+
+    // Filter by status
+    if (status === 'published') {
+      queryBuilder.andWhere('story.publishedAt IS NOT NULL');
+    } else if (status === 'draft') {
+      queryBuilder.andWhere('story.publishedAt IS NULL');
+    }
+
+    // Sorting
+    queryBuilder.orderBy(`story.${sortBy}`, 'DESC');
+
+    // Pagination
+    const skip = (page - 1) * limit;
+    queryBuilder.skip(skip).take(limit);
+
+    const [stories, total] = await queryBuilder.getManyAndCount();
+
+    return {
+      data: stories.map((s) => ({
+        id: s.id,
+        title: s.title,
+        slug: s.id, // Use ID as slug for URL routing
+        status: s.publishedAt ? 'published' : 'draft',
+        viewCount: s.viewCount,
+        ratingsCount: s.ratingsCount,
+        averageRating: s.averageRating,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+      })),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
    * Upgrade user to author role
    */
   async upgradeToAuthor(userId: string): Promise<User> {
