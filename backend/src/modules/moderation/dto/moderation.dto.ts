@@ -7,6 +7,8 @@ import {
   ModerationAction,
   ModerationStatus,
 } from '@/database/entities/moderation.entity';
+import { MuteScope } from '@/database/entities/user-mute.entity';
+import { AppealStatus } from '@/database/entities/ban-appeal.entity';
 
 /**
  * DTO for creating a new report
@@ -301,4 +303,152 @@ export class ModerationStatsQuery {
   @IsOptional()
   @IsString()
   period?: 'day' | 'week' | 'month' = 'day';
+}
+
+// ============================================================================
+// Mute DTOs
+// ============================================================================
+
+/**
+ * DTO for issuing a mute to a user
+ */
+export class IssueMuteDto {
+  @ApiProperty({ description: 'ID of the user to mute' })
+  @IsUUID()
+  userId: string;
+
+  @ApiProperty({ enum: MuteScope, description: 'Scope of the mute' })
+  @IsEnum(MuteScope)
+  scope: MuteScope;
+
+  @ApiProperty({ enum: ReportReason, description: 'Reason for the mute' })
+  @IsEnum(ReportReason)
+  reason: ReportReason;
+
+  @ApiProperty({ description: 'Detailed explanation of the mute' })
+  @IsString()
+  details: string;
+
+  @ApiProperty({ description: 'Duration in days' })
+  @IsNumber()
+  @Min(1)
+  @Max(365)
+  durationDays: number;
+}
+
+// ============================================================================
+// Appeal DTOs
+// ============================================================================
+
+/**
+ * DTO for creating a ban appeal
+ */
+export class CreateAppealDto {
+  @ApiProperty({ description: 'ID of the ban being appealed' })
+  @IsUUID()
+  banId: string;
+
+  @ApiProperty({ description: 'Reason for appeal' })
+  @IsString()
+  reason: string;
+
+  @ApiPropertyOptional({ description: 'Additional context or evidence' })
+  @IsOptional()
+  @IsString()
+  additionalContext?: string;
+}
+
+/**
+ * DTO for reviewing an appeal
+ */
+export class ReviewAppealDto {
+  @ApiProperty({ description: 'Whether to approve the appeal' })
+  @IsBoolean()
+  approved: boolean;
+
+  @ApiPropertyOptional({ description: 'Review notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+/**
+ * Query DTO for appeals queue
+ */
+export class AppealsQueueQuery {
+  @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: 'Items per page', default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  limit?: number = 20;
+
+  @ApiPropertyOptional({ enum: AppealStatus, description: 'Filter by status' })
+  @IsOptional()
+  @IsEnum(AppealStatus)
+  status?: AppealStatus;
+}
+
+// ============================================================================
+// Bulk Action DTOs
+// ============================================================================
+
+/**
+ * DTO for bulk resolving reports
+ */
+export class BulkResolveDto {
+  @ApiProperty({ description: 'Report IDs to resolve' })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  reportIds: string[];
+
+  @ApiProperty({ enum: ModerationAction, description: 'Action to take' })
+  @IsEnum(ModerationAction)
+  action: ModerationAction;
+
+  @ApiPropertyOptional({ description: 'Notes for all resolutions' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+/**
+ * DTO for bulk assigning reports
+ */
+export class BulkAssignDto {
+  @ApiProperty({ description: 'Report IDs to assign' })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  reportIds: string[];
+
+  @ApiPropertyOptional({ description: 'Moderator ID (defaults to self)' })
+  @IsOptional()
+  @IsUUID()
+  moderatorId?: string;
+}
+
+/**
+ * DTO for bulk issuing warnings
+ */
+export class BulkWarnDto {
+  @ApiProperty({ description: 'User IDs to warn' })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  userIds: string[];
+
+  @ApiProperty({ enum: ReportReason, description: 'Reason for warning' })
+  @IsEnum(ReportReason)
+  reason: ReportReason;
+
+  @ApiProperty({ description: 'Warning message' })
+  @IsString()
+  message: string;
 }

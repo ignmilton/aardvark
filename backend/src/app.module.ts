@@ -28,6 +28,7 @@ import { ForumModule } from './modules/forum/forum.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { HealthModule } from './modules/health/health.module';
 import { TagsModule } from './modules/tags/tags.module';
+import { ReadingListsModule } from './modules/reading-lists/reading-lists.module';
 
 // Common modules
 import { CacheModule } from './common/cache/cache.module';
@@ -101,6 +102,7 @@ import { databaseConfig } from './config/database.config';
     WebsocketModule,
     HealthModule,
     TagsModule,
+    ReadingListsModule,
   ],
   providers: [
     // Global rate limit guard

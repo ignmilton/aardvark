@@ -12,7 +12,11 @@ import {
   ModerationStatus,
   ModerationAction,
   User,
+  BanAppeal,
+  UserMute,
 } from '@/database/entities';
+import { AppealStatus } from '@/database/entities/ban-appeal.entity';
+import { MuteScope } from '@/database/entities/user-mute.entity';
 import { AccountStatus } from '@aardvark/shared';
 import { ModerationQueueQuery, ModerationLogQuery } from './dto/moderation.dto';
 
@@ -35,6 +39,10 @@ export class ModerationService {
     private contentFlagRepository: Repository<ContentFlag>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(BanAppeal)
+    private banAppealRepository: Repository<BanAppeal>,
+    @InjectRepository(UserMute)
+    private userMuteRepository: Repository<UserMute>,
   ) {}
 
   /**
@@ -700,5 +708,482 @@ export class ModerationService {
     );
 
     return savedFlag;
+  }
+
+  // ============================================
+  // MUTE FUNCTIONALITY
+  // ============================================
+
+  /**
+   * Issue a mute to a user (restrict specific features)
+   */
+  async issueMute(
+    userId: string,
+    issuerId: string,
+    scope: MuteScope,
+    reason: ReportReason,
+    details: string,
+    expiresAt: Date,
+  ): Promise<UserMute> {
+    // Verify user exists
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check for existing active mute with same scope
+    const existingMute = await this.userMuteRepository.findOne({
+      where: {
+        userId,
+        scope,
+        isActive: true,
+      },
+    });
+
+    if (existingMute) {
+      throw new BadRequestException(`User already has an active ${scope} mute`);
+    }
+
+    const mute = this.userMuteRepository.create({
+      userId,
+      issuedById: issuerId,
+      scope,
+      reason,
+      details,
+      expiresAt,
+      isActive: true,
+    });
+
+    const savedMute = await this.userMuteRepository.save(mute);
+
+    // Create moderation log
+    await this.createModerationLog(
+      issuerId,
+      ModerationAction.USER_WARNED,
+      ModerationContentType.USER_PROFILE,
+      userId,
+      userId,
+      null,
+      `Mute issued (${scope}): ${details}`,
+      { muteScope: scope, expiresAt },
+    );
+
+    return savedMute;
+  }
+
+  /**
+   * Lift a mute
+   */
+  async liftMute(muteId: string, liftedById: string): Promise<UserMute> {
+    const mute = await this.userMuteRepository.findOne({
+      where: { id: muteId },
+    });
+
+    if (!mute) {
+      throw new NotFoundException('Mute not found');
+    }
+
+    if (!mute.isActive) {
+      throw new BadRequestException('Mute is already inactive');
+    }
+
+    mute.isActive = false;
+    mute.liftedAt = new Date();
+    mute.liftedById = liftedById;
+
+    const savedMute = await this.userMuteRepository.save(mute);
+
+    await this.createModerationLog(
+      liftedById,
+      ModerationAction.NONE,
+      ModerationContentType.USER_PROFILE,
+      mute.userId,
+      mute.userId,
+      null,
+      `Mute lifted (${mute.scope})`,
+    );
+
+    return savedMute;
+  }
+
+  /**
+   * Get user's active mutes
+   */
+  async getUserMutes(userId: string): Promise<UserMute[]> {
+    return this.userMuteRepository.find({
+      where: { userId, isActive: true },
+      relations: ['issuedBy'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Check if user is muted for a specific scope
+   */
+  async isUserMuted(userId: string, scope: MuteScope): Promise<{
+    isMuted: boolean;
+    mute: UserMute | null;
+  }> {
+    // Check for specific scope or ALL scope
+    const activeMute = await this.userMuteRepository.findOne({
+      where: [
+        { userId, scope, isActive: true },
+        { userId, scope: MuteScope.ALL, isActive: true },
+      ],
+    });
+
+    // Auto-expire if past expiration
+    if (activeMute && new Date() > activeMute.expiresAt) {
+      activeMute.isActive = false;
+      await this.userMuteRepository.save(activeMute);
+      return { isMuted: false, mute: null };
+    }
+
+    return {
+      isMuted: !!activeMute,
+      mute: activeMute || null,
+    };
+  }
+
+  // ============================================
+  // APPEAL SYSTEM
+  // ============================================
+
+  /**
+   * Create a ban appeal
+   */
+  async createAppeal(
+    userId: string,
+    banId: string,
+    reason: string,
+    additionalContext?: string,
+  ): Promise<BanAppeal> {
+    // Verify ban exists and belongs to user
+    const ban = await this.userBanRepository.findOne({
+      where: { id: banId, userId },
+    });
+
+    if (!ban) {
+      throw new NotFoundException('Ban not found');
+    }
+
+    // Check for existing pending appeal
+    const existingAppeal = await this.banAppealRepository.findOne({
+      where: {
+        userId,
+        banId,
+        status: In([AppealStatus.PENDING, AppealStatus.UNDER_REVIEW]),
+      },
+    });
+
+    if (existingAppeal) {
+      throw new BadRequestException('You already have a pending appeal for this ban');
+    }
+
+    const appeal = this.banAppealRepository.create({
+      userId,
+      banId,
+      reason,
+      additionalContext: additionalContext || null,
+      status: AppealStatus.PENDING,
+    });
+
+    return this.banAppealRepository.save(appeal);
+  }
+
+  /**
+   * Get appeals queue
+   */
+  async getAppealsQueue(query: {
+    page?: number;
+    limit?: number;
+    status?: AppealStatus;
+  }): Promise<{
+    appeals: BanAppeal[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit: rawLimit = 20, status } = query;
+    const limit = Math.min(Math.max(1, rawLimit), 50);
+
+    const where: FindOptionsWhere<BanAppeal> = {};
+    if (status) {
+      where.status = status;
+    }
+
+    const [appeals, total] = await this.banAppealRepository.findAndCount({
+      where,
+      relations: ['user', 'ban', 'ban.issuedBy', 'reviewedBy'],
+      order: { createdAt: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      appeals,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Review an appeal
+   */
+  async reviewAppeal(
+    appealId: string,
+    reviewerId: string,
+    approved: boolean,
+    notes?: string,
+  ): Promise<BanAppeal> {
+    const appeal = await this.banAppealRepository.findOne({
+      where: { id: appealId },
+      relations: ['ban'],
+    });
+
+    if (!appeal) {
+      throw new NotFoundException('Appeal not found');
+    }
+
+    if (appeal.status !== AppealStatus.PENDING && appeal.status !== AppealStatus.UNDER_REVIEW) {
+      throw new BadRequestException('Appeal has already been reviewed');
+    }
+
+    appeal.status = approved ? AppealStatus.APPROVED : AppealStatus.REJECTED;
+    appeal.reviewedById = reviewerId;
+    appeal.reviewNotes = notes || null;
+    appeal.reviewedAt = new Date();
+
+    const savedAppeal = await this.banAppealRepository.save(appeal);
+
+    // If approved, lift the ban
+    if (approved && appeal.ban) {
+      await this.liftBan(appeal.banId, reviewerId);
+    }
+
+    await this.createModerationLog(
+      reviewerId,
+      approved ? ModerationAction.NONE : ModerationAction.USER_WARNED,
+      ModerationContentType.USER_PROFILE,
+      appeal.userId,
+      appeal.userId,
+      null,
+      `Appeal ${approved ? 'approved' : 'rejected'}: ${notes || 'No notes'}`,
+      { appealId, approved },
+    );
+
+    return savedAppeal;
+  }
+
+  /**
+   * Get user's appeals
+   */
+  async getUserAppeals(userId: string): Promise<BanAppeal[]> {
+    return this.banAppealRepository.find({
+      where: { userId },
+      relations: ['ban', 'reviewedBy'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  // ============================================
+  // BULK ACTIONS
+  // ============================================
+
+  /**
+   * Bulk resolve reports
+   */
+  async bulkResolveReports(
+    reportIds: string[],
+    moderatorId: string,
+    action: ModerationAction,
+    notes?: string,
+  ): Promise<{ resolved: number; failed: string[] }> {
+    const resolved: string[] = [];
+    const failed: string[] = [];
+
+    for (const reportId of reportIds) {
+      try {
+        await this.resolveReport(reportId, moderatorId, action, notes);
+        resolved.push(reportId);
+      } catch (error) {
+        failed.push(reportId);
+      }
+    }
+
+    return { resolved: resolved.length, failed };
+  }
+
+  /**
+   * Bulk assign reports to moderator
+   */
+  async bulkAssignReports(
+    reportIds: string[],
+    moderatorId: string,
+  ): Promise<{ assigned: number; failed: string[] }> {
+    const assigned: string[] = [];
+    const failed: string[] = [];
+
+    for (const reportId of reportIds) {
+      try {
+        await this.assignReport(reportId, moderatorId);
+        assigned.push(reportId);
+      } catch (error) {
+        failed.push(reportId);
+      }
+    }
+
+    return { assigned: assigned.length, failed };
+  }
+
+  /**
+   * Bulk issue warnings
+   */
+  async bulkIssueWarnings(
+    userIds: string[],
+    issuerId: string,
+    reason: ReportReason,
+    message: string,
+  ): Promise<{ issued: number; failed: string[] }> {
+    const issued: string[] = [];
+    const failed: string[] = [];
+
+    for (const userId of userIds) {
+      try {
+        await this.issueWarning(userId, issuerId, reason, message);
+        issued.push(userId);
+      } catch (error) {
+        failed.push(userId);
+      }
+    }
+
+    return { issued: issued.length, failed };
+  }
+
+  // ============================================
+  // PRIORITY SCORING
+  // ============================================
+
+  /**
+   * Calculate priority score for a report
+   */
+  calculateReportPriority(report: Report): number {
+    let score = 0;
+
+    // Base score by reason severity
+    const reasonScores: Record<ReportReason, number> = {
+      [ReportReason.SPAM]: 20,
+      [ReportReason.HARASSMENT]: 40,
+      [ReportReason.HATE_SPEECH]: 50,
+      [ReportReason.VIOLENCE]: 50,
+      [ReportReason.SEXUAL_CONTENT]: 40,
+      [ReportReason.COPYRIGHT]: 30,
+      [ReportReason.MISINFORMATION]: 25,
+      [ReportReason.IMPERSONATION]: 35,
+      [ReportReason.SELF_HARM]: 60,
+      [ReportReason.OTHER]: 15,
+    };
+
+    score += reasonScores[report.reason] || 15;
+
+    // Recency bonus (newer reports get higher priority)
+    const ageInHours = (Date.now() - new Date(report.createdAt).getTime()) / (1000 * 60 * 60);
+    if (ageInHours < 1) score += 20;
+    else if (ageInHours < 6) score += 15;
+    else if (ageInHours < 24) score += 10;
+    else if (ageInHours < 72) score += 5;
+
+    // Content type priority
+    const contentTypeScores: Record<ModerationContentType, number> = {
+      [ModerationContentType.STORY]: 10,
+      [ModerationContentType.STORY_SEGMENT]: 10,
+      [ModerationContentType.COMMENT]: 15,
+      [ModerationContentType.FORUM_POST]: 15,
+      [ModerationContentType.FORUM_THREAD]: 15,
+      [ModerationContentType.MESSAGE]: 20,
+      [ModerationContentType.USER_PROFILE]: 25,
+    };
+
+    score += contentTypeScores[report.contentType] || 10;
+
+    return Math.min(score, 100); // Cap at 100
+  }
+
+  /**
+   * Get prioritized report queue
+   */
+  async getPrioritizedReportQueue(query: ModerationQueueQuery): Promise<{
+    reports: (Report & { priorityScore: number })[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const result = await this.getReportQueue({
+      ...query,
+      sortBy: 'createdAt',
+      sortOrder: 'DESC',
+    });
+
+    // Calculate priority scores and sort
+    const reportsWithPriority = result.reports.map(report => ({
+      ...report,
+      priorityScore: this.calculateReportPriority(report),
+    }));
+
+    // Sort by priority score descending
+    reportsWithPriority.sort((a, b) => b.priorityScore - a.priorityScore);
+
+    return {
+      reports: reportsWithPriority,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+    };
+  }
+
+  /**
+   * Get strike count for a user (warnings in last 90 days)
+   */
+  async getUserStrikeCount(userId: string): Promise<number> {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    return this.userWarningRepository.count({
+      where: {
+        userId,
+        createdAt: MoreThan(ninetyDaysAgo),
+      },
+    });
+  }
+
+  /**
+   * Check if user should be auto-banned (3 strikes)
+   */
+  async checkAutoban(userId: string, issuerId: string): Promise<boolean> {
+    const strikeCount = await this.getUserStrikeCount(userId);
+
+    if (strikeCount >= 3) {
+      // Check if not already banned
+      const { isBanned } = await this.isUserBanned(userId);
+      if (!isBanned) {
+        await this.issueBan(
+          userId,
+          issuerId,
+          ReportReason.OTHER,
+          'Automatic ban: 3 strikes policy',
+          false,
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          false,
+        );
+        return true;
+      }
+    }
+
+    return false;
   }
 }
