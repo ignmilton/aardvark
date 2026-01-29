@@ -1078,12 +1078,13 @@ export class ModerationService {
       [ReportReason.SPAM]: 20,
       [ReportReason.HARASSMENT]: 40,
       [ReportReason.HATE_SPEECH]: 50,
-      [ReportReason.VIOLENCE]: 50,
+      [ReportReason.INAPPROPRIATE_CONTENT]: 35,
       [ReportReason.SEXUAL_CONTENT]: 40,
+      [ReportReason.SELF_HARM]: 60,
       [ReportReason.COPYRIGHT]: 30,
+      [ReportReason.VIOLENCE]: 50,
       [ReportReason.MISINFORMATION]: 25,
       [ReportReason.IMPERSONATION]: 35,
-      [ReportReason.SELF_HARM]: 60,
       [ReportReason.OTHER]: 15,
     };
 
@@ -1099,8 +1100,9 @@ export class ModerationService {
     // Content type priority
     const contentTypeScores: Record<ModerationContentType, number> = {
       [ModerationContentType.STORY]: 10,
-      [ModerationContentType.STORY_SEGMENT]: 10,
+      [ModerationContentType.SEGMENT]: 10,
       [ModerationContentType.COMMENT]: 15,
+      [ModerationContentType.RATING]: 10,
       [ModerationContentType.FORUM_POST]: 15,
       [ModerationContentType.FORUM_THREAD]: 15,
       [ModerationContentType.MESSAGE]: 20,

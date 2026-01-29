@@ -12,7 +12,7 @@ interface ProgressSidebarProps {
   visitedSegmentIds: string[];
   currentSegmentId: string;
   bookmarks: Bookmark[];
-  stateVariables: Record<string, any>;
+  // Note: stateVariables removed per design simplification
   onNavigate: (segmentId: string) => void;
   isOpen: boolean;
   onClose: () => void;
@@ -22,14 +22,10 @@ export function ProgressSidebar({
   visitedSegmentIds,
   currentSegmentId,
   bookmarks,
-  stateVariables,
   onNavigate,
   isOpen,
   onClose,
 }: ProgressSidebarProps) {
-  const visibleStates = Object.entries(stateVariables).filter(
-    ([_, value]) => value !== undefined && value !== null
-  );
 
   return (
     <>
@@ -120,33 +116,7 @@ export function ProgressSidebar({
             </div>
           )}
 
-          {/* State variables (if visible) */}
-          {visibleStates.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                Your Stats
-              </h3>
-              <div className="space-y-2">
-                {visibleStates.map(([name, value]) => (
-                  <div
-                    key={name}
-                    className="flex justify-between items-center p-2 bg-muted rounded-lg text-sm"
-                  >
-                    <span className="capitalize">
-                      {name.replace(/_/g, ' ')}
-                    </span>
-                    <span className="font-mono font-medium">
-                      {typeof value === 'boolean'
-                        ? value
-                          ? 'Yes'
-                          : 'No'
-                        : String(value)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Note: State variables section removed per design simplification */}
 
           {/* Navigation history (collapsed by default) */}
           <details className="mt-6">

@@ -250,6 +250,15 @@ export class UsersService {
     // Only active users
     queryBuilder.andWhere('user.accountStatus = :status', { status: 'active' });
 
+    // SECURITY: Whitelist allowed sort columns to prevent SQL injection
+    const allowedSortColumns: Record<string, string> = {
+      createdAt: 'user.createdAt',
+      updatedAt: 'user.updatedAt',
+      username: 'user.username',
+      displayName: 'user.displayName',
+    };
+    const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
     // Sorting
     if (sortBy === 'followersCount') {
       // Subquery for follower count
@@ -262,9 +271,10 @@ export class UsersService {
               .where('f.followingId = user.id'),
           'followerCount',
         )
-        .orderBy('followerCount', sortOrder.toUpperCase() as 'ASC' | 'DESC');
+        .orderBy('followerCount', sortDirection);
     } else {
-      queryBuilder.orderBy(`user.${sortBy}`, sortOrder.toUpperCase() as 'ASC' | 'DESC');
+      const sortColumn = allowedSortColumns[sortBy] || 'user.createdAt';
+      queryBuilder.orderBy(sortColumn, sortDirection);
     }
 
     // Pagination
@@ -404,8 +414,14 @@ export class UsersService {
       queryBuilder.andWhere('story.publishedAt IS NULL');
     }
 
-    // Sorting
-    queryBuilder.orderBy(`story.${sortBy}`, 'DESC');
+    // SECURITY: Whitelist allowed sort columns to prevent SQL injection
+    const allowedStorySortColumns: Record<string, string> = {
+      createdAt: 'story.createdAt',
+      updatedAt: 'story.updatedAt',
+      viewCount: 'story.viewCount',
+    };
+    const storySortColumn = allowedStorySortColumns[sortBy] || 'story.updatedAt';
+    queryBuilder.orderBy(storySortColumn, 'DESC');
 
     // Pagination
     const skip = (page - 1) * limit;

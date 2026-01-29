@@ -21,8 +21,14 @@ const RAW_LIMIT = '10mb';
  * interceptors, filters, and documentation.
  */
 async function bootstrap() {
+  // SECURITY: In production, only log errors and warnings to prevent information disclosure
+  const isProd = process.env.NODE_ENV === 'production';
+  const loggerLevels: ('error' | 'warn' | 'log' | 'debug' | 'verbose')[] = isProd
+    ? ['error', 'warn', 'log']
+    : ['error', 'warn', 'log', 'debug', 'verbose'];
+
   const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+    logger: loggerLevels,
   });
 
   const configService = app.get(ConfigService);

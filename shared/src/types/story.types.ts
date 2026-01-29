@@ -43,6 +43,8 @@ export enum CollaborationMode {
 export enum StoryStatus {
   /** Work in progress, not visible to others */
   DRAFT = 'draft',
+  /** Submitted for moderation review before publishing */
+  PENDING_REVIEW = 'pending_review',
   /** Published and visible to readers */
   PUBLISHED = 'published',
   /** Temporarily hidden by author */

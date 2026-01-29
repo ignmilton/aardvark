@@ -7,12 +7,7 @@ import { cn } from '@/lib/utils';
 import { RichTextEditor } from './rich-text-editor';
 import { useAutosave } from './use-autosave';
 
-interface StateEffect {
-  variableId: string;
-  variableName: string;
-  operation: string;
-  value: any;
-}
+// Note: StateEffect interface removed per design simplification
 
 interface SegmentData {
   id?: string;
@@ -21,7 +16,7 @@ interface SegmentData {
   contentMarkdown: string;
   isEnding: boolean;
   endingType: 'good' | 'bad' | 'neutral' | 'secret' | null;
-  stateEffects: StateEffect[];
+  // Note: stateEffects removed per design simplification
 }
 
 interface SegmentEditorModalProps {
@@ -29,7 +24,7 @@ interface SegmentEditorModalProps {
   onClose: () => void;
   onSave: (data: SegmentData) => void;
   initialData?: Partial<SegmentData>;
-  stateVariables?: { id: string; name: string; displayName: string; type: string }[];
+  // Note: stateVariables removed per design simplification
   storyId?: string;
 }
 
@@ -38,7 +33,6 @@ export function SegmentEditorModal({
   onClose,
   onSave,
   initialData,
-  stateVariables = [],
   storyId = 'unknown',
 }: SegmentEditorModalProps) {
   const [title, setTitle] = useState('');
@@ -46,7 +40,7 @@ export function SegmentEditorModal({
   const [contentText, setContentText] = useState('');
   const [isEnding, setIsEnding] = useState(false);
   const [endingType, setEndingType] = useState<'good' | 'bad' | 'neutral' | 'secret' | null>(null);
-  const [stateEffects, setStateEffects] = useState<StateEffect[]>([]);
+  // Note: stateEffects state removed per design simplification
   const [showDraftRecovery, setShowDraftRecovery] = useState(false);
 
   const { saveDraft, loadDraft, clearDraft, hasDraft } = useAutosave(
@@ -67,14 +61,12 @@ export function SegmentEditorModal({
       setContentText(initialData.contentMarkdown || '');
       setIsEnding(initialData.isEnding || false);
       setEndingType(initialData.endingType || null);
-      setStateEffects(initialData.stateEffects || []);
     } else {
       setTitle('');
       setContentHtml('');
       setContentText('');
       setIsEnding(false);
       setEndingType(null);
-      setStateEffects([]);
     }
 
     // Check for a saved draft
@@ -116,44 +108,12 @@ export function SegmentEditorModal({
       contentMarkdown: contentText,
       isEnding,
       endingType: isEnding ? endingType : null,
-      stateEffects,
+      // Note: stateEffects removed per design simplification
     });
     onClose();
   };
 
-  const addStateEffect = () => {
-    if (stateVariables.length === 0) return;
-    setStateEffects([
-      ...stateEffects,
-      {
-        variableId: stateVariables[0].id,
-        variableName: stateVariables[0].name,
-        operation: 'set',
-        value: '',
-      },
-    ]);
-  };
-
-  const removeStateEffect = (index: number) => {
-    setStateEffects(stateEffects.filter((_, i) => i !== index));
-  };
-
-  const updateStateEffect = (index: number, field: string, value: any) => {
-    const updated = [...stateEffects];
-    if (field === 'variableId') {
-      const variable = stateVariables.find((v) => v.id === value);
-      if (variable) {
-        updated[index] = {
-          ...updated[index],
-          variableId: value,
-          variableName: variable.name,
-        };
-      }
-    } else {
-      updated[index] = { ...updated[index], [field]: value };
-    }
-    setStateEffects(updated);
-  };
+  // Note: addStateEffect, removeStateEffect, updateStateEffect functions removed per design simplification
 
   if (!isOpen) return null;
 
@@ -259,70 +219,7 @@ export function SegmentEditorModal({
             )}
           </div>
 
-          {/* State effects */}
-          {stateVariables.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium">State Effects</label>
-                <Button onClick={addStateEffect} size="sm" variant="outline">
-                  Add Effect
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                Changes applied when the reader reaches this segment
-              </p>
-
-              {stateEffects.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">No state effects</p>
-              ) : (
-                <div className="space-y-2">
-                  {stateEffects.map((effect, index) => (
-                    <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                      <select
-                        value={effect.variableId}
-                        onChange={(e) => updateStateEffect(index, 'variableId', e.target.value)}
-                        className="flex-1 px-2 py-1 rounded border bg-background text-sm"
-                        aria-label={`Variable for effect ${index + 1}`}
-                      >
-                        {stateVariables.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.displayName}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={effect.operation}
-                        onChange={(e) => updateStateEffect(index, 'operation', e.target.value)}
-                        className="w-24 px-2 py-1 rounded border bg-background text-sm"
-                        aria-label={`Operation for effect ${index + 1}`}
-                      >
-                        <option value="set">Set</option>
-                        <option value="add">Add</option>
-                        <option value="subtract">Subtract</option>
-                        <option value="toggle">Toggle</option>
-                      </select>
-                      <Input
-                        value={effect.value}
-                        onChange={(e) => updateStateEffect(index, 'value', e.target.value)}
-                        placeholder="Value"
-                        className="w-24 h-8"
-                        aria-label={`Value for effect ${index + 1}`}
-                      />
-                      <button
-                        onClick={() => removeStateEffect(index)}
-                        className="p-1 hover:bg-destructive/10 rounded text-destructive"
-                        aria-label={`Remove effect ${index + 1}`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Note: State effects UI removed per design simplification */}
         </div>
 
         {/* Footer */}

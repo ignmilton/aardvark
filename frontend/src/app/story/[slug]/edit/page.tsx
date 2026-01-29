@@ -12,7 +12,6 @@ import {
   storiesApi,
   segmentsApi,
   choicesApi,
-  stateVariablesApi,
   branchSubmissionsApi,
 } from '@/lib/api';
 
@@ -54,7 +53,7 @@ interface Segment {
   isEnding: boolean;
   endingType: 'good' | 'bad' | 'neutral' | 'secret' | null;
   wordCount: number;
-  stateEffects: any[];
+  // Note: stateEffects removed per design simplification
 }
 
 interface Choice {
@@ -63,15 +62,10 @@ interface Choice {
   nextSegmentId: string;
   choiceText: string;
   order: number;
-  conditions: any[];
+  // Note: conditions removed per design simplification
 }
 
-interface StateVariable {
-  id: string;
-  name: string;
-  displayName: string;
-  type: string;
-}
+// StateVariable interface removed - feature simplified out of design
 
 interface BranchSubmission {
   id: string;
@@ -112,19 +106,16 @@ export default function StoryEditorPage() {
   const [story, setStory] = useState<Story | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [choices, setChoices] = useState<Choice[]>([]);
-  const [stateVariables, setStateVariables] = useState<StateVariable[]>([]);
+  // Note: stateVariables feature removed per design simplification
   const [submissions, setSubmissions] = useState<BranchSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'visual' | 'settings' | 'variables' | 'submissions'>('visual');
+  const [activeTab, setActiveTab] = useState<'visual' | 'settings' | 'submissions'>('visual');
 
   // Settings form state
   const [settingsTitle, setSettingsTitle] = useState('');
   const [settingsDescription, setSettingsDescription] = useState('');
   const [settingsCollabMode, setSettingsCollabMode] = useState('private');
-  const [newVarName, setNewVarName] = useState('');
-  const [newVarDisplayName, setNewVarDisplayName] = useState('');
-  const [newVarType, setNewVarType] = useState('boolean');
-  const [showAddVariable, setShowAddVariable] = useState(false);
+  // Note: Variable form state removed per design simplification
 
   // Load story data from API
   useEffect(() => {
@@ -154,15 +145,7 @@ export default function StoryEditorPage() {
         }
         setChoices(allChoices);
 
-        // Fetch state variables
-        if (token) {
-          try {
-            const vars = await stateVariablesApi.getByStory(storyData.id, token);
-            setStateVariables(vars || []);
-          } catch {
-            // No variables yet
-          }
-        }
+        // Note: State variables fetch removed per design simplification
 
         // Fetch branch submissions
         if (token && storyData.collaborationMode !== 'private') {
@@ -196,7 +179,7 @@ export default function StoryEditorPage() {
       position: segment.position || { x: 250, y: 250 },
       isEnding: segment.isEnding || false,
       endingType: segment.endingType || undefined,
-      stateEffects: segment.stateEffects || [],
+      // Note: stateEffects removed per design simplification
     } as any, token);
 
     setSegments((prev) => [...prev, created]);
@@ -231,7 +214,7 @@ export default function StoryEditorPage() {
       nextSegmentId: choice.nextSegmentId!,
       choiceText: choice.choiceText || 'New choice',
       order: choices.filter((c) => c.segmentId === choice.segmentId).length + 1,
-      conditions: [],
+      // Note: conditions removed per design simplification
     } as any, token);
 
     setChoices((prev) => [...prev, created]);
@@ -261,45 +244,7 @@ export default function StoryEditorPage() {
     );
   }, [story]);
 
-  // Variable management
-  const handleAddVariable = async () => {
-    const token = getToken();
-    if (!token || !story || !newVarName.trim()) return;
-
-    try {
-      const created = await stateVariablesApi.create({
-        storyId: story.id,
-        name: newVarName.trim(),
-        displayName: newVarDisplayName.trim() || newVarName.trim(),
-        type: newVarType as 'boolean' | 'number' | 'string' | 'array',
-        defaultValue: newVarType === 'boolean' ? false : newVarType === 'number' ? 0 : '',
-        description: null,
-        isVisible: true,
-      } as any, token);
-
-      setStateVariables((prev) => [...prev, created]);
-      setNewVarName('');
-      setNewVarDisplayName('');
-      setNewVarType('boolean');
-      setShowAddVariable(false);
-      toast.success('Variable created');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create variable');
-    }
-  };
-
-  const handleDeleteVariable = async (id: string) => {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-      await stateVariablesApi.delete(id, token);
-      setStateVariables((prev) => prev.filter((v) => v.id !== id));
-      toast.success('Variable deleted');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete variable');
-    }
-  };
+  // Note: Variable management functions removed per design simplification
 
   // Settings save
   const handleSaveSettings = async () => {
@@ -417,16 +362,7 @@ export default function StoryEditorPage() {
           >
             Visual Editor
           </button>
-          <button
-            onClick={() => setActiveTab('variables')}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-              activeTab === 'variables'
-                ? 'bg-background shadow-sm'
-                : 'hover:bg-background/50'
-            }`}
-          >
-            Variables
-          </button>
+          {/* Note: Variables tab removed per design simplification */}
           <button
             onClick={() => setActiveTab('settings')}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
@@ -484,7 +420,6 @@ export default function StoryEditorPage() {
             storyId={story.id}
             segments={segments}
             choices={choices}
-            stateVariables={stateVariables}
             onSegmentCreate={handleSegmentCreate}
             onSegmentUpdate={handleSegmentUpdate}
             onSegmentDelete={handleSegmentDelete}
@@ -494,104 +429,7 @@ export default function StoryEditorPage() {
           />
         )}
 
-        {activeTab === 'variables' && (
-          <div className="p-6 max-w-3xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold">State Variables</h2>
-                <p className="text-muted-foreground">
-                  Define variables to track reader choices and unlock conditional content
-                </p>
-              </div>
-              <Button onClick={() => setShowAddVariable(true)}>Add Variable</Button>
-            </div>
-
-            {showAddVariable && (
-              <div className="mb-6 p-4 border rounded-lg space-y-3">
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label htmlFor="var-name" className="block text-sm font-medium mb-1">Name (code)</label>
-                    <input
-                      id="var-name"
-                      type="text"
-                      value={newVarName}
-                      onChange={(e) => setNewVarName(e.target.value)}
-                      placeholder="e.g. has_key"
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="var-display" className="block text-sm font-medium mb-1">Display Name</label>
-                    <input
-                      id="var-display"
-                      type="text"
-                      value={newVarDisplayName}
-                      onChange={(e) => setNewVarDisplayName(e.target.value)}
-                      placeholder="e.g. Has Key"
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="var-type" className="block text-sm font-medium mb-1">Type</label>
-                    <select
-                      id="var-type"
-                      value={newVarType}
-                      onChange={(e) => setNewVarType(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                    >
-                      <option value="boolean">Boolean</option>
-                      <option value="number">Number</option>
-                      <option value="string">String</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" onClick={() => setShowAddVariable(false)}>
-                    Cancel
-                  </Button>
-                  <Button size="sm" onClick={handleAddVariable} disabled={!newVarName.trim()}>
-                    Create
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {stateVariables.length === 0 && !showAddVariable ? (
-              <div className="text-center py-12 bg-muted/30 rounded-lg">
-                <p className="text-muted-foreground mb-4">No variables defined yet</p>
-                <Button variant="outline" onClick={() => setShowAddVariable(true)}>
-                  Create your first variable
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {stateVariables.map((variable) => (
-                  <div
-                    key={variable.id}
-                    className="p-4 border rounded-lg flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-medium">{variable.displayName}</p>
-                      <p className="text-sm text-muted-foreground font-mono">
-                        {variable.name} ({variable.type})
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => handleDeleteVariable(variable.id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Note: Variables tab content removed per design simplification */}
 
         {activeTab === 'settings' && (
           <div className="p-6 max-w-3xl mx-auto">

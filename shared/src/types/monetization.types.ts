@@ -10,6 +10,7 @@
 export enum TransactionType {
   // Credit earning
   AD_WATCH = 'ad_watch',
+  AD_REWARD = 'ad_reward', // Credits awarded for watching rewarded ads
   DAILY_BONUS = 'daily_bonus',
   STORY_COMPLETION = 'story_completion',
   REVIEW_REWARD = 'review_reward',

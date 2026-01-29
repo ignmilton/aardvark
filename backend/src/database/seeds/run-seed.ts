@@ -127,7 +127,8 @@ async function seed(ds: DataSource) {
   console.log('\n✅ Seed completed successfully!');
   console.log('\n📝 Note: No sample stories created per design spec.');
   console.log('   Admins should create demo content via API after deployment.');
-  console.log('\nTest accounts (password: Password123!):');
+  // SECURITY: Never log passwords - refer to secure documentation for credentials
+  console.log('\nTest accounts created (see secure documentation for credentials):');
   console.log('  admin@aardvark.dev     (admin)');
   console.log('  mod@aardvark.dev       (moderator)');
   console.log('  author@aardvark.dev    (author, premium)');
