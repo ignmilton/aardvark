@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { randomBytes } from 'crypto';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { CreditsService } from './credits.service';
 import {
@@ -176,8 +177,8 @@ export class CreditsController {
       );
     }
 
-    // Generate a unique session token
-    const sessionToken = `${userId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    // Generate a cryptographically secure session token
+    const sessionToken = `${userId}_${Date.now()}_${randomBytes(16).toString('hex')}`;
 
     // Store session in Redis with TTL
     const cacheKey = `ad_session:${sessionToken}`;
