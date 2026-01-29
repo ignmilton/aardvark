@@ -399,6 +399,72 @@ export class ContentFilterService {
   }
 
   /**
+   * SECURITY: Validate URL to prevent SSRF attacks.
+   * Blocks internal IPs, private networks, and cloud metadata endpoints.
+   */
+  private isUrlSafeForFetch(url: string): { safe: boolean; reason?: string } {
+    try {
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname.toLowerCase();
+
+      // Block localhost and loopback
+      if (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === '::1' ||
+        hostname === '[::1]' ||
+        hostname.endsWith('.localhost')
+      ) {
+        return { safe: false, reason: 'localhost_blocked' };
+      }
+
+      // Block private IP ranges using regex patterns
+      const privateIpPatterns = [
+        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/, // 10.0.0.0/8
+        /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/, // 172.16.0.0/12
+        /^192\.168\.\d{1,3}\.\d{1,3}$/, // 192.168.0.0/16
+        /^169\.254\.\d{1,3}\.\d{1,3}$/, // 169.254.0.0/16 (link-local, AWS metadata)
+        /^0\.0\.0\.0$/, // 0.0.0.0
+        /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/, // 127.0.0.0/8
+        /^100\.(6[4-9]|[7-9]\d|1[0-2]\d)\.\d{1,3}\.\d{1,3}$/, // 100.64.0.0/10 (Carrier-grade NAT)
+      ];
+
+      for (const pattern of privateIpPatterns) {
+        if (pattern.test(hostname)) {
+          return { safe: false, reason: 'private_ip_blocked' };
+        }
+      }
+
+      // Block cloud metadata endpoints explicitly
+      const blockedHostnames = [
+        '169.254.169.254', // AWS/GCP/Azure metadata
+        'metadata.google.internal',
+        'metadata.goog',
+        'kubernetes.default.svc',
+        'kubernetes.default',
+      ];
+
+      if (blockedHostnames.includes(hostname)) {
+        return { safe: false, reason: 'metadata_endpoint_blocked' };
+      }
+
+      // Block internal-looking hostnames
+      if (
+        hostname.endsWith('.internal') ||
+        hostname.endsWith('.local') ||
+        hostname.endsWith('.corp') ||
+        hostname.endsWith('.intranet')
+      ) {
+        return { safe: false, reason: 'internal_hostname_blocked' };
+      }
+
+      return { safe: true };
+    } catch {
+      return { safe: false, reason: 'invalid_url' };
+    }
+  }
+
+  /**
    * Analyze image for inappropriate content.
    * Performs URL validation, checks content type, and optionally calls
    * an external moderation API (configured via IMAGE_MODERATION_API_URL).
@@ -438,16 +504,39 @@ export class ContentFilterService {
       }
     }
 
+    // SECURITY: Block SSRF attacks - prevent fetching internal/private IPs
+    const ssrfCheck = this.isUrlSafeForFetch(imageUrl);
+    if (!ssrfCheck.safe) {
+      flags.push(ssrfCheck.reason || 'ssrf_blocked');
+      this.logger.warn(`SSRF attempt blocked: ${imageUrl} - ${ssrfCheck.reason}`);
+      await this.flagContent(contentType, contentId, authorId, 'ssrf_attempt', 1.0, imageUrl);
+      return { safe: false, flags };
+    }
+
     // Validate that the URL actually points to an image via HEAD request
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
 
+      // SECURITY: Disable redirect following to prevent SSRF via redirects
       const response = await fetch(imageUrl, {
         method: 'HEAD',
         signal: controller.signal,
-        redirect: 'follow',
+        redirect: 'manual',
       });
+
+      // If we get a redirect, validate the redirect URL too
+      if (response.status >= 300 && response.status < 400) {
+        const redirectUrl = response.headers.get('location');
+        if (redirectUrl) {
+          const redirectCheck = this.isUrlSafeForFetch(redirectUrl);
+          if (!redirectCheck.safe) {
+            flags.push('redirect_to_internal_blocked');
+            this.logger.warn(`SSRF via redirect blocked: ${imageUrl} -> ${redirectUrl}`);
+            return { safe: false, flags };
+          }
+        }
+      }
       clearTimeout(timeout);
 
       const responseContentType = response.headers.get('content-type') || '';

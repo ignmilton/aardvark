@@ -147,7 +147,8 @@ export class AuthService {
         const lockoutUntil = new Date();
         lockoutUntil.setMinutes(lockoutUntil.getMinutes() + this.LOCKOUT_DURATION_MINUTES);
         updateData.lockoutUntil = lockoutUntil;
-        this.logger.warn(`Account locked for ${email} after ${attempts} failed attempts`);
+        // SECURITY: Don't log email addresses - log user ID instead
+        this.logger.warn(`Account locked for user ${user.id} after ${attempts} failed attempts`);
       }
 
       await this.userRepository.update(user.id, updateData as any);
@@ -245,6 +246,17 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
+      // SECURITY: Check account status - banned/suspended users should not refresh tokens
+      if (user.accountStatus === AccountStatus.BANNED) {
+        throw new UnauthorizedException('Account has been banned');
+      }
+      if (user.accountStatus === AccountStatus.SUSPENDED) {
+        throw new UnauthorizedException('Account has been suspended');
+      }
+      if (user.accountStatus === AccountStatus.DEACTIVATED) {
+        throw new UnauthorizedException('Account has been deactivated');
+      }
+
       const newPayload = {
         sub: user.id,
         username: user.username,
@@ -339,8 +351,9 @@ export class AuthService {
 
     // TODO: Send email via configured email service (e.g., SendGrid, SES)
     const resetUrl = `${this.configService.get('appUrl', 'http://localhost:3000')}/auth/reset-password?token=${resetToken}`;
-    this.logger.log(`Password reset requested for ${email}`);
-    // Never log tokens/URLs in production - the URL should only be sent via email
+    // SECURITY: Log only user ID, never email addresses or tokens
+    this.logger.log(`Password reset requested for user ${user.id}`);
+    // In production: send resetUrl via email service, never log it
   }
 
   /**

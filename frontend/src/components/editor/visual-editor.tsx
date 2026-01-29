@@ -42,7 +42,7 @@ interface StorySegment {
   isEnding: boolean;
   endingType: 'good' | 'bad' | 'neutral' | 'secret' | null;
   wordCount: number;
-  stateEffects: any[];
+  // Note: stateEffects removed per design simplification
 }
 
 interface StoryChoice {
@@ -51,21 +51,16 @@ interface StoryChoice {
   nextSegmentId: string;
   choiceText: string;
   order: number;
-  conditions: any[];
+  // Note: conditions removed per design simplification
 }
 
-interface StateVariable {
-  id: string;
-  name: string;
-  displayName: string;
-  type: string;
-}
+// Note: StateVariable interface removed per design simplification
 
 interface VisualEditorProps {
   storyId: string;
   segments: StorySegment[];
   choices: StoryChoice[];
-  stateVariables: StateVariable[];
+  // Note: stateVariables removed per design simplification
   onSegmentCreate: (segment: Partial<StorySegment>) => Promise<StorySegment>;
   onSegmentUpdate: (id: string, segment: Partial<StorySegment>) => Promise<void>;
   onSegmentDelete: (id: string) => Promise<void>;
@@ -78,7 +73,6 @@ export function VisualEditor({
   storyId,
   segments: initialSegments,
   choices: initialChoices,
-  stateVariables,
   onSegmentCreate,
   onSegmentUpdate,
   onSegmentDelete,
@@ -118,7 +112,7 @@ export function VisualEditor({
       id: choice.id,
       choiceText: choice.choiceText,
       order: choice.order,
-      hasConditions: choice.conditions.length > 0,
+      hasConditions: false, // Note: conditions removed per design simplification
     },
   }));
 
@@ -171,7 +165,7 @@ export function VisualEditor({
           id: choice.id,
           choiceText: choice.choiceText,
           order: choice.order,
-          hasConditions: choice.conditions.length > 0,
+          hasConditions: false, // Note: conditions removed per design simplification
         },
       }))
     );
@@ -395,7 +389,6 @@ export function VisualEditor({
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveSegment}
         initialData={editingSegment ? { ...editingSegment, title: editingSegment.title ?? undefined, contentMarkdown: editingSegment.contentMarkdown ?? undefined } : undefined}
-        stateVariables={stateVariables}
         storyId={storyId}
       />
 

@@ -32,6 +32,8 @@ export enum ReportReason {
   HARASSMENT = 'harassment',
   HATE_SPEECH = 'hate_speech',
   INAPPROPRIATE_CONTENT = 'inappropriate_content',
+  SEXUAL_CONTENT = 'sexual_content',
+  SELF_HARM = 'self_harm',
   COPYRIGHT = 'copyright',
   VIOLENCE = 'violence',
   MISINFORMATION = 'misinformation',

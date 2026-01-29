@@ -50,26 +50,13 @@ export class ChoicesController {
   }
 
   @Get('segment/:segmentId/available')
-  @ApiOperation({ summary: 'Get available choices based on reader state' })
+  @ApiOperation({ summary: 'Get available choices for a segment' })
   @ApiParam({ name: 'segmentId', description: 'Segment ID' })
-  @ApiQuery({ name: 'state', required: false, description: 'JSON string of reader state' })
-  @ApiQuery({ name: 'visited', required: false, description: 'Comma-separated visited segment IDs' })
   @ApiResponse({ status: 200, description: 'Available choices for reader' })
-  async getAvailableChoices(
-    @Param('segmentId') segmentId: string,
-    @Query('state') stateJson?: string,
-    @Query('visited') visitedStr?: string,
-  ) {
-    let state: Record<string, any> = {};
-    if (stateJson) {
-      try {
-        state = JSON.parse(stateJson);
-      } catch {
-        // Invalid JSON, use empty state
-      }
-    }
-    const visited = visitedStr ? visitedStr.split(',') : [];
-    return this.choicesService.getAvailableChoices(segmentId, state, visited);
+  async getAvailableChoices(@Param('segmentId') segmentId: string) {
+    // Note: State variables were removed per design simplification.
+    // All non-hidden choices are now available.
+    return this.choicesService.getAvailableChoices(segmentId);
   }
 
   @Get('segment/:segmentId/stats')

@@ -21,7 +21,7 @@ interface Segment {
   content: string;
   isEnding: boolean;
   endingType: 'good' | 'bad' | 'neutral' | 'secret' | null;
-  stateEffects: any[];
+  // Note: stateEffects removed per design simplification
   choices: Choice[];
 }
 
@@ -38,7 +38,7 @@ interface Progress {
   currentSegmentId: string;
   visitedSegmentIds: string[];
   choiceHistory: { segmentId: string; choiceId: string; timestamp: Date }[];
-  stateVariables: Record<string, any>;
+  // Note: stateVariables removed per design simplification
   bookmarks: { segmentId: string; note: string; createdAt: Date }[];
   isCompleted: boolean;
 }
@@ -72,7 +72,7 @@ async function loadProgress(storyId: string, rootSegmentId: string): Promise<Pro
           currentSegmentId: serverProgress.currentSegmentId,
           visitedSegmentIds: serverProgress.visitedSegmentIds || [rootSegmentId],
           choiceHistory: serverProgress.choiceHistory || [],
-          stateVariables: serverProgress.stateVariables || {},
+          // Note: stateVariables removed per design simplification
           bookmarks: serverProgress.bookmarks || [],
           isCompleted: serverProgress.isCompleted || false,
         };
@@ -88,7 +88,6 @@ async function loadProgress(storyId: string, rootSegmentId: string): Promise<Pro
         currentSegmentId: rootSegmentId,
         visitedSegmentIds: [rootSegmentId],
         choiceHistory: [],
-        stateVariables: {},
         bookmarks: [],
         isCompleted: false,
       };
@@ -111,7 +110,6 @@ async function loadProgress(storyId: string, rootSegmentId: string): Promise<Pro
     currentSegmentId: rootSegmentId,
     visitedSegmentIds: [rootSegmentId],
     choiceHistory: [],
-    stateVariables: {},
     bookmarks: [],
     isCompleted: false,
   };
@@ -193,12 +191,7 @@ export default function StoryReaderPage() {
         // Load next segment with choices
         const nextSegment = await loadSegmentWithChoices(choice.nextSegmentId);
 
-        // Apply state effects
-        if (nextSegment.stateEffects) {
-          for (const effect of nextSegment.stateEffects) {
-            updatedProgress.stateVariables[effect.variableName] = effect.value;
-          }
-        }
+        // Note: State effects were removed per design simplification
 
         // Check if ending
         if (nextSegment.isEnding) {
@@ -329,7 +322,6 @@ export default function StoryReaderPage() {
       currentSegmentId: story.rootSegmentId!,
       visitedSegmentIds: [story.rootSegmentId!],
       choiceHistory: [],
-      stateVariables: {},
       bookmarks: [],
       isCompleted: false,
     };
@@ -478,7 +470,6 @@ export default function StoryReaderPage() {
           visitedSegmentIds={progress.visitedSegmentIds}
           currentSegmentId={segment.id}
           bookmarks={progress.bookmarks}
-          stateVariables={progress.stateVariables}
           onNavigate={handleNavigate}
           isOpen={showSidebar}
           onClose={() => setShowSidebar(false)}

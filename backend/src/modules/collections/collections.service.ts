@@ -74,7 +74,16 @@ export class CollectionsService {
       );
     }
 
-    qb.orderBy(`collection.${sortBy}`, sortOrder.toUpperCase() as 'ASC' | 'DESC');
+    // SECURITY: Whitelist allowed sort columns to prevent SQL injection
+    const allowedSortColumns: Record<string, string> = {
+      createdAt: 'collection.createdAt',
+      updatedAt: 'collection.updatedAt',
+      name: 'collection.name',
+      followerCount: 'collection.followerCount',
+    };
+    const sortColumn = allowedSortColumns[sortBy] || 'collection.createdAt';
+    const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    qb.orderBy(sortColumn, sortDirection);
 
     const [collections, total] = await qb
       .skip((page - 1) * limit)

@@ -155,8 +155,11 @@ export class RazorpayService {
     const data = await response.json();
 
     if (!response.ok) {
-      this.logger.error(`Razorpay API error: ${JSON.stringify(data)}`);
-      throw new BadRequestException(data.error?.description || 'Razorpay API error');
+      // SECURITY: Only log error code and description, not full response which may contain sensitive data
+      const errorCode = data.error?.code || 'UNKNOWN';
+      const errorDesc = data.error?.description || 'Unknown error';
+      this.logger.error(`Razorpay API error: ${errorCode} - ${errorDesc}`);
+      throw new BadRequestException(errorDesc);
     }
 
     return data as T;

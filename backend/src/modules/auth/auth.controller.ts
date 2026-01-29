@@ -56,8 +56,10 @@ export class AuthController {
 
   /**
    * Refresh access token
+   * Rate limited to prevent brute force attacks on refresh tokens
    */
   @Post('refresh')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
