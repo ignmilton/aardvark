@@ -27,3 +27,6 @@ export * from './reading-list.entity';
 export * from './search-history.entity';
 export * from './ban-appeal.entity';
 export * from './user-mute.entity';
+export * from './collection.entity';
+export * from './featured-content.entity';
+export * from './impression.entity';

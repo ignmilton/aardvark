@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { TagType } from '@aardvark/shared';
 import { Story } from './story.entity';
+import { User } from './user.entity';
 
 /**
  * Tag entity for story categorization and discovery.
@@ -70,6 +71,14 @@ export class Tag {
 
   @Column({ nullable: true })
   iconUrl: string | null;
+
+  // Creator (author who first used this tag)
+  @Column('uuid', { nullable: true })
+  createdById: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'createdById' })
+  createdBy: User | null;
 
   @ManyToMany(() => Story, (story) => story.storyTags)
   stories: Story[];
