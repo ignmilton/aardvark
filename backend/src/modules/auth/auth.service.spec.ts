@@ -84,6 +84,7 @@ describe('AuthService', () => {
           username: 'testuser',
           email: 'new@example.com',
           password: 'Password123!',
+          acceptTerms: true,
         }),
       ).rejects.toThrow(ConflictException);
     });
@@ -96,6 +97,7 @@ describe('AuthService', () => {
           username: 'newuser',
           email: 'test@example.com',
           password: 'Password123!',
+          acceptTerms: true,
         }),
       ).rejects.toThrow(ConflictException);
     });
@@ -109,6 +111,7 @@ describe('AuthService', () => {
         username: 'newuser',
         email: 'new@example.com',
         password: 'Password123!',
+        acceptTerms: true,
       });
 
       expect(result).toHaveProperty('accessToken');
@@ -350,6 +353,7 @@ describe('AuthService', () => {
         username: 'newuser',
         email: 'new@example.com',
         password: 'TestPassword123!',
+        acceptTerms: true,
       });
 
       // Verify the password was hashed with bcrypt

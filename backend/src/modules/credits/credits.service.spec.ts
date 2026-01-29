@@ -252,6 +252,7 @@ describe('CreditsService', () => {
         completed: false,
         adUnitId: 'ad-123',
         adType: 'rewarded',
+        duration: 30,
       });
 
       expect(result).toBeNull();
@@ -265,6 +266,7 @@ describe('CreditsService', () => {
           completed: true,
           adUnitId: 'ad-123',
           adType: 'rewarded',
+          duration: 30,
         }),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -282,6 +284,7 @@ describe('CreditsService', () => {
           completed: true,
           adUnitId: 'ad-123',
           adType: 'rewarded',
+          duration: 30,
         }),
       ).rejects.toThrow(BadRequestException);
     });

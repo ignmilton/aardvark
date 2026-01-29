@@ -102,6 +102,13 @@
     },
     "collectCoverageFrom": ["**/*.(t|j)s"],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1",
+      "^@entities$": "<rootDir>/database/entities",
+      "^@entities/(.*)$": "<rootDir>/database/entities/$1",
+      "^@aardvark/shared$": "<rootDir>/../../shared/src",
+      "^@aardvark/shared/(.*)$": "<rootDir>/../../shared/src/$1"
+    }
   }
 }

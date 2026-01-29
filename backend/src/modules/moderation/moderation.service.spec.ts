@@ -46,7 +46,7 @@ describe('ModerationService', () => {
     reporterId: 'user-456',
     contentType: ModerationContentType.STORY,
     contentId: 'story-123',
-    reason: ReportReason.INAPPROPRIATE,
+    reason: ReportReason.INAPPROPRIATE_CONTENT,
     status: ModerationStatus.PENDING,
     actionTaken: ModerationAction.NONE,
   };
@@ -150,7 +150,7 @@ describe('ModerationService', () => {
         'user-456',
         ModerationContentType.STORY,
         'story-123',
-        ReportReason.INAPPROPRIATE,
+        ReportReason.INAPPROPRIATE_CONTENT,
         'This content is inappropriate',
       );
 
@@ -159,7 +159,7 @@ describe('ModerationService', () => {
         reporterId: 'user-456',
         contentType: ModerationContentType.STORY,
         contentId: 'story-123',
-        reason: ReportReason.INAPPROPRIATE,
+        reason: ReportReason.INAPPROPRIATE_CONTENT,
         details: 'This content is inappropriate',
         status: ModerationStatus.PENDING,
         actionTaken: ModerationAction.NONE,
@@ -174,7 +174,7 @@ describe('ModerationService', () => {
           'user-456',
           ModerationContentType.STORY,
           'story-123',
-          ReportReason.INAPPROPRIATE,
+          ReportReason.INAPPROPRIATE_CONTENT,
         ),
       ).rejects.toThrow(BadRequestException);
     });

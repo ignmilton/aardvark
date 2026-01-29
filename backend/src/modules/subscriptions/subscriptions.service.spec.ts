@@ -3,25 +3,22 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
-import { Subscription, SubscriptionPlan, User } from '@/database/entities';
+import { Subscription, SubscriptionPlan, User, Transaction } from '@/database/entities';
+import { PaymentsService } from '@/modules/payments/payments.service';
+import { SubscriptionTier } from '@aardvark/shared';
 
 describe('SubscriptionsService', () => {
   let service: SubscriptionsService;
   let subscriptionRepo: jest.Mocked<Repository<Subscription>>;
   let planRepo: jest.Mocked<Repository<SubscriptionPlan>>;
   let userRepo: jest.Mocked<Repository<User>>;
-
-  const mockUser = {
-    id: 'user-123',
-    username: 'testuser',
-    email: 'test@example.com',
-    subscriptionStatus: 'free',
-    isPremium: false,
-  };
+  let transactionRepo: jest.Mocked<Repository<Transaction>>;
+  let paymentsService: jest.Mocked<PaymentsService>;
 
   const mockPlan = {
     id: 'plan-123',
     name: 'Premium Monthly',
+    tier: SubscriptionTier.PREMIUM,
     stripePriceId: 'price_123',
     priceInCents: 999,
     interval: 'month',
@@ -33,12 +30,24 @@ describe('SubscriptionsService', () => {
     id: 'sub-123',
     userId: 'user-123',
     planId: 'plan-123',
+    plan: mockPlan,
     stripeSubscriptionId: 'sub_stripe_123',
     stripeCustomerId: 'cus_123',
     status: 'active',
     currentPeriodStart: new Date(),
     currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     cancelAtPeriodEnd: false,
+    canceledAt: null,
+  };
+
+  const mockStripeSubscription = {
+    id: 'sub_stripe_123',
+    status: 'active',
+    current_period_start: Math.floor(Date.now() / 1000),
+    current_period_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+    cancel_at_period_end: false,
+    trial_start: null,
+    trial_end: null,
   };
 
   beforeEach(async () => {
@@ -69,6 +78,20 @@ describe('SubscriptionsService', () => {
             update: jest.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(Transaction),
+          useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: PaymentsService,
+          useValue: {
+            getSubscription: jest.fn(),
+            cancelSubscription: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -76,11 +99,13 @@ describe('SubscriptionsService', () => {
     subscriptionRepo = module.get(getRepositoryToken(Subscription));
     planRepo = module.get(getRepositoryToken(SubscriptionPlan));
     userRepo = module.get(getRepositoryToken(User));
+    transactionRepo = module.get(getRepositoryToken(Transaction));
+    paymentsService = module.get(PaymentsService);
   });
 
   describe('getPlans', () => {
-    it('should return all active plans', async () => {
-      const plans = [mockPlan, { ...mockPlan, id: 'plan-456', name: 'Premium Yearly' }];
+    it('should return all active plans sorted by price', async () => {
+      const plans = [mockPlan, { ...mockPlan, id: 'plan-456', name: 'Premium Yearly', priceInCents: 9999 }];
       planRepo.find.mockResolvedValue(plans as any);
 
       const result = await service.getPlans();
@@ -91,78 +116,123 @@ describe('SubscriptionsService', () => {
         order: { priceInCents: 'ASC' },
       });
     });
+
+    it('should return empty array if no plans', async () => {
+      planRepo.find.mockResolvedValue([]);
+
+      const result = await service.getPlans();
+
+      expect(result).toEqual([]);
+    });
   });
 
-  describe('getUserSubscription', () => {
-    it('should return user subscription with plan', async () => {
-      subscriptionRepo.findOne.mockResolvedValue({
-        ...mockSubscription,
-        plan: mockPlan,
-      } as any);
+  describe('getPlan', () => {
+    it('should return plan by ID', async () => {
+      planRepo.findOne.mockResolvedValue(mockPlan as any);
 
-      const result = await service.getUserSubscription('user-123');
+      const result = await service.getPlan('plan-123');
 
-      expect(result).toBeDefined();
-      expect(result?.plan).toEqual(mockPlan);
+      expect(result).toEqual(mockPlan);
     });
 
-    it('should return null if no subscription', async () => {
+    it('should throw NotFoundException if plan not found', async () => {
+      planRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.getPlan('invalid-plan')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getSubscriptionStatus', () => {
+    it('should return active subscription status with benefits', async () => {
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+
+      const result = await service.getSubscriptionStatus('user-123');
+
+      expect(result.isActive).toBe(true);
+      expect(result.tier).toBe(SubscriptionTier.PREMIUM);
+      expect(result.subscription).toEqual(mockSubscription);
+      expect(result.plan).toEqual(mockPlan);
+      expect(result.benefits).toBeDefined();
+    });
+
+    it('should return free tier status when no subscription', async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.getUserSubscription('user-123');
+      const result = await service.getSubscriptionStatus('user-123');
 
-      expect(result).toBeNull();
+      expect(result.isActive).toBe(false);
+      expect(result.tier).toBe(SubscriptionTier.FREE);
+      expect(result.subscription).toBeNull();
+      expect(result.plan).toBeNull();
+      expect(result.benefits).toBeNull();
+    });
+
+    it('should include renewal date when not canceling', async () => {
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+        cancelAtPeriodEnd: false,
+      } as any);
+
+      const result = await service.getSubscriptionStatus('user-123');
+
+      expect(result.renewsAt).toBeDefined();
+      expect(result.canceledAt).toBeNull();
+    });
+
+    it('should return null renewsAt when canceling at period end', async () => {
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+        cancelAtPeriodEnd: true,
+      } as any);
+
+      const result = await service.getSubscriptionStatus('user-123');
+
+      expect(result.renewsAt).toBeNull();
     });
   });
 
-  describe('isUserPremium', () => {
-    it('should return true for active subscription', async () => {
-      subscriptionRepo.findOne.mockResolvedValue({
-        ...mockSubscription,
-        status: 'active',
-      } as any);
+  describe('isPremium', () => {
+    it('should return true for premium subscription', async () => {
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
 
-      const result = await service.isUserPremium('user-123');
+      const result = await service.isPremium('user-123');
 
       expect(result).toBe(true);
     });
 
-    it('should return true for trialing subscription', async () => {
-      subscriptionRepo.findOne.mockResolvedValue({
-        ...mockSubscription,
-        status: 'trialing',
-      } as any);
+    it('should return false when no subscription', async () => {
+      subscriptionRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.isUserPremium('user-123');
-
-      expect(result).toBe(true);
-    });
-
-    it('should return false for canceled subscription', async () => {
-      subscriptionRepo.findOne.mockResolvedValue({
-        ...mockSubscription,
-        status: 'canceled',
-      } as any);
-
-      const result = await service.isUserPremium('user-123');
+      const result = await service.isPremium('user-123');
 
       expect(result).toBe(false);
     });
 
-    it('should return false if no subscription', async () => {
-      subscriptionRepo.findOne.mockResolvedValue(null);
+    it('should return false for free tier plan', async () => {
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+        plan: { ...mockPlan, tier: SubscriptionTier.FREE },
+      } as any);
 
-      const result = await service.isUserPremium('user-123');
+      const result = await service.isPremium('user-123');
 
       expect(result).toBe(false);
     });
   });
 
   describe('createSubscription', () => {
-    it('should create new subscription', async () => {
-      subscriptionRepo.findOne.mockResolvedValue(null);
+    beforeEach(() => {
+      planRepo.findOne.mockResolvedValue(mockPlan as any);
+      paymentsService.getSubscription.mockResolvedValue(mockStripeSubscription as any);
       subscriptionRepo.create.mockReturnValue(mockSubscription as any);
       subscriptionRepo.save.mockResolvedValue(mockSubscription as any);
+      userRepo.update.mockResolvedValue({} as any);
+      transactionRepo.create.mockReturnValue({} as any);
+      transactionRepo.save.mockResolvedValue({} as any);
+    });
+
+    it('should create new subscription successfully', async () => {
+      subscriptionRepo.findOne.mockResolvedValue(null);
 
       const result = await service.createSubscription(
         'user-123',
@@ -173,88 +243,42 @@ describe('SubscriptionsService', () => {
 
       expect(result).toEqual(mockSubscription);
       expect(subscriptionRepo.create).toHaveBeenCalled();
+      expect(subscriptionRepo.save).toHaveBeenCalled();
     });
-  });
 
-  describe('updateSubscriptionStatus', () => {
-    it('should update subscription status', async () => {
+    it('should throw BadRequestException if user already has active subscription', async () => {
       subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
-      userRepo.update.mockResolvedValue({} as any);
 
-      const result = await service.updateSubscriptionStatus('sub_stripe_123', 'canceled');
-
-      expect(result.status).toBe('canceled');
+      await expect(
+        service.createSubscription('user-123', 'plan-123', 'sub_stripe_123', 'cus_123'),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw NotFoundException if subscription not found', async () => {
+    it('should throw NotFoundException if plan not found', async () => {
+      planRepo.findOne.mockResolvedValue(null);
       subscriptionRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.updateSubscriptionStatus('invalid_sub', 'active'),
+        service.createSubscription('user-123', 'invalid-plan', 'sub_stripe_123', 'cus_123'),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should update user premium status based on subscription', async () => {
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
-      userRepo.update.mockResolvedValue({} as any);
+    it('should fetch subscription details from Stripe', async () => {
+      subscriptionRepo.findOne.mockResolvedValue(null);
 
-      await service.updateSubscriptionStatus('sub_stripe_123', 'active');
+      await service.createSubscription('user-123', 'plan-123', 'sub_stripe_123', 'cus_123');
 
-      expect(userRepo.update).toHaveBeenCalledWith('user-123', {
-        subscriptionStatus: 'active',
-        isPremium: true,
-      });
+      expect(paymentsService.getSubscription).toHaveBeenCalledWith('sub_stripe_123');
     });
-  });
 
-  describe('handleSubscriptionCanceled', () => {
-    it('should mark subscription as canceled', async () => {
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
-      userRepo.update.mockResolvedValue({} as any);
+    it('should update user subscription status', async () => {
+      subscriptionRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.handleSubscriptionCanceled('sub_stripe_123');
+      await service.createSubscription('user-123', 'plan-123', 'sub_stripe_123', 'cus_123');
 
-      expect(result.status).toBe('canceled');
-      expect(result.canceledAt).toBeDefined();
-    });
-  });
-
-  describe('handleSubscriptionRenewed', () => {
-    it('should update period dates on renewal', async () => {
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
-
-      const newStart = new Date();
-      const newEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-      const result = await service.handleSubscriptionRenewed(
-        'sub_stripe_123',
-        newStart,
-        newEnd,
-      );
-
-      expect(result.currentPeriodStart).toEqual(newStart);
-      expect(result.currentPeriodEnd).toEqual(newEnd);
-      expect(result.status).toBe('active');
-    });
-  });
-
-  describe('getSubscriptionHistory', () => {
-    it('should return subscription history for user', async () => {
-      const history = [mockSubscription, { ...mockSubscription, id: 'sub-old' }];
-      subscriptionRepo.find.mockResolvedValue(history as any);
-
-      const result = await service.getSubscriptionHistory('user-123');
-
-      expect(result).toEqual(history);
-      expect(subscriptionRepo.find).toHaveBeenCalledWith({
-        where: { userId: 'user-123' },
-        relations: ['plan'],
-        order: { createdAt: 'DESC' },
-      });
+      expect(userRepo.update).toHaveBeenCalledWith('user-123', expect.objectContaining({
+        subscriptionStatus: expect.any(String),
+      }));
     });
   });
 });

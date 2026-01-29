@@ -52,7 +52,10 @@ const mockStripe = {
 };
 
 jest.mock('stripe', () => {
-  return jest.fn().mockImplementation(() => mockStripe);
+  return {
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => mockStripe),
+  };
 });
 
 describe('PaymentsService', () => {
