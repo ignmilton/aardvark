@@ -7,7 +7,6 @@ import {
   StorySegment,
   Choice,
   Tag,
-  StoryStateVariable,
 } from '../entities';
 import {
   UserRole,
@@ -28,7 +27,6 @@ async function seed(ds: DataSource) {
   const segmentRepo = ds.getRepository(StorySegment);
   const choiceRepo = ds.getRepository(Choice);
   const tagRepo = ds.getRepository(Tag);
-  const stateVarRepo = ds.getRepository(StoryStateVariable);
 
   // --- Users ---
   console.log('Creating users...');
@@ -144,29 +142,6 @@ async function seed(ds: DataSource) {
 
   const savedStory = await storyRepo.save(story);
 
-  // --- State Variables ---
-  const stateVar1 = stateVarRepo.create({
-    storyId: savedStory.id,
-    name: 'trust_spirit',
-    displayName: 'Spirit Trust',
-    type: 'number',
-    defaultValue: 0,
-    minValue: -10,
-    maxValue: 10,
-    isVisible: true,
-  } as any);
-
-  const stateVar2 = stateVarRepo.create({
-    storyId: savedStory.id,
-    name: 'has_amulet',
-    displayName: 'Has Amulet',
-    type: 'boolean',
-    defaultValue: false,
-    isVisible: false,
-  } as any);
-
-  await stateVarRepo.save([stateVar1, stateVar2] as any);
-
   // --- Segments ---
   const rootSegment = segmentRepo.create({
     storyId: savedStory.id,
@@ -207,7 +182,6 @@ async function seed(ds: DataSource) {
     parentSegmentIds: [],
     wordCount: 88,
     readCount: 76,
-    stateEffects: [{ variableName: 'trust_spirit', operation: 'add', value: '2' }],
   });
 
   const segment4 = segmentRepo.create({
@@ -222,7 +196,6 @@ async function seed(ds: DataSource) {
     parentSegmentIds: [],
     wordCount: 98,
     readCount: 52,
-    stateEffects: [{ variableName: 'has_amulet', operation: 'set', value: 'true' }],
   });
 
   const endingSegment = segmentRepo.create({
@@ -250,6 +223,10 @@ async function seed(ds: DataSource) {
   savedSegments[3].parentSegmentIds = [savedSegments[1].id];
   savedSegments[4].parentSegmentIds = [savedSegments[0].id];
   await segmentRepo.save(savedSegments.slice(1));
+
+  // Update story root segment reference
+  savedStory.rootSegmentId = savedSegments[0].id;
+  await storyRepo.save(savedStory);
 
   console.log(`  Created ${savedSegments.length} segments`);
 

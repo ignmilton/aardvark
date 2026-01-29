@@ -10,7 +10,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { StateEffect } from '@aardvark/shared';
 
 class PositionDto {
   @ApiProperty()
@@ -18,23 +17,6 @@ class PositionDto {
 
   @ApiProperty()
   y: number;
-}
-
-class StateEffectDto {
-  @ApiProperty()
-  @IsUUID()
-  variableId: string;
-
-  @ApiProperty()
-  @IsString()
-  variableName: string;
-
-  @ApiProperty({ enum: ['set', 'add', 'subtract', 'multiply', 'append', 'remove', 'toggle'] })
-  @IsString()
-  operation: 'set' | 'add' | 'subtract' | 'multiply' | 'append' | 'remove' | 'toggle';
-
-  @ApiProperty()
-  value: boolean | number | string;
 }
 
 export class CreateSegmentDto {
@@ -77,13 +59,6 @@ export class CreateSegmentDto {
   @IsOptional()
   @IsEnum(['good', 'bad', 'neutral', 'secret'])
   endingType?: 'good' | 'bad' | 'neutral' | 'secret';
-
-  @ApiPropertyOptional({ description: 'State effects when reaching this segment' })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => StateEffectDto)
-  stateEffects?: StateEffectDto[];
 }
 
 export class UpdateSegmentDto {
@@ -117,13 +92,6 @@ export class UpdateSegmentDto {
   @ApiPropertyOptional({ enum: ['good', 'bad', 'neutral', 'secret', null] })
   @IsOptional()
   endingType?: 'good' | 'bad' | 'neutral' | 'secret' | null;
-
-  @ApiPropertyOptional({ description: 'State effects when reaching this segment' })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => StateEffectDto)
-  stateEffects?: StateEffectDto[];
 }
 
 export class SegmentQueryDto {

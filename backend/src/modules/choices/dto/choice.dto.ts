@@ -8,51 +8,8 @@ import {
   Min,
   Max,
   MaxLength,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
-class StateRequirementDto {
-  @ApiProperty()
-  @IsUUID()
-  variableId: string;
-
-  @ApiProperty()
-  @IsString()
-  variableName: string;
-
-  @ApiProperty({
-    enum: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'contains', 'not_contains'],
-  })
-  @IsString()
-  operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'greater_or_equal' | 'less_or_equal' | 'contains' | 'not_contains';
-
-  @ApiProperty()
-  value: boolean | number | string;
-}
-
-class ChoiceConditionDto {
-  @ApiProperty({ enum: ['state', 'visited', 'not_visited', 'custom'] })
-  @IsString()
-  type: 'state' | 'visited' | 'not_visited' | 'custom';
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => StateRequirementDto)
-  stateRequirement?: StateRequirementDto;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
-  segmentId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  customExpression?: string;
-}
 
 export class CreateChoiceDto {
   @ApiProperty({ description: 'Source segment ID' })
@@ -74,20 +31,6 @@ export class CreateChoiceDto {
   @Min(1)
   @Max(10)
   order?: number;
-
-  @ApiPropertyOptional({ description: 'Conditions for showing this choice' })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ChoiceConditionDto)
-  conditions?: ChoiceConditionDto[];
-
-  @ApiPropertyOptional({ description: 'State requirements to see this choice' })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => StateRequirementDto)
-  requiredState?: StateRequirementDto[];
 }
 
 export class UpdateChoiceDto {
@@ -108,20 +51,6 @@ export class UpdateChoiceDto {
   @Min(1)
   @Max(10)
   order?: number;
-
-  @ApiPropertyOptional({ description: 'Conditions for showing this choice' })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ChoiceConditionDto)
-  conditions?: ChoiceConditionDto[];
-
-  @ApiPropertyOptional({ description: 'State requirements to see this choice' })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => StateRequirementDto)
-  requiredState?: StateRequirementDto[];
 
   @ApiPropertyOptional({ description: 'Hide this choice' })
   @IsOptional()

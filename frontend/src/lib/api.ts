@@ -3,7 +3,6 @@ import type {
   StorySegment,
   Choice,
   ReaderProgress,
-  StoryStateVariable,
   CreateStoryDto,
   UpdateStoryDto,
   CreateSegmentDto,
@@ -124,8 +123,8 @@ export const segmentsApi = {
 // Choices API
 export const choicesApi = {
   getBySegment: (segmentId: string) => fetchApi<Choice[]>(`/choices/segment/${segmentId}`),
-  getAvailable: (segmentId: string, state: Record<string, unknown>, visited: string[]) =>
-    fetchApi<Choice[]>(`/choices/segment/${segmentId}/available?state=${encodeURIComponent(JSON.stringify(state))}&visited=${encodeURIComponent(visited.join(','))}`),
+  getAvailable: (segmentId: string) =>
+    fetchApi<Choice[]>(`/choices/segment/${segmentId}/available`),
   recordChoice: (choiceId: string) =>
     fetchApi<void>(`/choices/${choiceId}/chosen`, { method: 'POST' }),
   create: (data: CreateChoiceDto, token: string) =>
@@ -181,29 +180,6 @@ export const progressApi = {
     }),
   removeBookmark: (storyId: string, segmentId: string, token: string) =>
     fetchApi<ReaderProgress>(`/progress/story/${storyId}/bookmarks/${segmentId}`, {
-      method: 'DELETE',
-      token,
-    }),
-};
-
-// State Variables API
-export const stateVariablesApi = {
-  getByStory: (storyId: string, token: string) =>
-    fetchApi<StoryStateVariable[]>(`/state-variables/story/${storyId}`, { token }),
-  create: (data: Omit<StoryStateVariable, 'id' | 'createdAt'>, token: string) =>
-    fetchApi<StoryStateVariable>('/state-variables', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      token,
-    }),
-  update: (id: string, data: Partial<StoryStateVariable>, token: string) =>
-    fetchApi<StoryStateVariable>(`/state-variables/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-      token,
-    }),
-  delete: (id: string, token: string) =>
-    fetchApi<void>(`/state-variables/${id}`, {
       method: 'DELETE',
       token,
     }),

@@ -24,7 +24,6 @@ import { StorySegment } from './story-segment.entity';
 import { ReaderProgress } from './reader-progress.entity';
 import { Comment } from './comment.entity';
 import { Rating } from './rating.entity';
-import { StoryStateVariable } from './story-state-variable.entity';
 import { Tag } from './tag.entity';
 
 /**
@@ -170,8 +169,6 @@ export class Story {
   @OneToMany(() => Rating, (rating) => rating.story)
   ratings: Rating[];
 
-  @OneToMany(() => StoryStateVariable, (variable) => variable.story)
-  stateVariables: StoryStateVariable[];
 
   @ManyToMany(() => Tag, (tag) => tag.stories)
   @JoinTable({

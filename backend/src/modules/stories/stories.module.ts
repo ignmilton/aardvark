@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   Story,
-  StoryStateVariable,
   ReaderProgress,
   Rating,
   User,
@@ -15,7 +14,6 @@ import { RecommendationService } from './recommendation.service';
   imports: [
     TypeOrmModule.forFeature([
       Story,
-      StoryStateVariable,
       ReaderProgress,
       Rating,
       User,

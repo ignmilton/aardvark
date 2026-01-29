@@ -13,7 +13,6 @@ import {
   AddBookmarkDto,
   UpdateBookmarkDto,
 } from './dto';
-import { StateEffect } from '@aardvark/shared';
 
 @Injectable()
 export class ProgressService {
@@ -55,19 +54,6 @@ export class ProgressService {
       return this.progressRepository.save(existing);
     }
 
-    // Get root segment to initialize state
-    const rootSegment = await this.segmentRepository.findOne({
-      where: { id: story.rootSegmentId },
-    });
-
-    // Initialize state variables from story state definitions
-    const initialState: Record<string, boolean | number | string | string[]> = {};
-
-    // Apply any state effects from root segment
-    if (rootSegment?.stateEffects) {
-      this.applyStateEffects(initialState, rootSegment.stateEffects);
-    }
-
     // Create new progress
     const progress = this.progressRepository.create({
       userId,
@@ -75,7 +61,6 @@ export class ProgressService {
       currentSegmentId: story.rootSegmentId,
       visitedSegmentIds: [story.rootSegmentId],
       choiceHistory: [],
-      stateVariables: initialState,
       startedAt: new Date(),
       lastReadAt: new Date(),
       totalReadTime: 0,
@@ -183,11 +168,6 @@ export class ProgressService {
       await this.segmentRepository.increment({ id: choice.nextSegmentId }, 'readCount', 1);
     }
 
-    // Apply state effects from new segment
-    if (nextSegment.stateEffects) {
-      this.applyStateEffects(progress.stateVariables, nextSegment.stateEffects);
-    }
-
     // Increment choice counter
     await this.choiceRepository.increment({ id: dto.choiceId }, 'timesChosen', 1);
 
@@ -259,7 +239,6 @@ export class ProgressService {
     progress.currentSegmentId = story.rootSegmentId;
     progress.visitedSegmentIds = [story.rootSegmentId];
     progress.choiceHistory = [];
-    progress.stateVariables = {};
     progress.startedAt = new Date();
     progress.lastReadAt = new Date();
     progress.totalReadTime = 0;
@@ -404,60 +383,5 @@ export class ProgressService {
       totalChoicesMade: allProgress.reduce((sum, p) => sum + p.choiceHistory.length, 0),
       currentlyReading: allProgress.filter((p) => !p.isCompleted).length,
     };
-  }
-
-  // ============================================================================
-  // Private Helper Methods
-  // ============================================================================
-
-  private applyStateEffects(
-    state: Record<string, boolean | number | string | string[]>,
-    effects: StateEffect[],
-  ): void {
-    for (const effect of effects) {
-      const currentValue = state[effect.variableName];
-
-      switch (effect.operation) {
-        case 'set':
-          state[effect.variableName] = effect.value;
-          break;
-        case 'add':
-          if (typeof currentValue === 'number' && typeof effect.value === 'number') {
-            state[effect.variableName] = currentValue + effect.value;
-          } else if (currentValue === undefined && typeof effect.value === 'number') {
-            state[effect.variableName] = effect.value;
-          }
-          break;
-        case 'subtract':
-          if (typeof currentValue === 'number' && typeof effect.value === 'number') {
-            state[effect.variableName] = currentValue - effect.value;
-          }
-          break;
-        case 'multiply':
-          if (typeof currentValue === 'number' && typeof effect.value === 'number') {
-            state[effect.variableName] = currentValue * effect.value;
-          }
-          break;
-        case 'append':
-          if (Array.isArray(currentValue) && typeof effect.value === 'string') {
-            (state[effect.variableName] as string[]).push(effect.value);
-          } else if (!currentValue && typeof effect.value === 'string') {
-            state[effect.variableName] = [effect.value];
-          }
-          break;
-        case 'remove':
-          if (Array.isArray(currentValue) && typeof effect.value === 'string') {
-            state[effect.variableName] = currentValue.filter((v) => v !== effect.value);
-          }
-          break;
-        case 'toggle':
-          if (typeof currentValue === 'boolean') {
-            state[effect.variableName] = !currentValue;
-          } else {
-            state[effect.variableName] = true;
-          }
-          break;
-      }
-    }
   }
 }

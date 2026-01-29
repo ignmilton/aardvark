@@ -85,7 +85,6 @@ export class SegmentsService {
       isRootSegment,
       isEnding: createDto.isEnding || false,
       endingType: createDto.endingType || null,
-      stateEffects: createDto.stateEffects || [],
       wordCount,
       estimatedReadTime,
       // Set approval status for collaborative stories

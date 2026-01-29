@@ -8,7 +8,6 @@ import {
   Index,
   JoinColumn,
 } from 'typeorm';
-import { ChoiceCondition, StateRequirement } from '@aardvark/shared';
 import { StorySegment } from './story-segment.entity';
 
 /**
@@ -46,13 +45,6 @@ export class Choice {
   @Column({ default: 1 })
   order: number;
 
-  // Conditional visibility based on reader state
-  @Column({ type: 'jsonb', default: [] })
-  conditions: ChoiceCondition[];
-
-  // State requirements to see this choice
-  @Column({ type: 'jsonb', default: [] })
-  requiredState: StateRequirement[];
 
   // Statistics
   @Column({ default: 0 })

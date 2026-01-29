@@ -1,6 +1,6 @@
 /**
  * Story and branching narrative type definitions for the Aardvark Platform
- * Supports complex branching, state management, and collaborative writing
+ * Supports complex branching and collaborative writing
  */
 
 /**
@@ -84,8 +84,8 @@ export enum StoryComplexity {
   LINEAR = 'linear', // Few choices, mostly linear path
   SIMPLE = 'simple', // Some branching, converges often
   MODERATE = 'moderate', // Multiple paths with meaningful divergence
-  COMPLEX = 'complex', // Heavy branching with state management
-  INTRICATE = 'intricate', // Deep branching with complex conditions
+  COMPLEX = 'complex', // Heavy branching
+  INTRICATE = 'intricate', // Deep branching
 }
 
 /**
@@ -146,9 +146,6 @@ export interface StorySegment {
   isEnding: boolean; // Marks this as a conclusion point
   endingType: 'good' | 'bad' | 'neutral' | 'secret' | null;
 
-  // State effects - changes applied when reader reaches this segment
-  stateEffects: StateEffect[];
-
   // Metadata
   wordCount: number;
   estimatedReadTime: number; // Seconds
@@ -178,71 +175,12 @@ export interface Choice {
   choiceText: string; // Text displayed to reader
   order: number; // Display order (1-10)
 
-  // Conditional visibility based on reader state
-  conditions: ChoiceCondition[];
-
-  // State requirements - what the reader needs to see this choice
-  requiredState: StateRequirement[];
-
   // Statistics
   timesChosen: number;
 
   isHidden: boolean; // Author can hide choices temporarily
   createdAt: Date;
   updatedAt: Date;
-}
-
-/**
- * State variable type for tracking reader decisions
- */
-export type StateValueType = 'boolean' | 'number' | 'string' | 'array';
-
-/**
- * Story state variable definition
- * Authors define these at the story level, readers accumulate values as they progress
- */
-export interface StoryStateVariable {
-  id: string;
-  storyId: string;
-  name: string; // Variable name (e.g., "met_dragon", "trust_level")
-  displayName: string; // Human-readable name
-  description: string;
-  type: StateValueType;
-  defaultValue: boolean | number | string | string[];
-  minValue?: number; // For number types
-  maxValue?: number; // For number types
-  isVisible: boolean; // Whether readers can see this stat
-  createdAt: Date;
-}
-
-/**
- * State effect applied when entering a segment
- */
-export interface StateEffect {
-  variableId: string;
-  variableName: string;
-  operation: 'set' | 'add' | 'subtract' | 'multiply' | 'append' | 'remove' | 'toggle';
-  value: boolean | number | string;
-}
-
-/**
- * State requirement for conditional content
- */
-export interface StateRequirement {
-  variableId: string;
-  variableName: string;
-  operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'greater_or_equal' | 'less_or_equal' | 'contains' | 'not_contains';
-  value: boolean | number | string;
-}
-
-/**
- * Condition for showing/hiding choices
- */
-export interface ChoiceCondition {
-  type: 'state' | 'visited' | 'not_visited' | 'custom';
-  stateRequirement?: StateRequirement;
-  segmentId?: string; // For visited/not_visited conditions
-  customExpression?: string; // For complex conditions (future use)
 }
 
 /**
@@ -263,9 +201,6 @@ export interface ReaderProgress {
     choiceId: string;
     timestamp: Date;
   }[];
-
-  // Current state variables accumulated during reading
-  stateVariables: Record<string, boolean | number | string | string[]>;
 
   // Reading statistics
   startedAt: Date;
@@ -402,7 +337,6 @@ export interface CreateSegmentDto {
   position?: { x: number; y: number };
   isEnding?: boolean;
   endingType?: 'good' | 'bad' | 'neutral' | 'secret';
-  stateEffects?: StateEffect[];
 }
 
 export interface UpdateSegmentDto {
@@ -412,7 +346,6 @@ export interface UpdateSegmentDto {
   position?: { x: number; y: number };
   isEnding?: boolean;
   endingType?: 'good' | 'bad' | 'neutral' | 'secret' | null;
-  stateEffects?: StateEffect[];
 }
 
 export interface CreateChoiceDto {
@@ -420,16 +353,12 @@ export interface CreateChoiceDto {
   nextSegmentId: string;
   choiceText: string;
   order?: number;
-  conditions?: ChoiceCondition[];
-  requiredState?: StateRequirement[];
 }
 
 export interface UpdateChoiceDto {
   choiceText?: string;
   nextSegmentId?: string;
   order?: number;
-  conditions?: ChoiceCondition[];
-  requiredState?: StateRequirement[];
   isHidden?: boolean;
 }
 

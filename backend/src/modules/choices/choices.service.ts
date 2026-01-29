@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Choice, StorySegment, Story } from '@/database/entities';
 import { CreateChoiceDto, UpdateChoiceDto, ReorderChoicesDto } from './dto';
-import { ChoiceCondition, StateRequirement } from '@aardvark/shared';
 
 @Injectable()
 export class ChoicesService {
@@ -71,8 +70,6 @@ export class ChoicesService {
       nextSegmentId: createDto.nextSegmentId,
       choiceText: createDto.choiceText,
       order,
-      conditions: createDto.conditions || [],
-      requiredState: createDto.requiredState || [],
     });
 
     // Update destination segment's parent references
@@ -113,38 +110,13 @@ export class ChoicesService {
   }
 
   /**
-   * Get available choices for a reader based on their state
+   * Get available choices for a reader (non-hidden choices)
    */
-  async getAvailableChoices(
-    segmentId: string,
-    readerState: Record<string, boolean | number | string | string[]>,
-    visitedSegmentIds: string[],
-  ): Promise<Choice[]> {
-    const allChoices = await this.choiceRepository.find({
+  async getAvailableChoices(segmentId: string): Promise<Choice[]> {
+    return this.choiceRepository.find({
       where: { segmentId, isHidden: false },
       relations: ['nextSegment'],
       order: { order: 'ASC' },
-    });
-
-    // Filter based on conditions and requirements
-    return allChoices.filter((choice) => {
-      // Check state requirements
-      if (choice.requiredState && choice.requiredState.length > 0) {
-        const meetsRequirements = choice.requiredState.every((req) =>
-          this.evaluateStateRequirement(req, readerState),
-        );
-        if (!meetsRequirements) return false;
-      }
-
-      // Check conditions
-      if (choice.conditions && choice.conditions.length > 0) {
-        const meetsConditions = choice.conditions.every((cond) =>
-          this.evaluateCondition(cond, readerState, visitedSegmentIds),
-        );
-        if (!meetsConditions) return false;
-      }
-
-      return true;
     });
   }
 
@@ -383,55 +355,5 @@ export class ChoicesService {
     }
 
     return false;
-  }
-
-  private evaluateStateRequirement(
-    req: StateRequirement,
-    state: Record<string, boolean | number | string | string[]>,
-  ): boolean {
-    const currentValue = state[req.variableName];
-
-    switch (req.operator) {
-      case 'equals':
-        return currentValue === req.value;
-      case 'not_equals':
-        return currentValue !== req.value;
-      case 'greater_than':
-        return typeof currentValue === 'number' && currentValue > (req.value as number);
-      case 'less_than':
-        return typeof currentValue === 'number' && currentValue < (req.value as number);
-      case 'greater_or_equal':
-        return typeof currentValue === 'number' && currentValue >= (req.value as number);
-      case 'less_or_equal':
-        return typeof currentValue === 'number' && currentValue <= (req.value as number);
-      case 'contains':
-        return Array.isArray(currentValue) && currentValue.includes(req.value as string);
-      case 'not_contains':
-        return Array.isArray(currentValue) && !currentValue.includes(req.value as string);
-      default:
-        return false;
-    }
-  }
-
-  private evaluateCondition(
-    cond: ChoiceCondition,
-    state: Record<string, boolean | number | string | string[]>,
-    visitedSegmentIds: string[],
-  ): boolean {
-    switch (cond.type) {
-      case 'state':
-        return cond.stateRequirement
-          ? this.evaluateStateRequirement(cond.stateRequirement, state)
-          : true;
-      case 'visited':
-        return cond.segmentId ? visitedSegmentIds.includes(cond.segmentId) : true;
-      case 'not_visited':
-        return cond.segmentId ? !visitedSegmentIds.includes(cond.segmentId) : true;
-      case 'custom':
-        // Custom expressions would need a safe evaluator - return true for now
-        return true;
-      default:
-        return true;
-    }
   }
 }

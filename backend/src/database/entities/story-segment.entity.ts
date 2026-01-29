@@ -9,7 +9,6 @@ import {
   Index,
   JoinColumn,
 } from 'typeorm';
-import { StateEffect } from '@aardvark/shared';
 import { User } from './user.entity';
 import { Story } from './story.entity';
 import { Choice } from './choice.entity';
@@ -65,9 +64,6 @@ export class StorySegment {
   @Column({ nullable: true })
   endingType: 'good' | 'bad' | 'neutral' | 'secret' | null;
 
-  // State effects applied when reader reaches this segment
-  @Column({ type: 'jsonb', default: [] })
-  stateEffects: StateEffect[];
 
   // Metadata
   @Column({ default: 0 })

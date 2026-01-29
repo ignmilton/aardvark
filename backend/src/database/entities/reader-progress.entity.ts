@@ -53,9 +53,6 @@ export class ReaderProgress {
     timestamp: Date;
   }[];
 
-  // Current state variables accumulated during reading
-  @Column({ type: 'jsonb', default: {} })
-  stateVariables: Record<string, boolean | number | string | string[]>;
 
   // Reading statistics
   @Column({ type: 'timestamptz' })

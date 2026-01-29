@@ -13,7 +13,7 @@ import {
   UpdateStoryDto,
   UserRole,
 } from '@aardvark/shared';
-import { Story, StoryStateVariable, Rating } from '@/database/entities';
+import { Story, Rating } from '@/database/entities';
 
 /**
  * Service handling story CRUD operations and queries.
@@ -23,8 +23,6 @@ export class StoriesService {
   constructor(
     @InjectRepository(Story)
     private readonly storyRepository: Repository<Story>,
-    @InjectRepository(StoryStateVariable)
-    private readonly stateVariableRepository: Repository<StoryStateVariable>,
     @InjectRepository(Rating)
     private readonly ratingRepository: Repository<Rating>,
   ) {}
