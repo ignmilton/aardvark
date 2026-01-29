@@ -34,6 +34,9 @@ import { FeaturedModule } from './modules/featured/featured.module';
 import { ImpressionsModule } from './modules/impressions/impressions.module';
 import { MobileModule } from './modules/mobile/mobile.module';
 import { AdsModule } from './modules/ads/ads.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { EarningsModule } from './modules/earnings/earnings.module';
+import { BranchSubmissionsModule } from './modules/branch-submissions/branch-submissions.module';
 
 // Common modules
 import { CacheModule } from './common/cache/cache.module';
@@ -113,6 +116,9 @@ import { databaseConfig } from './config/database.config';
     ImpressionsModule,
     MobileModule,
     AdsModule,
+    PaymentsModule,
+    EarningsModule,
+    BranchSubmissionsModule,
   ],
   providers: [
     // Global rate limit guard

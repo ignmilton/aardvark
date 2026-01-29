@@ -28,15 +28,12 @@ jobs:
 
       - name: Run npm audit
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       - name: Run npm audit (backend)
         run: npm audit --audit-level=high --workspace=backend
-        continue-on-error: true
 
       - name: Run npm audit (frontend)
         run: npm audit --audit-level=high --workspace=frontend
-        continue-on-error: true
 
       - name: Upload audit results
         uses: actions/upload-artifact@v4
@@ -129,7 +126,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [security, lint, test]
     steps:
       - uses: actions/checkout@v4
 
