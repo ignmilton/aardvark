@@ -318,6 +318,217 @@ export class StoriesService {
   }
 
   /**
+   * Find a story by slug
+   */
+  async findBySlug(slug: string): Promise<Story> {
+    // Generate possible slug from title-based lookup
+    const story = await this.storyRepository
+      .createQueryBuilder('story')
+      .leftJoinAndSelect('story.author', 'author')
+      .where('LOWER(REPLACE(REPLACE(story.title, \' \', \'-\'), \'.\', \'\')) = :slug', { slug: slug.toLowerCase() })
+      .orWhere('story.id = :id', { id: slug })
+      .getOne();
+
+    if (!story) {
+      throw new NotFoundException('Story not found');
+    }
+
+    return story;
+  }
+
+  /**
+   * Submit a story for moderation review
+   */
+  async submitForReview(id: string, userId: string): Promise<Story> {
+    const story = await this.findOne(id);
+
+    if (story.authorId !== userId) {
+      throw new ForbiddenException('You can only submit your own stories for review');
+    }
+
+    if (story.status !== StoryStatus.DRAFT) {
+      throw new ForbiddenException('Only draft stories can be submitted for review');
+    }
+
+    if (!story.rootSegmentId) {
+      throw new ForbiddenException('Story must have a root segment before submitting for review');
+    }
+
+    story.status = StoryStatus.PENDING_REVIEW;
+    story.moderationStatus = 'pending';
+    story.moderationNotes = null;
+    story.moderatedById = null;
+    story.moderatedAt = null;
+
+    return this.storyRepository.save(story);
+  }
+
+  /**
+   * Get stories pending moderation review
+   */
+  async findPendingReview(page: number = 1, limit: number = 20) {
+    const [items, total] = await this.storyRepository.findAndCount({
+      where: {
+        status: StoryStatus.PENDING_REVIEW,
+        moderationStatus: 'pending',
+      },
+      relations: ['author'],
+      order: { createdAt: 'ASC' }, // FIFO
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return { items, total, page, limit };
+  }
+
+  /**
+   * Approve a story
+   */
+  async approveStory(id: string, moderatorId: string, notes?: string): Promise<Story> {
+    const story = await this.findOne(id);
+
+    if (story.status !== StoryStatus.PENDING_REVIEW) {
+      throw new ForbiddenException('Only stories pending review can be approved');
+    }
+
+    story.status = StoryStatus.PUBLISHED;
+    story.moderationStatus = 'approved';
+    story.moderationNotes = notes || null;
+    story.moderatedById = moderatorId;
+    story.moderatedAt = new Date();
+    story.publishedAt = new Date();
+
+    return this.storyRepository.save(story);
+  }
+
+  /**
+   * Reject a story
+   */
+  async rejectStory(id: string, moderatorId: string, reason: string): Promise<Story> {
+    const story = await this.findOne(id);
+
+    if (story.status !== StoryStatus.PENDING_REVIEW) {
+      throw new ForbiddenException('Only stories pending review can be rejected');
+    }
+
+    story.status = StoryStatus.DRAFT;
+    story.moderationStatus = 'rejected';
+    story.moderationNotes = reason;
+    story.moderatedById = moderatorId;
+    story.moderatedAt = new Date();
+
+    return this.storyRepository.save(story);
+  }
+
+  /**
+   * Request changes on a story
+   */
+  async requestChanges(id: string, moderatorId: string, notes: string): Promise<Story> {
+    const story = await this.findOne(id);
+
+    if (story.status !== StoryStatus.PENDING_REVIEW) {
+      throw new ForbiddenException('Only stories pending review can have changes requested');
+    }
+
+    story.status = StoryStatus.DRAFT;
+    story.moderationStatus = 'requires_changes';
+    story.moderationNotes = notes;
+    story.moderatedById = moderatorId;
+    story.moderatedAt = new Date();
+
+    return this.storyRepository.save(story);
+  }
+
+  /**
+   * Get all translations of a story
+   */
+  async getTranslations(id: string): Promise<{ original: Story | null; translations: Story[] }> {
+    const story = await this.findOne(id);
+
+    // If this story is a translation, get the original
+    if (story.originalStoryId) {
+      const original = await this.storyRepository.findOne({
+        where: { id: story.originalStoryId },
+        relations: ['author', 'translations'],
+      });
+
+      // Get all translations including this one
+      const translations = original?.translations || [];
+
+      return { original, translations };
+    }
+
+    // If this is an original, get all translations
+    const translations = await this.storyRepository.find({
+      where: { originalStoryId: id },
+      relations: ['author'],
+    });
+
+    return { original: story, translations };
+  }
+
+  /**
+   * Link a story as a translation of another story
+   */
+  async createTranslationLink(
+    translationId: string,
+    originalId: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<Story> {
+    const translation = await this.findOne(translationId);
+    const original = await this.findOne(originalId);
+
+    // Check ownership (translation author or admin/mod)
+    if (
+      translation.authorId !== userId &&
+      userRole !== UserRole.ADMIN &&
+      userRole !== UserRole.MODERATOR
+    ) {
+      throw new ForbiddenException('You can only link translations for your own stories');
+    }
+
+    // Prevent linking to itself
+    if (translationId === originalId) {
+      throw new ForbiddenException('A story cannot be a translation of itself');
+    }
+
+    // Prevent circular references - original should not be a translation
+    if (original.originalStoryId) {
+      throw new ForbiddenException('Cannot link to a story that is itself a translation');
+    }
+
+    // Update the translation
+    translation.originalStoryId = originalId;
+
+    return this.storyRepository.save(translation);
+  }
+
+  /**
+   * Remove a translation link
+   */
+  async removeTranslationLink(
+    translationId: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<Story> {
+    const translation = await this.findOne(translationId);
+
+    // Check ownership or admin
+    if (
+      translation.authorId !== userId &&
+      userRole !== UserRole.ADMIN &&
+      userRole !== UserRole.MODERATOR
+    ) {
+      throw new ForbiddenException('You can only unlink translations for your own stories');
+    }
+
+    translation.originalStoryId = null;
+
+    return this.storyRepository.save(translation);
+  }
+
+  /**
    * Get sort column from sort parameter
    */
   private getSortColumn(sortBy: string): string {

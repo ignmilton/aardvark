@@ -83,6 +83,10 @@ export class Tag {
   @ManyToMany(() => Story, (story) => story.storyTags)
   stories: Story[];
 
+  // Aliases for this tag (alternative names that resolve to this tag)
+  @OneToMany(() => TagAlias, (alias) => alias.tag)
+  aliases: TagAlias[];
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
@@ -121,4 +125,30 @@ export class StoryTag {
 
   @CreateDateColumn({ type: 'timestamptz' })
   addedAt: Date;
+}
+
+/**
+ * TagAlias entity for alternative tag names.
+ * Allows users to search using synonyms that resolve to the canonical tag.
+ */
+@Entity('tag_aliases')
+@Index(['alias'], { unique: true })
+export class TagAlias {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Index()
+  @Column({ length: 50 })
+  alias: string;
+
+  @Index()
+  @Column('uuid')
+  tagId: string;
+
+  @ManyToOne(() => Tag, (tag) => tag.aliases, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tagId' })
+  tag: Tag;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
 }

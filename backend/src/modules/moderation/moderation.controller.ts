@@ -11,6 +11,8 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,8 +20,10 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { ModerationService } from './moderation.service';
+import { StoriesService } from '@/modules/stories/stories.service';
 import {
   CreateReportDto,
   ResolveModerationDto,
@@ -50,7 +54,11 @@ import { UserRole } from '@aardvark/shared';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ModerationController {
-  constructor(private readonly moderationService: ModerationService) {}
+  constructor(
+    private readonly moderationService: ModerationService,
+    @Inject(forwardRef(() => StoriesService))
+    private readonly storiesService: StoriesService,
+  ) {}
 
   // ============================================================================
   // Reports - User Actions
@@ -452,5 +460,82 @@ export class ModerationController {
   async getUserStrikes(@Param('userId') userId: string) {
     const count = await this.moderationService.getUserStrikeCount(userId);
     return { userId, strikeCount: count };
+  }
+
+  // ============================================================================
+  // Story Moderation (Pre-publication Review)
+  // ============================================================================
+
+  @Get('stories/queue')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get stories pending moderation review' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Stories pending review' })
+  async getStoryModerationQueue(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.storiesService.findPendingReview(page || 1, limit || 20);
+  }
+
+  @Get('stories/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get story details for moderation' })
+  @ApiParam({ name: 'id', description: 'Story ID' })
+  @ApiResponse({ status: 200, description: 'Story details retrieved' })
+  @ApiResponse({ status: 404, description: 'Story not found' })
+  async getStoryForModeration(@Param('id') id: string) {
+    return this.storiesService.findOne(id);
+  }
+
+  @Post('stories/:id/approve')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Approve a story for publication' })
+  @ApiParam({ name: 'id', description: 'Story ID' })
+  @ApiResponse({ status: 200, description: 'Story approved and published' })
+  @ApiResponse({ status: 403, description: 'Story not pending review' })
+  @ApiResponse({ status: 404, description: 'Story not found' })
+  async approveStory(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: { notes?: string },
+  ) {
+    return this.storiesService.approveStory(id, req.user.id, body.notes);
+  }
+
+  @Post('stories/:id/reject')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Reject a story' })
+  @ApiParam({ name: 'id', description: 'Story ID' })
+  @ApiResponse({ status: 200, description: 'Story rejected' })
+  @ApiResponse({ status: 403, description: 'Story not pending review' })
+  @ApiResponse({ status: 404, description: 'Story not found' })
+  async rejectStory(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: { reason: string },
+  ) {
+    return this.storiesService.rejectStory(id, req.user.id, body.reason);
+  }
+
+  @Post('stories/:id/request-changes')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Request changes on a story' })
+  @ApiParam({ name: 'id', description: 'Story ID' })
+  @ApiResponse({ status: 200, description: 'Changes requested' })
+  @ApiResponse({ status: 403, description: 'Story not pending review' })
+  @ApiResponse({ status: 404, description: 'Story not found' })
+  async requestStoryChanges(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: { notes: string },
+  ) {
+    return this.storiesService.requestChanges(id, req.user.id, body.notes);
   }
 }

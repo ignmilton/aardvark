@@ -81,6 +81,13 @@ export class ReaderProgress {
     createdAt: Date;
   }[];
 
+  // Purchase tracking for premium stories
+  @Column({ default: false })
+  hasPurchased: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  purchasedAt: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

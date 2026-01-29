@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ModerationController } from './moderation.controller';
@@ -14,10 +14,12 @@ import {
   BanAppeal,
   UserMute,
 } from '@/database/entities';
+import { StoriesModule } from '@/modules/stories/stories.module';
 
 /**
  * Moderation module providing content moderation, user reports,
  * warnings, bans, and admin tools for platform safety.
+ * Also handles story pre-publication review workflow.
  */
 @Module({
   imports: [
@@ -32,6 +34,7 @@ import {
       BanAppeal,
       UserMute,
     ]),
+    forwardRef(() => StoriesModule),
   ],
   controllers: [ModerationController],
   providers: [ModerationService, ContentFilterService],

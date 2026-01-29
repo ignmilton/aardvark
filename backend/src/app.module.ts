@@ -29,6 +29,10 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 import { HealthModule } from './modules/health/health.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { ReadingListsModule } from './modules/reading-lists/reading-lists.module';
+import { CollectionsModule } from './modules/collections/collections.module';
+import { FeaturedModule } from './modules/featured/featured.module';
+import { ImpressionsModule } from './modules/impressions/impressions.module';
+import { MobileModule } from './modules/mobile/mobile.module';
 
 // Common modules
 import { CacheModule } from './common/cache/cache.module';
@@ -103,6 +107,10 @@ import { databaseConfig } from './config/database.config';
     HealthModule,
     TagsModule,
     ReadingListsModule,
+    CollectionsModule,
+    FeaturedModule,
+    ImpressionsModule,
+    MobileModule,
   ],
   providers: [
     // Global rate limit guard

@@ -154,6 +154,16 @@ export class StoriesController {
   }
 
   /**
+   * Get a story by slug
+   */
+  @Get('slug/:slug')
+  @Public()
+  @ApiOperation({ summary: 'Get story by slug' })
+  findBySlug(@Param('slug') slug: string) {
+    return this.storiesService.findBySlug(slug);
+  }
+
+  /**
    * Get a single story by ID
    */
   @Get(':id')
@@ -200,18 +210,33 @@ export class StoriesController {
   }
 
   /**
-   * Publish a story
+   * Publish a story (bypasses moderation - for backwards compatibility)
    * Banned users are prevented from publishing stories
    */
   @Post(':id/publish')
   @UseGuards(JwtAuthGuard, BanCheckGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Publish a story' })
+  @ApiOperation({ summary: 'Publish a story directly (bypasses moderation)' })
   publish(
     @Param('id') id: string,
     @Request() req: { user: { userId: string } },
   ) {
     return this.storiesService.publish(id, req.user.userId);
+  }
+
+  /**
+   * Submit a story for moderation review
+   * This is the recommended workflow for publishing stories
+   */
+  @Post(':id/submit-review')
+  @UseGuards(JwtAuthGuard, BanCheckGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Submit a story for moderation review' })
+  submitForReview(
+    @Param('id') id: string,
+    @Request() req: { user: { userId: string } },
+  ) {
+    return this.storiesService.submitForReview(id, req.user.userId);
   }
 
   /**
@@ -222,5 +247,53 @@ export class StoriesController {
   @ApiOperation({ summary: 'Get story slugs for sitemap' })
   async getSitemapData() {
     return this.storiesService.getSitemapData();
+  }
+
+  // ============================================================================
+  // Translations API
+  // ============================================================================
+
+  /**
+   * Get all translations of a story
+   */
+  @Get(':id/translations')
+  @Public()
+  @ApiOperation({ summary: 'Get all translations of a story' })
+  getTranslations(@Param('id') id: string) {
+    return this.storiesService.getTranslations(id);
+  }
+
+  /**
+   * Link a story as a translation of another story
+   */
+  @Post(':id/translations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Link this story as a translation of another story' })
+  createTranslation(
+    @Param('id') id: string,
+    @Request() req: { user: { userId: string; role: UserRole } },
+    @Body() body: { originalStoryId: string },
+  ) {
+    return this.storiesService.createTranslationLink(
+      id,
+      body.originalStoryId,
+      req.user.userId,
+      req.user.role,
+    );
+  }
+
+  /**
+   * Remove translation link from a story
+   */
+  @Delete(':id/translations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Remove translation link from a story' })
+  removeTranslation(
+    @Param('id') id: string,
+    @Request() req: { user: { userId: string; role: UserRole } },
+  ) {
+    return this.storiesService.removeTranslationLink(id, req.user.userId, req.user.role);
   }
 }
