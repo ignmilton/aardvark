@@ -53,9 +53,6 @@ export class ReaderProgress {
     timestamp: Date;
   }[];
 
-  // Current state variables accumulated during reading
-  @Column({ type: 'jsonb', default: {} })
-  stateVariables: Record<string, boolean | number | string | string[]>;
 
   // Reading statistics
   @Column({ type: 'timestamptz' })
@@ -83,6 +80,13 @@ export class ReaderProgress {
     note: string;
     createdAt: Date;
   }[];
+
+  // Purchase tracking for premium stories
+  @Column({ default: false })
+  hasPurchased: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  purchasedAt: Date | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

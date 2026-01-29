@@ -85,12 +85,10 @@ export class BranchSubmissionsService {
         contentMarkdown: dto.segmentData.contentMarkdown || null,
         isEnding: dto.segmentData.isEnding || false,
         endingType: dto.segmentData.endingType || null,
-        stateEffects: dto.segmentData.stateEffects || [],
       },
       choicesData: dto.choicesData.map((choice, index) => ({
         choiceText: choice.choiceText,
         order: choice.order || index + 1,
-        conditions: choice.conditions || [],
       })),
       submissionNote: dto.submissionNote,
       status,
@@ -214,7 +212,6 @@ export class BranchSubmissionsService {
       submission.choicesData = dto.choicesData.map((choice, index) => ({
         choiceText: choice.choiceText,
         order: choice.order || index + 1,
-        conditions: choice.conditions || [],
       }));
     }
 
@@ -348,7 +345,6 @@ export class BranchSubmissionsService {
       isRootSegment: false,
       isEnding: submission.segmentData.isEnding,
       endingType: submission.segmentData.endingType,
-      stateEffects: submission.segmentData.stateEffects,
       wordCount,
       estimatedReadTime: Math.ceil(wordCount / 200),
       submittedByUserId: submission.submittedByUserId,
@@ -366,7 +362,6 @@ export class BranchSubmissionsService {
           nextSegmentId: savedSegment.id,
           choiceText: choiceData.choiceText,
           order: choiceData.order || index + 1,
-          conditions: choiceData.conditions,
         }),
       );
 

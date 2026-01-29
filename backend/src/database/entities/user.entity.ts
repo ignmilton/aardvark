@@ -85,6 +85,13 @@ export class User {
   @Column({ default: 0 })
   creditsBalance: number;
 
+  // Revenue tracking for authors
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  pendingRevenue: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  totalEarnings: number;
+
   @Column({ type: 'jsonb', default: DEFAULT_USER_PREFERENCES })
   preferences: UserPreferences;
 

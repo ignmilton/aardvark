@@ -58,7 +58,6 @@ export class BranchSubmission {
     contentMarkdown: string | null;
     isEnding: boolean;
     endingType: 'good' | 'bad' | 'neutral' | 'secret' | null;
-    stateEffects: any[];
   };
 
   // Choices to connect from the parent segment to this new segment
@@ -66,7 +65,6 @@ export class BranchSubmission {
   choicesData: {
     choiceText: string;
     order: number;
-    conditions: any[];
   }[];
 
   @Column({ type: 'text' })

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import {
   Subscription,
   SubscriptionPlan,
@@ -12,6 +13,7 @@ import { SubscriptionsService } from './subscriptions.service';
 
 @Module({
   imports: [
+    ConfigModule,
     TypeOrmModule.forFeature([
       Subscription,
       SubscriptionPlan,

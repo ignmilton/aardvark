@@ -24,7 +24,6 @@ import { StorySegment } from './story-segment.entity';
 import { ReaderProgress } from './reader-progress.entity';
 import { Comment } from './comment.entity';
 import { Rating } from './rating.entity';
-import { StoryStateVariable } from './story-state-variable.entity';
 import { Tag } from './tag.entity';
 
 /**
@@ -151,6 +150,39 @@ export class Story {
   @Column({ type: 'timestamptz', nullable: true })
   publishedAt: Date | null;
 
+  // Moderation fields
+  @Index()
+  @Column({
+    type: 'enum',
+    enum: ['pending', 'approved', 'rejected', 'requires_changes'],
+    default: 'pending',
+  })
+  moderationStatus: 'pending' | 'approved' | 'rejected' | 'requires_changes';
+
+  @Column({ type: 'text', nullable: true })
+  moderationNotes: string | null;
+
+  @Column('uuid', { nullable: true })
+  moderatedById: string | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'moderatedById' })
+  moderatedBy: User | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  moderatedAt: Date | null;
+
+  // Translation linking
+  @Column('uuid', { nullable: true })
+  originalStoryId: string | null;
+
+  @ManyToOne(() => Story, (story) => story.translations, { nullable: true })
+  @JoinColumn({ name: 'originalStoryId' })
+  originalStory: Story | null;
+
+  @OneToMany(() => Story, (story) => story.originalStory)
+  translations: Story[];
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
@@ -170,8 +202,6 @@ export class Story {
   @OneToMany(() => Rating, (rating) => rating.story)
   ratings: Rating[];
 
-  @OneToMany(() => StoryStateVariable, (variable) => variable.story)
-  stateVariables: StoryStateVariable[];
 
   @ManyToMany(() => Tag, (tag) => tag.stories)
   @JoinTable({

@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { TagType } from '@aardvark/shared';
 import { Story } from './story.entity';
+import { User } from './user.entity';
 
 /**
  * Tag entity for story categorization and discovery.
@@ -71,8 +72,20 @@ export class Tag {
   @Column({ nullable: true })
   iconUrl: string | null;
 
+  // Creator (author who first used this tag)
+  @Column('uuid', { nullable: true })
+  createdById: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'createdById' })
+  createdBy: User | null;
+
   @ManyToMany(() => Story, (story) => story.storyTags)
   stories: Story[];
+
+  // Aliases for this tag (alternative names that resolve to this tag)
+  @OneToMany(() => TagAlias, (alias) => alias.tag)
+  aliases: TagAlias[];
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
@@ -112,4 +125,30 @@ export class StoryTag {
 
   @CreateDateColumn({ type: 'timestamptz' })
   addedAt: Date;
+}
+
+/**
+ * TagAlias entity for alternative tag names.
+ * Allows users to search using synonyms that resolve to the canonical tag.
+ */
+@Entity('tag_aliases')
+@Index(['alias'], { unique: true })
+export class TagAlias {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Index()
+  @Column({ length: 50 })
+  alias: string;
+
+  @Index()
+  @Column('uuid')
+  tagId: string;
+
+  @ManyToOne(() => Tag, (tag) => tag.aliases, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tagId' })
+  tag: Tag;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
 }
