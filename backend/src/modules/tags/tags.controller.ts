@@ -26,6 +26,7 @@ import {
   AddTagsToStoryDto,
   TagSuggestDto,
   BulkTagActionDto,
+  CreateTagAliasDto,
 } from './dto';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/modules/auth/guards/roles.guard';
@@ -191,5 +192,51 @@ export class TagsController {
   @ApiResponse({ status: 200, description: 'Bulk action completed' })
   async bulkAction(@Body() dto: BulkTagActionDto) {
     return this.tagsService.bulkAction(dto);
+  }
+
+  // ============================================================================
+  // Tag Alias Endpoints
+  // ============================================================================
+
+  @Public()
+  @Get(':id/aliases')
+  @ApiOperation({ summary: 'Get all aliases for a tag' })
+  @ApiParam({ name: 'id', description: 'Tag ID' })
+  @ApiResponse({ status: 200, description: 'Aliases retrieved' })
+  @ApiResponse({ status: 404, description: 'Tag not found' })
+  async getAliases(@Param('id') id: string) {
+    const aliases = await this.tagsService.getTagAliases(id);
+    return { success: true, data: aliases };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @Post(':id/aliases')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add an alias to a tag (moderator+)' })
+  @ApiParam({ name: 'id', description: 'Tag ID' })
+  @ApiResponse({ status: 201, description: 'Alias added successfully' })
+  @ApiResponse({ status: 404, description: 'Tag not found' })
+  @ApiResponse({ status: 409, description: 'Alias already exists' })
+  async addAlias(@Param('id') id: string, @Body() dto: CreateTagAliasDto) {
+    const alias = await this.tagsService.addTagAlias(id, dto);
+    return { success: true, data: alias };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @Delete(':id/aliases/:aliasId')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove an alias from a tag (moderator+)' })
+  @ApiParam({ name: 'id', description: 'Tag ID' })
+  @ApiParam({ name: 'aliasId', description: 'Alias ID' })
+  @ApiResponse({ status: 200, description: 'Alias removed' })
+  @ApiResponse({ status: 404, description: 'Alias not found' })
+  async removeAlias(
+    @Param('id') id: string,
+    @Param('aliasId') aliasId: string,
+  ) {
+    await this.tagsService.removeTagAlias(id, aliasId);
+    return { success: true };
   }
 }

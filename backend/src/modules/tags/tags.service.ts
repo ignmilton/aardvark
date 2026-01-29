@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike, In, MoreThanOrEqual } from 'typeorm';
-import { Tag, StoryTag, Story } from '@/database/entities';
+import { Tag, StoryTag, Story, TagAlias } from '@/database/entities';
 import { TagType } from '@aardvark/shared';
 import {
   CreateTagDto,
@@ -16,6 +16,7 @@ import {
   AddTagsToStoryDto,
   TagSuggestDto,
   BulkTagActionDto,
+  CreateTagAliasDto,
 } from './dto';
 
 @Injectable()
@@ -29,6 +30,8 @@ export class TagsService {
     private readonly storyTagRepository: Repository<StoryTag>,
     @InjectRepository(Story)
     private readonly storyRepository: Repository<Story>,
+    @InjectRepository(TagAlias)
+    private readonly tagAliasRepository: Repository<TagAlias>,
   ) {}
 
   /**
@@ -621,5 +624,127 @@ export class TagsService {
       [TagType.CUSTOM]: 'Other',
     };
     return names[type] || type;
+  }
+
+  // ============================================================================
+  // Tag Alias Methods
+  // ============================================================================
+
+  /**
+   * Get all aliases for a tag
+   */
+  async getTagAliases(tagId: string): Promise<TagAlias[]> {
+    const tag = await this.tagRepository.findOne({ where: { id: tagId } });
+    if (!tag) {
+      throw new NotFoundException('Tag not found');
+    }
+
+    return this.tagAliasRepository.find({
+      where: { tagId },
+      order: { alias: 'ASC' },
+    });
+  }
+
+  /**
+   * Add an alias to a tag
+   */
+  async addTagAlias(tagId: string, dto: CreateTagAliasDto): Promise<TagAlias> {
+    const tag = await this.tagRepository.findOne({ where: { id: tagId } });
+    if (!tag) {
+      throw new NotFoundException('Tag not found');
+    }
+
+    // Normalize alias
+    const normalizedAlias = dto.alias.toLowerCase().trim();
+
+    // Check if alias already exists (globally unique)
+    const existingAlias = await this.tagAliasRepository.findOne({
+      where: { alias: normalizedAlias },
+    });
+
+    if (existingAlias) {
+      throw new ConflictException('This alias is already in use');
+    }
+
+    // Check if alias matches an existing tag name or slug
+    const existingTag = await this.tagRepository.findOne({
+      where: [{ name: ILike(normalizedAlias) }, { slug: normalizedAlias }],
+    });
+
+    if (existingTag) {
+      throw new ConflictException('This alias conflicts with an existing tag name');
+    }
+
+    const alias = this.tagAliasRepository.create({
+      tagId,
+      alias: normalizedAlias,
+    });
+
+    return this.tagAliasRepository.save(alias);
+  }
+
+  /**
+   * Remove an alias from a tag
+   */
+  async removeTagAlias(tagId: string, aliasId: string): Promise<void> {
+    const alias = await this.tagAliasRepository.findOne({
+      where: { id: aliasId, tagId },
+    });
+
+    if (!alias) {
+      throw new NotFoundException('Alias not found');
+    }
+
+    await this.tagAliasRepository.remove(alias);
+  }
+
+  /**
+   * Find a tag by alias
+   */
+  async findTagByAlias(aliasText: string): Promise<Tag | null> {
+    const normalizedAlias = aliasText.toLowerCase().trim();
+
+    const alias = await this.tagAliasRepository.findOne({
+      where: { alias: normalizedAlias },
+      relations: ['tag'],
+    });
+
+    return alias?.tag || null;
+  }
+
+  /**
+   * Search tags including aliases
+   */
+  async searchWithAliases(search: string, limit = 10): Promise<Tag[]> {
+    const normalizedSearch = search.toLowerCase().trim();
+
+    // Search in tag names and slugs
+    const directMatches = await this.tagRepository.find({
+      where: [
+        { name: ILike(`%${normalizedSearch}%`) },
+        { slug: ILike(`%${normalizedSearch}%`) },
+      ],
+      take: limit,
+    });
+
+    // Search in aliases
+    const aliasMatches = await this.tagAliasRepository.find({
+      where: { alias: ILike(`%${normalizedSearch}%`) },
+      relations: ['tag'],
+      take: limit,
+    });
+
+    // Combine and deduplicate
+    const tagMap = new Map<string, Tag>();
+    for (const tag of directMatches) {
+      tagMap.set(tag.id, tag);
+    }
+    for (const alias of aliasMatches) {
+      if (!tagMap.has(alias.tag.id)) {
+        tagMap.set(alias.tag.id, alias.tag);
+      }
+    }
+
+    return Array.from(tagMap.values()).slice(0, limit);
   }
 }

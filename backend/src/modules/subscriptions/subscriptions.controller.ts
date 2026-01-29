@@ -4,24 +4,42 @@ import {
   Post,
   Body,
   Req,
+  Res,
+  Headers,
+  RawBodyRequest,
   UseGuards,
+  Logger,
+  BadRequestException,
+  HttpCode,
 } from '@nestjs/common';
+import { Response, Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { Public } from '@/modules/auth/decorators/public.decorator';
 import { SubscriptionsService } from './subscriptions.service';
-import { CancelSubscriptionDto } from './dto';
+import { PaymentsService } from '@/modules/payments/payments.service';
+import { RazorpayService } from '@/modules/payments/razorpay.service';
+import { CreateSubscriptionDto, CancelSubscriptionDto } from './dto';
 
 /**
  * Controller for subscription management.
  */
 @Controller('subscriptions')
-@UseGuards(JwtAuthGuard)
 export class SubscriptionsController {
-  constructor(private readonly subscriptionsService: SubscriptionsService) {}
+  private readonly logger = new Logger(SubscriptionsController.name);
+
+  constructor(
+    private readonly subscriptionsService: SubscriptionsService,
+    private readonly paymentsService: PaymentsService,
+    private readonly razorpayService: RazorpayService,
+    private readonly configService: ConfigService,
+  ) {}
 
   /**
    * Get available subscription plans
    * GET /subscriptions/plans
    */
+  @Public()
   @Get('plans')
   async getPlans() {
     const plans = await this.subscriptionsService.getPlans();
@@ -44,6 +62,7 @@ export class SubscriptionsController {
    * Get current subscription status
    * GET /subscriptions/status
    */
+  @UseGuards(JwtAuthGuard)
   @Get('status')
   async getStatus(@Req() req: any) {
     const userId = req.user.id;
@@ -72,6 +91,7 @@ export class SubscriptionsController {
    * Check if user has premium access
    * GET /subscriptions/premium
    */
+  @UseGuards(JwtAuthGuard)
   @Get('premium')
   async checkPremium(@Req() req: any) {
     const userId = req.user.id;
@@ -83,9 +103,59 @@ export class SubscriptionsController {
   }
 
   /**
+   * Subscribe to a plan
+   * POST /subscriptions/subscribe
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('subscribe')
+  async subscribe(
+    @Req() req: any,
+    @Body() dto: CreateSubscriptionDto,
+  ) {
+    const userId = req.user.id;
+    const user = req.user;
+
+    // Get or create Stripe customer
+    const customer = await this.paymentsService.getOrCreateCustomer(
+      userId,
+      user.email,
+      user.displayName || user.username,
+    );
+
+    // Get the plan to get its Stripe price ID
+    const plan = await this.subscriptionsService.getPlan(dto.planId);
+
+    // Create subscription via Stripe
+    const stripeSubscription = await this.paymentsService.createSubscription(
+      customer.id,
+      plan.stripePriceId,
+      dto.paymentMethodId,
+    );
+
+    // Create local subscription record
+    const subscription = await this.subscriptionsService.createSubscription(
+      userId,
+      dto.planId,
+      stripeSubscription.id,
+      customer.id,
+    );
+
+    return {
+      success: true,
+      data: {
+        id: subscription.id,
+        status: subscription.status,
+        clientSecret: (stripeSubscription.latest_invoice as any)?.payment_intent?.client_secret,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+      },
+    };
+  }
+
+  /**
    * Cancel current subscription
    * POST /subscriptions/cancel
    */
+  @UseGuards(JwtAuthGuard)
   @Post('cancel')
   async cancel(
     @Req() req: any,
@@ -110,6 +180,7 @@ export class SubscriptionsController {
    * Resume a canceled subscription
    * POST /subscriptions/resume
    */
+  @UseGuards(JwtAuthGuard)
   @Post('resume')
   async resume(@Req() req: any) {
     const userId = req.user.id;
@@ -127,6 +198,7 @@ export class SubscriptionsController {
    * Get subscription history
    * GET /subscriptions/history
    */
+  @UseGuards(JwtAuthGuard)
   @Get('history')
   async getHistory(@Req() req: any) {
     const userId = req.user.id;
@@ -148,5 +220,115 @@ export class SubscriptionsController {
         createdAt: sub.createdAt,
       })),
     };
+  }
+
+  // ============================================================================
+  // Webhooks
+  // ============================================================================
+
+  /**
+   * Handle Stripe webhooks
+   * POST /subscriptions/webhook/stripe
+   */
+  @Public()
+  @Post('webhook/stripe')
+  @HttpCode(200)
+  async handleStripeWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+    @Res() res: Response,
+  ) {
+    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+
+    if (!webhookSecret) {
+      this.logger.error('Stripe webhook secret not configured');
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    const rawBody = req.rawBody;
+    if (!rawBody) {
+      return res.status(400).json({ error: 'Missing request body' });
+    }
+
+    try {
+      const event = this.paymentsService.constructWebhookEvent(
+        rawBody,
+        signature,
+        webhookSecret,
+      );
+
+      this.logger.log(`Received Stripe webhook: ${event.type}`);
+
+      // Handle specific events
+      switch (event.type) {
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+          await this.subscriptionsService.handleRenewal(
+            (event.data.object as any).id,
+          );
+          break;
+
+        case 'customer.subscription.deleted':
+          await this.subscriptionsService.handleExpiration(
+            (event.data.object as any).id,
+          );
+          break;
+
+        case 'invoice.payment_succeeded':
+          // Handle successful payment - subscription is already active
+          this.logger.log('Invoice payment succeeded');
+          break;
+
+        case 'invoice.payment_failed':
+          // Handle failed payment - may need to notify user
+          this.logger.warn('Invoice payment failed');
+          break;
+
+        default:
+          this.logger.log(`Unhandled Stripe event: ${event.type}`);
+      }
+
+      return res.json({ received: true });
+    } catch (err) {
+      this.logger.error(`Stripe webhook error: ${err.message}`);
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  /**
+   * Handle Razorpay webhooks
+   * POST /subscriptions/webhook/razorpay
+   */
+  @Public()
+  @Post('webhook/razorpay')
+  @HttpCode(200)
+  async handleRazorpayWebhook(
+    @Req() req: Request,
+    @Headers('x-razorpay-signature') signature: string,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
+    // Get raw body for signature verification
+    const rawBody = JSON.stringify(body);
+
+    if (!this.razorpayService.verifyWebhookSignature(rawBody, signature)) {
+      this.logger.error('Invalid Razorpay webhook signature');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    try {
+      const event = body.event;
+      const payload = body.payload;
+
+      this.logger.log(`Received Razorpay webhook: ${event}`);
+
+      // Handle the webhook through the Razorpay service
+      await this.razorpayService.handleWebhook(event, payload);
+
+      return res.json({ received: true });
+    } catch (err) {
+      this.logger.error(`Razorpay webhook error: ${err.message}`);
+      return res.status(400).json({ error: err.message });
+    }
   }
 }

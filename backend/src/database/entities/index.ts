@@ -30,3 +30,4 @@ export * from './user-mute.entity';
 export * from './collection.entity';
 export * from './featured-content.entity';
 export * from './impression.entity';
+export * from './ad-reward.entity';

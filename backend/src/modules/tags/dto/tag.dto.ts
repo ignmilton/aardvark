@@ -200,3 +200,11 @@ export class BulkTagActionDto {
   @IsString()
   targetTagId?: string;
 }
+
+export class CreateTagAliasDto {
+  @ApiProperty({ description: 'Alias text (alternative name for the tag)', example: 'sci-fi' })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  alias: string;
+}
