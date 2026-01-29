@@ -4,62 +4,15 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
+  OneToMany,
   Index,
   JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
 
 /**
- * Message entity for private messaging between users.
- * Supports threaded conversations with read receipts.
- */
-@Entity('messages')
-export class Message {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Index()
-  @Column('uuid')
-  senderId: string;
-
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'senderId' })
-  sender: User;
-
-  @Index()
-  @Column('uuid')
-  recipientId: string;
-
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'recipientId' })
-  recipient: User;
-
-  @Index()
-  @Column('uuid')
-  conversationId: string;
-
-  @ManyToOne(() => Conversation, (conv) => conv.messages, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'conversationId' })
-  conversation: Conversation;
-
-  @Column({ type: 'text' })
-  content: string;
-
-  @Column({ default: false })
-  isRead: boolean;
-
-  @Column({ type: 'timestamptz', nullable: true })
-  readAt: Date | null;
-
-  @Column({ default: false })
-  isDeleted: boolean;
-
-  @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
-}
-
-/**
  * Conversation entity for grouping messages between two users.
+ * Defined first to avoid forward reference issues.
  */
 @Entity('conversations')
 export class Conversation {
@@ -106,7 +59,57 @@ export class Conversation {
   @Column({ default: false })
   isArchived2: boolean;
 
+  @OneToMany(() => Message, (message) => message.conversation)
   messages: Message[];
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
+}
+
+/**
+ * Message entity for private messaging between users.
+ * Supports threaded conversations with read receipts.
+ */
+@Entity('messages')
+export class Message {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Index()
+  @Column('uuid')
+  senderId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'senderId' })
+  sender: User;
+
+  @Index()
+  @Column('uuid')
+  recipientId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'recipientId' })
+  recipient: User;
+
+  @Index()
+  @Column('uuid')
+  conversationId: string;
+
+  @ManyToOne(() => Conversation, (conv) => conv.messages, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'conversationId' })
+  conversation: Conversation;
+
+  @Column({ type: 'text' })
+  content: string;
+
+  @Column({ default: false })
+  isRead: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  readAt: Date | null;
+
+  @Column({ default: false })
+  isDeleted: boolean;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

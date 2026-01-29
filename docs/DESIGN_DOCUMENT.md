@@ -12,8 +12,8 @@ Build a production-ready, scalable interactive fiction platform similar to CHYOA
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| **Frontend** | React with Next.js 14+ (App Router) | SSR/SSG, SEO optimization, and performance |
-| **Backend** | Node.js with NestJS | Robust API architecture |
+| **Frontend** | React with Next.js 16+ (App Router) | SSR/SSG, SEO optimization, and performance |
+| **Backend** | Node.js with NestJS 11+ | Robust API architecture |
 | **Primary Database** | PostgreSQL | Relational data (users, stories, branches, transactions) |
 | **Cache** | Redis | Caching, session management, and real-time features |
 | **Search** | Elasticsearch | Advanced search functionality |
