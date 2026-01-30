@@ -66,10 +66,10 @@ export class Tag {
   @Column('text', { array: true, default: [] })
   synonyms: string[];
 
-  @Column({ length: 7, nullable: true })
+  @Column({ type: 'varchar', length: 7, nullable: true })
   color: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   iconUrl: string | null;
 
   // Creator (author who first used this tag)
@@ -99,7 +99,6 @@ export class Tag {
  * with additional metadata about the tagging
  */
 @Entity('story_tags')
-@Index(['storyId', 'tagId'], { unique: true })
 export class StoryTag {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -137,7 +136,6 @@ export class TagAlias {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Index()
   @Column({ length: 50 })
   alias: string;
 

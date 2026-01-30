@@ -38,7 +38,7 @@ export class ReadingList {
   @Column({ default: false })
   isPublic: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   coverImageUrl: string | null;
 
   @Column({ default: 0 })

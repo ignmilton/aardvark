@@ -40,7 +40,7 @@ export class Rating {
   @Column({ type: 'decimal', precision: 2, scale: 1 })
   rating: number;
 
-  @Column({ length: 200, nullable: true })
+  @Column({ type: 'varchar', length: 200, nullable: true })
   reviewTitle: string | null;
 
   @Column({ type: 'text', nullable: true })

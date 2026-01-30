@@ -18,7 +18,13 @@ export class PaymentsService {
 
   constructor(private readonly configService: ConfigService) {
     const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-    if (!stripeKey) {
+    const isDevelopment = this.configService.get<string>('NODE_ENV') !== 'production';
+    if (!stripeKey || stripeKey.includes('your_stripe')) {
+      if (isDevelopment) {
+        this.logger.warn('Stripe not configured - payment features disabled in development');
+        this.stripe = null as unknown as Stripe;
+        return;
+      }
       throw new Error('Stripe secret key not configured. Set STRIPE_SECRET_KEY environment variable.');
     }
     this.stripe = new Stripe(stripeKey, {

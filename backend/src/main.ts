@@ -80,7 +80,7 @@ async function bootstrap() {
   app.enableCors({
     origin: isProduction
       ? configService.get('CORS_ORIGIN', 'https://aardvark.com')
-      : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+      : true, // Allow all origins in development for mobile testing
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -168,13 +168,14 @@ async function bootstrap() {
   // Graceful shutdown
   app.enableShutdownHooks();
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   console.log(`
     🚀 Aardvark API is running!
     📍 Port: ${port}
     🌍 Environment: ${configService.get('NODE_ENV', 'development')}
     📚 API Docs: http://localhost:${port}/api/docs
+    📱 External access: http://21.0.0.210:${port}/api/docs
   `);
 }
 

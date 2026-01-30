@@ -54,7 +54,7 @@ export class Story {
   @Column({ type: 'text', nullable: true })
   synopsis: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   coverImageUrl: string | null;
 
   @Index()

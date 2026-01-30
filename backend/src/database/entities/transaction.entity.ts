@@ -45,7 +45,7 @@ export class Transaction {
   @Column('uuid', { nullable: true })
   referenceId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   referenceType: string | null;
 
   @Column({ type: 'jsonb', default: {} })

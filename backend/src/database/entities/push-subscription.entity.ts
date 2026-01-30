@@ -48,14 +48,14 @@ export class PushSubscription {
   platform: string;
 
   // Device identifier for mobile
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   deviceId: string;
 
   // Whether the subscription is active
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   userAgent: string;
 
   @CreateDateColumn({ type: 'timestamptz' })
