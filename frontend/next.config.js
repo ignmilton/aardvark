@@ -153,11 +153,8 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
 
-  // ESLint configuration
-  eslint: {
-    // Linting is done in CI/CD
-    ignoreDuringBuilds: false,
-  },
+  // Turbopack configuration (Next.js 16+ default)
+  turbopack: {},
 };
 
 module.exports = withPWA(nextConfig);
