@@ -458,6 +458,8 @@ export class PaymentsController {
       }
     } catch (error) {
       this.logger.error(`Webhook processing error for ${event.type}: ${error.message}`);
+      // Re-throw to return 500 status so Stripe will retry the webhook
+      throw error;
     }
 
     return { received: true };

@@ -175,7 +175,6 @@ async function bootstrap() {
     📍 Port: ${port}
     🌍 Environment: ${configService.get('NODE_ENV', 'development')}
     📚 API Docs: http://localhost:${port}/api/docs
-    📱 External access: http://21.0.0.210:${port}/api/docs
   `);
 }
 

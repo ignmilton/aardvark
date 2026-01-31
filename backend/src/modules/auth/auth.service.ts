@@ -18,6 +18,7 @@ import {
   AuthResponse,
 } from '@aardvark/shared';
 import { User } from '@/database/entities';
+import { MailService } from '@/common/mail/mail.service';
 
 /**
  * Authentication service handling user registration, login,
@@ -36,6 +37,7 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -349,11 +351,15 @@ export class AuthService {
       passwordResetExpires: expiresAt,
     });
 
-    // TODO: Send email via configured email service (e.g., SendGrid, SES)
+    // Send password reset email
     const resetUrl = `${this.configService.get('appUrl', 'http://localhost:3000')}/auth/reset-password?token=${resetToken}`;
-    // SECURITY: Log only user ID, never email addresses or tokens
-    this.logger.log(`Password reset requested for user ${user.id}`);
-    // In production: send resetUrl via email service, never log it
+    const emailSent = await this.mailService.sendPasswordReset(email, resetUrl);
+
+    if (emailSent) {
+      this.logger.log(`Password reset email sent for user ${user.id}`);
+    } else {
+      this.logger.warn(`Failed to send password reset email for user ${user.id}`);
+    }
   }
 
   /**

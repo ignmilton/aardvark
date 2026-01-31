@@ -61,6 +61,7 @@ export class ProgressService {
       currentSegmentId: story.rootSegmentId,
       visitedSegmentIds: [story.rootSegmentId],
       choiceHistory: [],
+      stateVariables: {}, // Initialize empty state for tracking reader decisions
       startedAt: new Date(),
       lastReadAt: new Date(),
       totalReadTime: 0,
@@ -157,6 +158,14 @@ export class ProgressService {
       timestamp: new Date(),
     });
 
+    // Apply state effects from this choice
+    if (choice.stateEffects) {
+      progress.stateVariables = this.applyStateEffects(
+        progress.stateVariables,
+        choice.stateEffects,
+      );
+    }
+
     // Navigate to next segment
     progress.currentSegmentId = choice.nextSegmentId;
     progress.lastReadAt = new Date();
@@ -239,6 +248,7 @@ export class ProgressService {
     progress.currentSegmentId = story.rootSegmentId;
     progress.visitedSegmentIds = [story.rootSegmentId];
     progress.choiceHistory = [];
+    progress.stateVariables = {}; // Reset state variables
     progress.startedAt = new Date();
     progress.lastReadAt = new Date();
     progress.totalReadTime = 0;
@@ -383,5 +393,112 @@ export class ProgressService {
       totalChoicesMade: allProgress.reduce((sum, p) => sum + p.choiceHistory.length, 0),
       currentlyReading: allProgress.filter((p) => !p.isCompleted).length,
     };
+  }
+
+  /**
+   * Apply state effects from a choice to the current state variables.
+   * Supports $set (set values) and $inc (increment values) operators.
+   *
+   * @example
+   * stateEffects = { "$set": { "met_wizard": true }, "$inc": { "trust_level": 2 } }
+   */
+  private applyStateEffects(
+    currentState: Record<string, unknown>,
+    effects: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const newState = { ...currentState };
+
+    // Handle $set operator - directly set values
+    if (effects['$set'] && typeof effects['$set'] === 'object') {
+      Object.assign(newState, effects['$set']);
+    }
+
+    // Handle $inc operator - increment numeric values
+    if (effects['$inc'] && typeof effects['$inc'] === 'object') {
+      const increments = effects['$inc'] as Record<string, number>;
+      for (const [key, value] of Object.entries(increments)) {
+        const currentValue = typeof newState[key] === 'number' ? newState[key] as number : 0;
+        newState[key] = currentValue + value;
+      }
+    }
+
+    // Handle direct assignments (for simple cases without operators)
+    for (const [key, value] of Object.entries(effects)) {
+      if (!key.startsWith('$')) {
+        newState[key] = value;
+      }
+    }
+
+    return newState;
+  }
+
+  /**
+   * Evaluate whether a choice condition is met based on current state.
+   * Supports simple equality, $gte, $lte, $gt, $lt, $ne operators.
+   *
+   * @example
+   * condition = { "has_sword": true, "trust_level": { "$gte": 5 } }
+   */
+  evaluateCondition(
+    currentState: Record<string, unknown>,
+    condition: Record<string, unknown> | null,
+  ): boolean {
+    if (!condition || Object.keys(condition).length === 0) {
+      return true; // No condition means always available
+    }
+
+    for (const [key, expected] of Object.entries(condition)) {
+      const actual = currentState[key];
+
+      // Handle comparison operators
+      if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
+        const ops = expected as Record<string, unknown>;
+
+        if ('$gte' in ops && (typeof actual !== 'number' || actual < (ops['$gte'] as number))) {
+          return false;
+        }
+        if ('$lte' in ops && (typeof actual !== 'number' || actual > (ops['$lte'] as number))) {
+          return false;
+        }
+        if ('$gt' in ops && (typeof actual !== 'number' || actual <= (ops['$gt'] as number))) {
+          return false;
+        }
+        if ('$lt' in ops && (typeof actual !== 'number' || actual >= (ops['$lt'] as number))) {
+          return false;
+        }
+        if ('$ne' in ops && actual === ops['$ne']) {
+          return false;
+        }
+        if ('$eq' in ops && actual !== ops['$eq']) {
+          return false;
+        }
+      } else {
+        // Simple equality check
+        if (actual !== expected) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Get available choices for a segment based on current state
+   */
+  async getAvailableChoices(
+    storyId: string,
+    segmentId: string,
+    stateVariables: Record<string, unknown>,
+  ): Promise<Choice[]> {
+    const choices = await this.choiceRepository.find({
+      where: { segmentId, isHidden: false },
+      order: { order: 'ASC' },
+    });
+
+    // Filter choices based on conditions
+    return choices.filter((choice) =>
+      this.evaluateCondition(stateVariables, choice.conditionJson),
+    );
   }
 }
