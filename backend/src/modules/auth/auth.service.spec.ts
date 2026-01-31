@@ -8,12 +8,14 @@ import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { User } from '@/database/entities';
 import { UserRole, AccountStatus } from '@aardvark/shared';
+import { MailService } from '@/common/mail/mail.service';
 
 describe('AuthService', () => {
   let service: AuthService;
   let userRepository: jest.Mocked<Repository<User>>;
   let jwtService: jest.Mocked<JwtService>;
   let configService: jest.Mocked<ConfigService>;
+  let mailService: jest.Mocked<MailService>;
 
   const mockUser: Partial<User> = {
     id: 'test-user-id',
@@ -66,6 +68,15 @@ describe('AuthService', () => {
             }),
           },
         },
+        {
+          provide: MailService,
+          useValue: {
+            sendPasswordReset: jest.fn().mockResolvedValue(true),
+            sendEmailVerification: jest.fn().mockResolvedValue(true),
+            send: jest.fn().mockResolvedValue(true),
+            isConfigured: jest.fn().mockReturnValue(true),
+          },
+        },
       ],
     }).compile();
 
@@ -73,6 +84,7 @@ describe('AuthService', () => {
     userRepository = module.get(getRepositoryToken(User));
     jwtService = module.get(JwtService);
     configService = module.get(ConfigService);
+    mailService = module.get(MailService);
   });
 
   describe('register', () => {
