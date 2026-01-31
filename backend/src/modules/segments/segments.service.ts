@@ -256,23 +256,27 @@ export class SegmentsService {
       }
     }
 
-    // Remove this segment from parent references of other segments
-    const childSegments = await this.segmentRepository
-      .createQueryBuilder('segment')
-      .where(':id = ANY(segment.parentSegmentIds)', { id })
-      .getMany();
+    // Use transaction to ensure atomic deletion and parent reference updates
+    await this.segmentRepository.manager.transaction(async (manager) => {
+      // Remove this segment from parent references of other segments
+      const childSegments = await manager
+        .getRepository(StorySegment)
+        .createQueryBuilder('segment')
+        .where(':id = ANY(segment.parentSegmentIds)', { id })
+        .getMany();
 
-    for (const child of childSegments) {
-      child.parentSegmentIds = child.parentSegmentIds.filter((pid) => pid !== id);
-      await this.segmentRepository.save(child);
-    }
+      for (const child of childSegments) {
+        child.parentSegmentIds = child.parentSegmentIds.filter((pid) => pid !== id);
+        await manager.save(child);
+      }
 
-    await this.segmentRepository.remove(segment);
+      await manager.remove(segment);
 
-    // Update story's root segment reference if needed
-    if (segment.isRootSegment) {
-      await this.storyRepository.update(segment.storyId, { rootSegmentId: null });
-    }
+      // Update story's root segment reference if needed
+      if (segment.isRootSegment) {
+        await manager.getRepository(Story).update(segment.storyId, { rootSegmentId: null });
+      }
+    });
   }
 
   /**

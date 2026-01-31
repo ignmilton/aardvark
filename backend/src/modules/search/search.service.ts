@@ -108,7 +108,11 @@ export class SearchService implements OnModuleInit {
       // Initialize indices
       await this.initializeIndices();
     } catch (error) {
-      this.logger.warn('Failed to connect to Elasticsearch, search features will be limited', error.message);
+      this.logger.error(
+        `Failed to connect to Elasticsearch: ${error.message}. Search will fall back to database queries. ` +
+        `Ensure Elasticsearch is running at ${this.configService.get('elasticsearch.node', 'http://localhost:9200')}.`,
+      );
+      this.isConnected = false;
     }
   }
 
