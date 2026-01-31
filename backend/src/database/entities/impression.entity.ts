@@ -49,7 +49,7 @@ export class Impression {
   user: User | null;
 
   // Session tracking for anonymous users
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   sessionId: string | null;
 
   @Index()
@@ -68,7 +68,7 @@ export class Impression {
   segment: StorySegment | null;
 
   // Duration tracking (for read impressions)
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   durationSeconds: number | null;
 
   // Revenue attribution
@@ -79,13 +79,13 @@ export class Impression {
   revenueAmount: number;
 
   // Request metadata
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   userAgent: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   ipAddress: string | null;
 
-  @Column({ length: 2, nullable: true })
+  @Column({ type: 'varchar', length: 2, nullable: true })
   countryCode: string | null;
 
   @Index()

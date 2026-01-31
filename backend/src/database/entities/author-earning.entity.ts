@@ -86,7 +86,7 @@ export class AuthorPayoutAccount {
   author: User;
 
   // Stripe Connect fields
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   stripeConnectAccountId: string | null;
 
   @Column({
@@ -109,19 +109,19 @@ export class AuthorPayoutAccount {
   currency: string;
 
   // UPI Payout fields (India)
-  @Column({ nullable: true, length: 100 })
+  @Column({ type: 'varchar', nullable: true, length: 100 })
   upiVpa: string | null; // e.g., "username@upi", "phone@paytm"
 
-  @Column({ nullable: true, length: 100 })
+  @Column({ type: 'varchar', nullable: true, length: 100 })
   upiAccountHolderName: string | null;
 
   @Column({ default: false })
   upiVerified: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   razorpayFundAccountId: string | null; // Razorpay X fund account for payouts
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   razorpayContactId: string | null; // Razorpay X contact ID
 
   @CreateDateColumn({ type: 'timestamptz' })
@@ -169,20 +169,20 @@ export class Payout {
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'reversed';
 
   // Stripe fields
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   stripeTransferId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   stripePayoutId: string | null;
 
   // UPI/Razorpay fields
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   razorpayPayoutId: string | null;
 
-  @Column({ nullable: true, length: 100 })
+  @Column({ type: 'varchar', nullable: true, length: 100 })
   upiVpa: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   utr: string | null; // Unique Transaction Reference for UPI
 
   @Column({ type: 'text', nullable: true })
@@ -240,13 +240,13 @@ export class UPIPaymentOrder {
   @Column('uuid')
   referenceId: string; // bundleId or planId
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   razorpayPaymentId: string | null;
 
-  @Column({ nullable: true, length: 100 })
+  @Column({ type: 'varchar', nullable: true, length: 100 })
   vpa: string | null; // UPI VPA used for payment
 
-  @Column({ nullable: true, length: 20 })
+  @Column({ type: 'varchar', nullable: true, length: 20 })
   method: string | null; // 'upi', 'card', 'netbanking', etc.
 
   @Column({ length: 50 })

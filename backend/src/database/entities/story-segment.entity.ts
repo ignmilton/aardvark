@@ -38,7 +38,7 @@ export class StorySegment {
   @JoinColumn({ name: 'authorId' })
   author: User;
 
-  @Column({ length: 200, nullable: true })
+  @Column({ type: 'varchar', length: 200, nullable: true })
   title: string | null;
 
   @Column({ type: 'text' })
@@ -61,7 +61,7 @@ export class StorySegment {
   @Column({ default: false })
   isEnding: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   endingType: 'good' | 'bad' | 'neutral' | 'secret' | null;
 
 
@@ -89,7 +89,7 @@ export class StorySegment {
   @Column('uuid', { nullable: true })
   approvedByUserId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   approvalStatus: 'pending' | 'approved' | 'rejected' | null;
 
   @Column({ type: 'text', nullable: true })

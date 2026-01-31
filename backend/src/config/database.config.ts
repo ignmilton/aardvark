@@ -21,8 +21,8 @@ export const databaseConfig = (
     // Entity loading - auto-load all entities from modules
     autoLoadEntities: true,
 
-    // Schema synchronization - disabled in production
-    synchronize: !isProduction,
+    // Schema synchronization - disabled due to TypeORM sync bug
+    synchronize: false,
 
     // Logging configuration
     logging: isProduction ? ['error', 'warn'] : ['error', 'warn', 'query'],

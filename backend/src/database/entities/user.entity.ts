@@ -43,16 +43,16 @@ export class User {
   @Column({ select: false })
   passwordHash: string;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   displayName: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   avatarUrl: string | null;
 
   @Column({ type: 'text', nullable: true })
   bio: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   websiteUrl: string | null;
 
   @Column({ type: 'jsonb', default: {} })
@@ -98,13 +98,13 @@ export class User {
   @Column({ default: false })
   emailVerified: boolean;
 
-  @Column({ nullable: true, select: false })
+  @Column({ type: 'varchar', nullable: true, select: false })
   emailVerificationToken: string | null;
 
   @Column({ type: 'timestamptz', nullable: true, select: false })
   emailVerificationExpires: Date | null;
 
-  @Column({ nullable: true, select: false })
+  @Column({ type: 'varchar', nullable: true, select: false })
   passwordResetToken: string | null;
 
   @Column({ type: 'timestamptz', nullable: true, select: false })
@@ -113,13 +113,13 @@ export class User {
   @Column({ default: false })
   twoFactorEnabled: boolean;
 
-  @Column({ nullable: true, select: false })
+  @Column({ type: 'varchar', nullable: true, select: false })
   twoFactorSecret: string | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   lastLoginIp: string | null;
 
   @Column({ default: 0 })
@@ -129,10 +129,10 @@ export class User {
   lockoutUntil: Date | null;
 
   // Stripe integration
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   stripeCustomerId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   stripeConnectAccountId: string | null;
 
   @CreateDateColumn({ type: 'timestamptz' })

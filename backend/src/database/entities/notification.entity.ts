@@ -41,7 +41,7 @@ export class Notification {
   @Column({ type: 'jsonb', default: {} })
   data: Record<string, unknown>;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   linkUrl: string | null;
 
   @Index()
