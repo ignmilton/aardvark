@@ -45,6 +45,15 @@ export class Choice {
   @Column({ default: 1 })
   order: number;
 
+  // Condition for showing this choice based on reader's state variables
+  // e.g., { "has_sword": true, "trust_level": { "$gte": 5 } }
+  @Column({ type: 'jsonb', nullable: true })
+  conditionJson: Record<string, unknown> | null;
+
+  // State effects applied when this choice is made
+  // e.g., { "$set": { "met_wizard": true }, "$inc": { "trust_level": 2 } }
+  @Column({ type: 'jsonb', nullable: true })
+  stateEffects: Record<string, unknown> | null;
 
   // Statistics
   @Column({ default: 0 })

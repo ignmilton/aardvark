@@ -53,6 +53,10 @@ export class ReaderProgress {
     timestamp: Date;
   }[];
 
+  // State variables tracking reader decisions across the story
+  // e.g., { "met_character_x": true, "trust_level": 7, "has_sword": true }
+  @Column({ type: 'jsonb', default: {} })
+  stateVariables: Record<string, unknown>;
 
   // Reading statistics
   @Column({ type: 'timestamptz' })
