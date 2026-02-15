@@ -5,9 +5,56 @@ import {
   IsObject,
   MaxLength,
   ValidateNested,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
+
+/**
+ * Custom validator to ensure socialLinks values are valid URLs
+ * and keys are from an allowed set of platform names.
+ */
+@ValidatorConstraint({ name: "socialLinksValidator", async: false })
+class SocialLinksValidator implements ValidatorConstraintInterface {
+  private readonly allowedPlatforms = [
+    "twitter",
+    "facebook",
+    "instagram",
+    "youtube",
+    "tiktok",
+    "linkedin",
+    "github",
+    "website",
+    "mastodon",
+    "bluesky",
+    "threads",
+    "twitch",
+    "discord",
+    "reddit",
+    "patreon",
+    "ko-fi",
+  ];
+
+  validate(value: Record<string, string>): boolean {
+    if (!value || typeof value !== "object") return false;
+    const entries = Object.entries(value);
+    if (entries.length > 10) return false; // Max 10 social links
+    const urlRegex = /^https?:\/\/.+/i;
+    return entries.every(
+      ([key, val]) =>
+        this.allowedPlatforms.includes(key) &&
+        typeof val === "string" &&
+        val.length <= 500 &&
+        urlRegex.test(val),
+    );
+  }
+
+  defaultMessage(): string {
+    return "socialLinks must contain valid platform names and HTTPS URLs (max 10 links)";
+  }
+}
 
 class PreferencesDto {
   @ApiPropertyOptional({ enum: ["light", "dark", "system"] })
@@ -97,6 +144,7 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ description: "Social media links" })
   @IsOptional()
   @IsObject()
+  @Validate(SocialLinksValidator)
   socialLinks?: Record<string, string>;
 
   @ApiPropertyOptional({ description: "User preferences" })

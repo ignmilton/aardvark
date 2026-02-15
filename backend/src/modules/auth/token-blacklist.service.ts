@@ -1,61 +1,51 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { Cache } from "cache-manager";
 
 /**
  * Service to track blacklisted JWT tokens.
- * Tokens are stored in memory with automatic cleanup based on expiry.
- * In a multi-instance production deployment, this should use Redis instead.
+ * Uses the application cache (Redis when configured, in-memory fallback)
+ * so token invalidation works across multiple server instances.
  */
 @Injectable()
 export class TokenBlacklistService {
-  private readonly blacklist = new Map<string, number>(); // token -> expiryTimestamp
-  private cleanupInterval: NodeJS.Timeout;
+  private readonly logger = new Logger(TokenBlacklistService.name);
+  private static readonly PREFIX = "token_blacklist:";
 
-  constructor() {
-    // Clean up expired tokens every 5 minutes
-    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
-  }
+  constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
   /**
    * Add a token to the blacklist.
    * @param token - The JWT token string
    * @param expiresInSeconds - Seconds until the token expires naturally
    */
-  blacklistToken(token: string, expiresInSeconds: number): void {
-    const expiryTimestamp = Date.now() + expiresInSeconds * 1000;
-    this.blacklist.set(token, expiryTimestamp);
+  async blacklistToken(token: string, expiresInSeconds: number): Promise<void> {
+    const key = TokenBlacklistService.PREFIX + this.hashToken(token);
+    const ttlMs = expiresInSeconds * 1000;
+    await this.cacheManager.set(key, 1, ttlMs);
   }
 
   /**
    * Check if a token is blacklisted.
    */
-  isBlacklisted(token: string): boolean {
-    const expiry = this.blacklist.get(token);
-    if (!expiry) return false;
-
-    // If token has expired naturally, remove from blacklist
-    if (Date.now() > expiry) {
-      this.blacklist.delete(token);
-      return false;
-    }
-
-    return true;
+  async isBlacklisted(token: string): Promise<boolean> {
+    const key = TokenBlacklistService.PREFIX + this.hashToken(token);
+    const value = await this.cacheManager.get(key);
+    return value !== null && value !== undefined;
   }
 
   /**
-   * Remove expired entries from the blacklist.
+   * Hash a token to avoid storing raw JWTs in cache keys.
+   * Uses a simple hash; the full token is never stored.
    */
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [token, expiry] of this.blacklist.entries()) {
-      if (now > expiry) {
-        this.blacklist.delete(token);
-      }
+  private hashToken(token: string): string {
+    let hash = 0;
+    for (let i = 0; i < token.length; i++) {
+      const char = token.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash |= 0; // Convert to 32-bit integer
     }
-  }
-
-  onModuleDestroy() {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
+    // Also include last 16 chars for uniqueness
+    return `${hash.toString(36)}_${token.slice(-16)}`;
   }
 }

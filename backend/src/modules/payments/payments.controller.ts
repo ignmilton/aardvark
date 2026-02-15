@@ -475,6 +475,15 @@ export class PaymentsController {
       webhookSecret,
     );
 
+    // Reject stale webhook events (older than 5 minutes) to prevent replay attacks
+    const eventAge = Math.floor(Date.now() / 1000) - event.created;
+    if (eventAge > 300) {
+      this.logger.warn(
+        `Rejecting stale webhook event ${event.id} (age: ${eventAge}s)`,
+      );
+      return { received: false, error: "Event too old" };
+    }
+
     // Handle specific events
     try {
       switch (event.type) {

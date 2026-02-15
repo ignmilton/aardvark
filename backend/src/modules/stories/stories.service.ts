@@ -126,12 +126,10 @@ export class StoriesService {
       queryBuilder.andWhere("story.averageRating >= :minRating", { minRating });
     }
 
-    // Sorting
+    // Sorting — whitelist-validated column and direction to prevent injection
     const sortColumn = this.getSortColumn(sortBy);
-    queryBuilder.orderBy(
-      `story.${sortColumn}`,
-      sortOrder.toUpperCase() as "ASC" | "DESC",
-    );
+    const direction = sortOrder?.toUpperCase() === "DESC" ? "DESC" : "ASC";
+    queryBuilder.orderBy(`story.${sortColumn}`, direction);
 
     // Pagination
     const skip = (page - 1) * limit;

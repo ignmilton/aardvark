@@ -10,7 +10,10 @@ import {
   UseGuards,
   Logger,
   HttpCode,
+  Inject,
 } from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { Cache } from "cache-manager";
 import { Response, Request } from "express";
 import { ConfigService } from "@nestjs/config";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
@@ -19,6 +22,8 @@ import { SubscriptionsService } from "./subscriptions.service";
 import { PaymentsService } from "@/modules/payments/payments.service";
 import { RazorpayService } from "@/modules/payments/razorpay.service";
 import { CreateSubscriptionDto, CancelSubscriptionDto } from "./dto";
+
+const WEBHOOK_IDEMPOTENCY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
  * Controller for subscription management.
@@ -32,6 +37,7 @@ export class SubscriptionsController {
     private readonly paymentsService: PaymentsService,
     private readonly razorpayService: RazorpayService,
     private readonly configService: ConfigService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   /**
@@ -256,6 +262,20 @@ export class SubscriptionsController {
       );
 
       this.logger.log(`Received Stripe webhook: ${event.type}`);
+
+      // Idempotency check - prevent duplicate processing
+      const idempotencyKey = `sub_webhook:${event.id}`;
+      const alreadyProcessed = await this.cacheManager.get(idempotencyKey);
+      if (alreadyProcessed) {
+        this.logger.debug(`Subscription webhook ${event.id} already processed`);
+        return res.json({ received: true });
+      }
+      // Mark as processing before handling to prevent TOCTOU race
+      await this.cacheManager.set(
+        idempotencyKey,
+        true,
+        WEBHOOK_IDEMPOTENCY_TTL_MS,
+      );
 
       // Handle specific events
       switch (event.type) {

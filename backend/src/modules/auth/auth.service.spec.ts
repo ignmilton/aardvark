@@ -287,6 +287,7 @@ describe("AuthService", () => {
       const result = await service.refreshToken("valid-refresh-token");
 
       expect(result).toHaveProperty("accessToken");
+      expect(result).toHaveProperty("refreshToken");
       expect(result).toHaveProperty("expiresIn");
     });
 

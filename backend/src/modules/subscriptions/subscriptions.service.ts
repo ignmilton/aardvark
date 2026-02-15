@@ -245,7 +245,9 @@ export class SubscriptionsService {
   }
 
   /**
-   * Handle subscription renewal (called from webhook)
+   * Handle subscription renewal (called from webhook).
+   * Only awards monthly credits when the billing period actually advances
+   * to prevent duplicate credit awards from redundant webhook events.
    */
   async handleRenewal(stripeSubscriptionId: string): Promise<void> {
     const subscription = await this.subscriptionRepository.findOne({
@@ -261,19 +263,30 @@ export class SubscriptionsService {
     const stripeSubscription =
       await this.paymentsService.getSubscription(stripeSubscriptionId);
 
-    // Update local record
-    subscription.status = stripeSubscription.status as any;
-    subscription.currentPeriodStart = new Date(
+    const newPeriodStart = new Date(
       stripeSubscription.current_period_start * 1000,
     );
-    subscription.currentPeriodEnd = new Date(
+    const newPeriodEnd = new Date(
       stripeSubscription.current_period_end * 1000,
     );
 
+    // Check if the billing period actually advanced (true renewal vs status-only update)
+    const periodAdvanced =
+      !subscription.currentPeriodStart ||
+      newPeriodStart.getTime() > subscription.currentPeriodStart.getTime();
+
+    // Update local record
+    subscription.status = stripeSubscription.status as any;
+    subscription.currentPeriodStart = newPeriodStart;
+    subscription.currentPeriodEnd = newPeriodEnd;
+
     await this.subscriptionRepository.save(subscription);
 
-    // Award monthly credits on renewal
-    if (subscription.plan.tier === SubscriptionTier.PREMIUM) {
+    // Only award monthly credits when period actually advances
+    if (
+      periodAdvanced &&
+      subscription.plan.tier === SubscriptionTier.PREMIUM
+    ) {
       await this.awardMonthlyCredits(subscription.userId);
     }
   }

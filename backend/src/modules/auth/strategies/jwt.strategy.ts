@@ -52,7 +52,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(req: Request, payload: JwtPayload) {
     // Check if token has been blacklisted (user logged out)
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
-    if (token && this.tokenBlacklistService.isBlacklisted(token)) {
+    if (token && (await this.tokenBlacklistService.isBlacklisted(token))) {
       throw new UnauthorizedException("Token has been invalidated");
     }
     const user = await this.userRepository.findOne({

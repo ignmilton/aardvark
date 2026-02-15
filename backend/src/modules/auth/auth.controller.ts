@@ -98,10 +98,10 @@ export class AuthController {
         const remainingSeconds = decoded.exp
           ? Math.max(0, decoded.exp - Math.floor(Date.now() / 1000))
           : 15 * 60;
-        this.tokenBlacklistService.blacklistToken(token, remainingSeconds);
+        await this.tokenBlacklistService.blacklistToken(token, remainingSeconds);
       } catch {
         // Fallback: blacklist for default access token lifetime
-        this.tokenBlacklistService.blacklistToken(token, 15 * 60);
+        await this.tokenBlacklistService.blacklistToken(token, 15 * 60);
       }
     }
     return { message: "Logged out successfully" };

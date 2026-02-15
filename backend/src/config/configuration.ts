@@ -4,13 +4,19 @@
  * injected into modules using ConfigService.
  */
 
-function requireInProduction(envVar: string, defaultValue: string): string {
+function requireSecret(envVar: string): string {
   const value = process.env[envVar];
   if (value) return value;
   if (process.env.NODE_ENV === "production") {
-    throw new Error(`${envVar} must be set in production environment`);
+    throw new Error(`SECURITY: ${envVar} must be set in production`);
   }
-  return defaultValue;
+  // Generate a random fallback for development only — never use static defaults
+  const crypto = require("crypto");
+  const generated = crypto.randomBytes(32).toString("hex");
+  console.warn(
+    `WARNING: ${envVar} not set — using random ephemeral secret. Set it in .env for stable sessions.`,
+  );
+  return generated;
 }
 
 export default () => ({
@@ -25,7 +31,7 @@ export default () => ({
     host: process.env.DATABASE_HOST || "localhost",
     port: parseInt(process.env.DATABASE_PORT || "5432", 10),
     username: process.env.DATABASE_USER || "aardvark",
-    password: process.env.DATABASE_PASSWORD || "aardvark_dev_password",
+    password: process.env.DATABASE_PASSWORD || "",
     database: process.env.DATABASE_NAME || "aardvark",
     poolMin: parseInt(process.env.DATABASE_POOL_MIN || "2", 10),
     poolMax: parseInt(process.env.DATABASE_POOL_MAX || "10", 10),
@@ -47,14 +53,8 @@ export default () => ({
 
   // JWT configuration
   jwt: {
-    secret: requireInProduction(
-      "JWT_SECRET",
-      "dev_jwt_secret_change_in_production",
-    ),
-    refreshSecret: requireInProduction(
-      "JWT_REFRESH_SECRET",
-      "dev_refresh_secret_change_in_production",
-    ),
+    secret: requireSecret("JWT_SECRET"),
+    refreshSecret: requireSecret("JWT_REFRESH_SECRET"),
     accessExpiration: process.env.JWT_ACCESS_EXPIRATION || "15m",
     refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || "7d",
   },
@@ -63,8 +63,8 @@ export default () => ({
   storage: {
     endpoint: process.env.S3_ENDPOINT || "http://localhost:9000",
     region: process.env.S3_REGION || "us-east-1",
-    accessKey: process.env.S3_ACCESS_KEY || "aardvark_minio",
-    secretKey: process.env.S3_SECRET_KEY || "aardvark_minio_secret",
+    accessKey: process.env.S3_ACCESS_KEY || "",
+    secretKey: process.env.S3_SECRET_KEY || "",
     bucket: process.env.S3_BUCKET || "aardvark-uploads",
     cdnUrl: process.env.S3_CDN_URL,
   },
