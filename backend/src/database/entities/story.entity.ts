@@ -48,6 +48,10 @@ export class Story {
   @Column({ length: 200 })
   title: string;
 
+  @Index({ unique: true })
+  @Column({ length: 250 })
+  slug: string;
+
   @Column({ type: "text" })
   description: string;
 

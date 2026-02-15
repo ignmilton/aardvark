@@ -11,6 +11,7 @@ import {
   CreateStoryDto,
   UpdateStoryDto,
   UserRole,
+  slugify,
 } from "@aardvark/shared";
 import { Story, Rating } from "@/database/entities";
 
@@ -30,13 +31,31 @@ export class StoriesService {
    * Create a new story
    */
   async create(userId: string, createDto: CreateStoryDto): Promise<Story> {
+    const slug = await this.generateUniqueSlug(createDto.title);
     const story = this.storyRepository.create({
       ...createDto,
+      slug,
       authorId: userId,
       status: StoryStatus.DRAFT,
     });
 
     return this.storyRepository.save(story);
+  }
+
+  /**
+   * Generate a unique slug from a title, appending a suffix if needed
+   */
+  private async generateUniqueSlug(title: string): Promise<string> {
+    const baseSlug = slugify(title);
+    let slug = baseSlug;
+    let suffix = 1;
+
+    while (await this.storyRepository.findOne({ where: { slug } })) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix++;
+    }
+
+    return slug;
   }
 
   /**
@@ -327,14 +346,10 @@ export class StoriesService {
    * Find a story by slug
    */
   async findBySlug(slug: string): Promise<Story> {
-    // Generate possible slug from title-based lookup
     const story = await this.storyRepository
       .createQueryBuilder("story")
       .leftJoinAndSelect("story.author", "author")
-      .where(
-        "LOWER(REPLACE(REPLACE(story.title, ' ', '-'), '.', '')) = :slug",
-        { slug: slug.toLowerCase() },
-      )
+      .where("story.slug = :slug", { slug })
       .orWhere("story.id = :id", { id: slug })
       .getOne();
 

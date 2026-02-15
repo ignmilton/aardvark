@@ -853,7 +853,7 @@ export enum ApprovalStatus {
 }
 ```
 
-#### 3.2.10 Choice Entity (Simplified - No State Conditions)
+#### 3.2.10 Choice Entity (With Conditional Branching)
 ```typescript
 @Entity('choices')
 export class Choice {
@@ -1181,17 +1181,19 @@ async getRecommendations(userId: string): Promise<Story[]> {
 
 ## 8. Removed Features
 
-### 8.1 StoryStateVariable (REMOVED)
-The `StoryStateVariable` system has been removed from the architecture. Stories will use a simpler linear/branching narrative without complex state tracking.
+### 8.1 StoryStateVariable Entity (REMOVED)
+The dedicated `StoryStateVariable` entity has been removed. However, lightweight state tracking is retained on the `Choice` and `ReaderProgress` entities to support conditional branching.
 
-**Removed entities:**
-- `StoryStateVariable`
+**Removed:**
+- `StoryStateVariable` entity (dedicated table)
 - `stateEffects` on segments
-- `conditions` on choices
-- `requiredState` on choices
-- `stateVariables` on reader progress
 
-**Rationale:** Simplifies the reading experience and reduces complexity for both authors and readers.
+**Retained (actively used by `progress.service.ts`):**
+- `conditionJson` on choices - enables conditional display of choices based on reader state
+- `stateEffects` on choices - applies state changes when a choice is made
+- `stateVariables` on reader progress - tracks reader decisions across the story
+
+**Rationale:** While the standalone StoryStateVariable entity was removed for simplicity, the inline state fields on choices and reader progress are essential for the core conditional branching system described in the Design Document (Section 2: "Conditional Branches - Show/hide choices based on previous decisions").
 
 ---
 
