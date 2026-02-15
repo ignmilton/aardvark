@@ -1319,10 +1319,15 @@ describe("ModerationService", () => {
 
   describe("bulkResolveReports", () => {
     it("should resolve multiple reports", async () => {
-      reportRepo.findOne.mockResolvedValue({
-        ...mockReport,
-        status: ModerationStatus.UNDER_REVIEW,
-      } as any);
+      reportRepo.findOne
+        .mockResolvedValueOnce({
+          ...mockReport,
+          status: ModerationStatus.UNDER_REVIEW,
+        } as any)
+        .mockResolvedValueOnce({
+          ...mockReport,
+          status: ModerationStatus.UNDER_REVIEW,
+        } as any);
       reportRepo.save.mockImplementation((r) => Promise.resolve(r as any));
       moderationLogRepo.create.mockReturnValue({} as any);
       moderationLogRepo.save.mockResolvedValue({} as any);

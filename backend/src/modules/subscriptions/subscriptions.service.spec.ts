@@ -366,7 +366,7 @@ describe("SubscriptionsService", () => {
         status: "active",
         cancel_at_period_end: true,
       };
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      subscriptionRepo.findOne.mockResolvedValue({ ...mockSubscription } as any);
       paymentsService.cancelSubscription.mockResolvedValue(canceledStripe as any);
       subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
 
@@ -386,7 +386,7 @@ describe("SubscriptionsService", () => {
         status: "canceled",
         cancel_at_period_end: false,
       };
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      subscriptionRepo.findOne.mockResolvedValue({ ...mockSubscription } as any);
       paymentsService.cancelSubscription.mockResolvedValue(canceledStripe as any);
       subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
 
@@ -502,7 +502,7 @@ describe("SubscriptionsService", () => {
     });
 
     it("should mark subscription as canceled and downgrade user", async () => {
-      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      subscriptionRepo.findOne.mockResolvedValue({ ...mockSubscription } as any);
       subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
 
       await service.handleExpiration("sub_stripe_123");
