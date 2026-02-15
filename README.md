@@ -1,11 +1,11 @@
 # Aardvark - Interactive Fiction Platform
 
-A production-ready, scalable interactive fiction platform for creating, reading, and collaboratively authoring branching narrative stories. Similar to CHYOA (Choose Your Own Adventure), designed to support millions of users.
+A scalable interactive fiction platform for creating, reading, and collaboratively authoring branching narrative stories. Similar to CHYOA (Choose Your Own Adventure).
 
 ## Features
 
 ### For Readers
-- Browse thousands of interactive stories across multiple genres
+- Browse interactive stories across multiple genres
 - Make choices that shape the narrative
 - Track reading progress and bookmarks
 - Follow favorite authors
@@ -37,7 +37,7 @@ A production-ready, scalable interactive fiction platform for creating, reading,
 ## Tech Stack
 
 ### Frontend
-- **Framework**: Next.js 16.x (App Router)
+- **Framework**: Next.js 16.x (App Router, Turbopack)
 - **UI**: React 18, Tailwind CSS, Radix UI
 - **State**: Zustand, React Query (TanStack)
 - **Editors**: TipTap (rich text), React Flow (visual flowchart)
@@ -68,8 +68,8 @@ A production-ready, scalable interactive fiction platform for creating, reading,
 
 ### Prerequisites
 - Node.js 20+
-- Docker & Docker Compose
 - npm 10+
+- Docker with Docker Compose plugin (`docker compose`)
 
 ### Local Development
 
@@ -84,16 +84,18 @@ A production-ready, scalable interactive fiction platform for creating, reading,
    npm install
    ```
 
-3. **Start infrastructure services**
-   ```bash
-   npm run docker:dev
-   ```
-
-4. **Set up environment variables**
+3. **Set up environment variables**
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
+
+4. **Start infrastructure services**
+   ```bash
+   docker compose -f docker/docker-compose.yml up -d
+   ```
+   > **Note:** The `npm run docker:dev` script uses the legacy `docker-compose` command.
+   > If you only have the Docker Compose plugin, run `docker compose` directly as shown above.
 
 5. **Run database migrations**
    ```bash
@@ -102,13 +104,19 @@ A production-ready, scalable interactive fiction platform for creating, reading,
 
 6. **Start development servers**
    ```bash
-   npm run dev
+   # Start frontend and backend together:
+   npm run dev:frontend
+   # In a separate terminal:
+   npm run start:dev --workspace=backend
    ```
+   > **Note:** `npm run dev` does not currently work because the backend workspace is missing
+   > a `dev` script. Use the commands above instead, or add `"dev": "nest start --watch"` to
+   > `backend/package.json` scripts.
 
-   This starts:
+   Once running:
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:4000
-   - API Docs: http://localhost:4000/api/docs
+   - API Docs (Swagger): http://localhost:4000/api/docs
 
 ### Docker Compose Services (Development)
 
@@ -140,7 +148,7 @@ Additional production services:
 aardvark/
 ├── frontend/                 # Next.js 16 application
 │   ├── src/
-│   │   ├── app/             # App Router pages
+│   │   ├── app/             # App Router pages (25+ routes)
 │   │   ├── components/      # React components
 │   │   ├── hooks/           # Custom hooks (offline, PWA, gestures)
 │   │   ├── lib/             # Utilities (API, sanitize, SEO)
@@ -150,47 +158,15 @@ aardvark/
 │
 ├── backend/                  # NestJS application
 │   ├── src/
+│   │   ├── main.ts          # Application bootstrap (port 4000)
+│   │   ├── app.module.ts    # Root module (31 feature modules)
 │   │   ├── config/          # Configuration
 │   │   ├── common/          # Shared (cache, mail, filters)
-│   │   ├── database/        # Entities & migrations
-│   │   └── modules/         # 31 feature modules
-│   │       ├── auth/        # Authentication (JWT, local)
-│   │       ├── users/       # User management
-│   │       ├── stories/     # Story CRUD
-│   │       ├── segments/    # Story segments/nodes
-│   │       ├── choices/     # Branching choices
-│   │       ├── progress/    # Reader progress tracking
-│   │       ├── comments/    # Story comments
-│   │       ├── ratings/     # Ratings and reviews
-│   │       ├── credits/     # Credit system
-│   │       ├── subscriptions/ # Premium subscriptions
-│   │       ├── payments/    # Stripe + Razorpay
-│   │       ├── earnings/    # Author payouts
-│   │       ├── search/      # Elasticsearch integration
-│   │       ├── moderation/  # Content moderation
-│   │       ├── notifications/ # Push notifications
-│   │       ├── messaging/   # Direct messages
-│   │       ├── forum/       # Discussion forums
-│   │       ├── tags/        # Story tagging
-│   │       ├── reading-lists/ # User collections
-│   │       ├── collections/ # Featured collections
-│   │       ├── featured/    # Featured content
-│   │       ├── analytics/   # Analytics dashboard
-│   │       ├── impressions/ # View tracking
-│   │       ├── ai-companion/ # AI writing assistant
-│   │       ├── ads/         # Ad rewards
-│   │       ├── upload/      # File uploads (S3)
-│   │       ├── mobile/      # Mobile-specific APIs
-│   │       ├── branch-submissions/ # Collaborative branches
-│   │       ├── websocket/   # Real-time updates
-│   │       └── health/      # Health checks
+│   │   ├── database/        # Entities, migrations, seeds
+│   │   └── modules/         # Feature modules (see below)
 │   └── test/                # Tests
 │
-├── shared/                   # Shared types & utilities
-│   └── src/
-│       ├── types/           # TypeScript types
-│       ├── utils/           # Utility functions
-│       └── constants/       # Constants
+├── shared/                   # Shared TypeScript types & utilities
 │
 ├── docker/                   # Docker configuration
 │   ├── docker-compose.yml   # Development stack
@@ -199,14 +175,15 @@ aardvark/
 │   └── Dockerfile.frontend  # Multi-stage frontend build
 │
 ├── docs/                     # Documentation
-│   ├── DESIGN_DOCUMENT.md
-│   └── PRODUCTION_ARCHITECTURE.md
-│
-└── .github/                  # GitHub Actions
-    └── workflows/
-        ├── ci.yml           # Continuous Integration
-        └── deploy.yml       # Production deployment
+└── .github/workflows/        # CI/CD (ci.yml, deploy.yml)
 ```
+
+### Backend Modules
+
+auth, users, stories, segments, choices, progress, comments, ratings, credits,
+subscriptions, payments, earnings, search, moderation, notifications, messaging,
+forum, tags, reading-lists, collections, featured, analytics, impressions,
+ai-companion, ads, upload, mobile, branch-submissions, websocket, health
 
 ## API Documentation
 
@@ -257,42 +234,46 @@ API documentation is available via Swagger UI at `/api/docs` when running in dev
 | GET | /api/v1/search/users | Search users |
 | GET | /api/v1/search/autocomplete | Autocomplete suggestions |
 
-## Database Schema
+## Scripts
 
-### Core Tables
-- `users` - User accounts and profiles (30+ fields)
-- `stories` - Story metadata
-- `story_segments` - Story content nodes
-- `choices` - Connections between segments
-- `reader_progress` - User reading state and history
+```bash
+# Development
+npm run dev:frontend              # Start frontend dev server (Next.js)
+npm run start:dev --workspace=backend  # Start backend dev server (NestJS watch mode)
 
-### Social Tables
-- `comments` - Story comments with threading
-- `ratings` - Story ratings and reviews
-- `follows` - User follows
-- `messages` - Direct messages
-- `forum_posts` - Forum discussions
-- `notifications` - User notifications
-- `push_subscriptions` - Web push subscriptions
+# Building
+npm run build                     # Build all workspaces (shared, backend, frontend)
+npm run build:frontend            # Build frontend only
+npm run build:backend             # Build backend only
 
-### Monetization Tables
-- `transactions` - Credit transactions
-- `subscriptions` - User subscriptions
-- `subscription_plans` - Available plans
-- `credit_bundles` - Credit purchase options
-- `author_earnings` - Author payout tracking
-- `ad_rewards` - Ad reward records
-- `story_unlocks` - Premium content unlocks
+# Testing
+npm run test --workspace=backend  # Run backend unit tests (107 tests across 6 suites)
+npm run test --workspace=frontend # Run frontend unit tests (12 tests)
+npm run test:e2e                  # Run Playwright E2E tests
 
-### Content Management Tables
-- `tags` - Story tags
-- `story_tags` - Story-tag associations
-- `reading_lists` - User reading lists
-- `collections` - Curated collections
-- `featured_content` - Featured stories
-- `moderation_reports` - Content reports
-- `ban_appeals` - User ban appeals
-- `branch_submissions` - Collaborative branch submissions
+# Database
+npm run db:migrate                # Run TypeORM migrations
+npm run db:seed                   # Seed database with test data
+
+# Docker
+docker compose -f docker/docker-compose.yml up -d    # Start dev infrastructure
+docker compose -f docker/docker-compose.yml down      # Stop all containers
+```
+
+## Known Issues
+
+- **`npm run dev` is broken**: The root `dev` script calls `npm run dev --workspace=backend`,
+  but the backend workspace has no `dev` script (it uses `start:dev`). Run the frontend and
+  backend dev servers separately as shown above.
+- **Linting is not configured**: Neither the backend nor frontend have ESLint configuration files.
+  `npm run lint` will fail in both workspaces.
+- **Shared workspace has no tests**: `npm run test --workspace=shared` fails because there are
+  no test files. The jest config in shared should use `--passWithNoTests`.
+- **npm audit**: There are 21 known vulnerabilities (1 low, 1 moderate, 19 high) in
+  dependencies. Most are in transitive dependencies (`@aws-sdk`, `qs`, `markdown-it`).
+  Run `npm audit` for details.
+- **Docker scripts use legacy command**: `npm run docker:dev` and `npm run docker:down` use
+  `docker-compose` (standalone). Modern Docker installations use `docker compose` (plugin).
 
 ## Environment Variables
 
@@ -345,38 +326,6 @@ FEATURE_AI_COMPANION=true
 FEATURE_NSFW_CONTENT=false
 ```
 
-## Scripts
-
-```bash
-# Development
-npm run dev              # Start all services
-npm run dev:frontend     # Start frontend only
-npm run dev:backend      # Start backend only
-
-# Building
-npm run build            # Build all packages
-npm run build:frontend   # Build frontend
-npm run build:backend    # Build backend
-
-# Testing
-npm run test             # Run all unit tests
-npm run test:e2e         # Run Playwright E2E tests
-npm run test:coverage    # Run tests with coverage
-
-# Database
-npm run db:migrate       # Run migrations
-npm run db:seed          # Seed database with test data
-npm run migration:run    # Run pending migrations
-
-# Docker
-npm run docker:dev       # Start dev infrastructure
-npm run docker:down      # Stop all containers
-
-# Linting
-npm run lint             # Run ESLint
-npm run type-check       # Run TypeScript type checking
-```
-
 ## Deployment
 
 ### Docker Deployment
@@ -387,7 +336,7 @@ docker build -f docker/Dockerfile.backend -t aardvark-backend .
 docker build -f docker/Dockerfile.frontend -t aardvark-frontend .
 
 # Run with Docker Compose
-docker-compose -f docker/docker-compose.prod.yml up -d
+docker compose -f docker/docker-compose.prod.yml up -d
 ```
 
 ### CI/CD Pipeline
@@ -407,18 +356,6 @@ The project uses GitHub Actions for CI/CD:
    - Rolling deployment via SSH
    - Health checks and smoke tests
 
-### Cloud Deployment (AWS)
-
-Recommended AWS architecture:
-- **ECS Fargate** or **EKS** for container orchestration
-- **RDS PostgreSQL** with read replicas for high availability
-- **ElastiCache Redis** for caching and sessions
-- **OpenSearch Service** for full-text search
-- **S3** for file storage
-- **CloudFront** for CDN and static assets
-- **Application Load Balancer** for routing and SSL termination
-- **CloudWatch** for logging and monitoring
-
 ### Production Checklist
 
 - [ ] Set strong JWT secrets
@@ -430,6 +367,9 @@ Recommended AWS architecture:
 - [ ] Set up database backups
 - [ ] Configure Stripe webhooks for your domain
 - [ ] Set up email service (SendGrid/SES)
+- [ ] Add ESLint configuration to backend and frontend
+- [ ] Fix `npm run dev` script (add `dev` alias in backend)
+- [ ] Address npm audit vulnerabilities
 
 ## Contributing
 
@@ -441,7 +381,7 @@ Recommended AWS architecture:
 
 ### Code Style
 
-- ESLint + Prettier for code formatting
+- Prettier for code formatting (ESLint not yet configured)
 - TypeScript strict mode enabled
 - Conventional commits recommended
 
@@ -452,5 +392,3 @@ This project is proprietary. All rights reserved.
 ## Support
 
 - Documentation: [/docs](/docs)
-- Issues: [GitHub Issues](https://github.com/your-org/aardvark/issues)
-- Email: support@aardvark.com

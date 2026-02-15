@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
