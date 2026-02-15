@@ -95,6 +95,7 @@ describe("SubscriptionsService", () => {
           useValue: {
             getSubscription: jest.fn(),
             cancelSubscription: jest.fn(),
+            resumeSubscription: jest.fn(),
           },
         },
       ],
@@ -321,6 +322,202 @@ describe("SubscriptionsService", () => {
           subscriptionStatus: expect.any(String),
         }),
       );
+    });
+  });
+
+  describe("cancelSubscription", () => {
+    it("should throw NotFoundException if no active subscription", async () => {
+      subscriptionRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.cancelSubscription("user-123"),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should throw BadRequestException for mobile subscriptions", async () => {
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+        stripeSubscriptionId: null,
+        platform: "ios",
+      } as any);
+
+      await expect(
+        service.cancelSubscription("user-123"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("should cancel subscription at period end by default", async () => {
+      const canceledStripe = {
+        ...mockStripeSubscription,
+        status: "active",
+        cancel_at_period_end: true,
+      };
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      paymentsService.cancelSubscription.mockResolvedValue(canceledStripe as any);
+      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+
+      const result = await service.cancelSubscription("user-123", false);
+
+      expect(result.cancelAtPeriodEnd).toBe(true);
+      expect(result.canceledAt).toBeInstanceOf(Date);
+      expect(paymentsService.cancelSubscription).toHaveBeenCalledWith(
+        "sub_stripe_123",
+        false,
+      );
+    });
+
+    it("should cancel subscription immediately when requested", async () => {
+      const canceledStripe = {
+        ...mockStripeSubscription,
+        status: "canceled",
+        cancel_at_period_end: false,
+      };
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      paymentsService.cancelSubscription.mockResolvedValue(canceledStripe as any);
+      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+
+      await service.cancelSubscription("user-123", true);
+
+      expect(paymentsService.cancelSubscription).toHaveBeenCalledWith(
+        "sub_stripe_123",
+        true,
+      );
+      expect(userRepo.update).toHaveBeenCalledWith(
+        "user-123",
+        expect.objectContaining({
+          subscriptionStatus: expect.any(String),
+        }),
+      );
+    });
+  });
+
+  describe("resumeSubscription", () => {
+    it("should throw BadRequestException if no subscription to resume", async () => {
+      subscriptionRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.resumeSubscription("user-123"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("should throw BadRequestException if subscription not active with cancelAtPeriodEnd", async () => {
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+        status: "active",
+        cancelAtPeriodEnd: false, // not canceling
+      } as any);
+
+      await expect(
+        service.resumeSubscription("user-123"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("should throw BadRequestException for mobile subscriptions", async () => {
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+        cancelAtPeriodEnd: true,
+        stripeSubscriptionId: null,
+        platform: "android",
+      } as any);
+
+      await expect(
+        service.resumeSubscription("user-123"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("should resume a canceled subscription successfully", async () => {
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+        cancelAtPeriodEnd: true,
+        canceledAt: new Date(),
+      } as any);
+      paymentsService.resumeSubscription.mockResolvedValue({} as any);
+      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+
+      const result = await service.resumeSubscription("user-123");
+
+      expect(result.cancelAtPeriodEnd).toBe(false);
+      expect(result.canceledAt).toBeNull();
+      expect(paymentsService.resumeSubscription).toHaveBeenCalledWith(
+        "sub_stripe_123",
+      );
+    });
+  });
+
+  describe("handleRenewal", () => {
+    it("should silently return if subscription not found", async () => {
+      subscriptionRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.handleRenewal("sub_nonexistent"),
+      ).resolves.toBeUndefined();
+    });
+
+    it("should update subscription period from Stripe", async () => {
+      const renewedStripe = {
+        ...mockStripeSubscription,
+        current_period_start: Math.floor(Date.now() / 1000),
+        current_period_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+      };
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+        plan: mockPlan,
+      } as any);
+      paymentsService.getSubscription.mockResolvedValue(renewedStripe as any);
+      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+      userRepo.findOne.mockResolvedValue({ id: "user-123", creditsBalance: 100 } as any);
+      transactionRepo.create.mockReturnValue({} as any);
+      transactionRepo.save.mockResolvedValue({} as any);
+
+      await service.handleRenewal("sub_stripe_123");
+
+      expect(paymentsService.getSubscription).toHaveBeenCalledWith(
+        "sub_stripe_123",
+      );
+      expect(subscriptionRepo.save).toHaveBeenCalled();
+    });
+  });
+
+  describe("handleExpiration", () => {
+    it("should silently return if subscription not found", async () => {
+      subscriptionRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.handleExpiration("sub_nonexistent"),
+      ).resolves.toBeUndefined();
+    });
+
+    it("should mark subscription as canceled and downgrade user", async () => {
+      subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
+      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+
+      await service.handleExpiration("sub_stripe_123");
+
+      expect(subscriptionRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "canceled" }),
+      );
+      expect(userRepo.update).toHaveBeenCalledWith(
+        "user-123",
+        expect.objectContaining({
+          subscriptionStatus: expect.any(String),
+        }),
+      );
+    });
+  });
+
+  describe("getHistory", () => {
+    it("should return subscription history sorted by date", async () => {
+      const subs = [mockSubscription, { ...mockSubscription, id: "sub-456" }];
+      subscriptionRepo.find.mockResolvedValue(subs as any);
+
+      const result = await service.getHistory("user-123");
+
+      expect(result).toEqual(subs);
+      expect(subscriptionRepo.find).toHaveBeenCalledWith({
+        where: { userId: "user-123" },
+        relations: ["plan"],
+        order: { createdAt: "DESC" },
+      });
     });
   });
 });

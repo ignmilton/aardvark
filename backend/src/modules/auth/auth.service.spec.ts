@@ -18,8 +18,8 @@ describe("AuthService", () => {
   let service: AuthService;
   let userRepository: jest.Mocked<Repository<User>>;
   let jwtService: jest.Mocked<JwtService>;
-  let _configService: jest.Mocked<ConfigService>;
-  let _mailService: jest.Mocked<MailService>;
+  let configService: jest.Mocked<ConfigService>;
+  let mailService: jest.Mocked<MailService>;
 
   const mockUser: Partial<User> = {
     id: "test-user-id",
@@ -87,8 +87,8 @@ describe("AuthService", () => {
     service = module.get<AuthService>(AuthService);
     userRepository = module.get(getRepositoryToken(User));
     jwtService = module.get(JwtService);
-    _configService = module.get(ConfigService);
-    _mailService = module.get(MailService);
+    configService = module.get(ConfigService);
+    mailService = module.get(MailService);
   });
 
   describe("register", () => {
@@ -371,6 +371,112 @@ describe("AuthService", () => {
           passwordResetToken: null,
           passwordResetExpires: null,
         }),
+      );
+    });
+  });
+
+  describe("login", () => {
+    it("should update lastLoginAt and return tokens", async () => {
+      userRepository.update.mockResolvedValue({} as any);
+
+      const result = await service.login(mockUser as User);
+
+      expect(result).toHaveProperty("accessToken");
+      expect(result).toHaveProperty("refreshToken");
+      expect(result).toHaveProperty("user");
+      expect(userRepository.update).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.objectContaining({
+          lastLoginAt: expect.any(Date),
+          loginAttempts: 0,
+        }),
+      );
+    });
+
+    it("should include user data in response", async () => {
+      userRepository.update.mockResolvedValue({} as any);
+
+      const result = await service.login(mockUser as User);
+
+      expect(result.user).toEqual(mockUser);
+    });
+  });
+
+  describe("generateTokens", () => {
+    it("should return access and refresh tokens with expiration", async () => {
+      jwtService.signAsync
+        .mockResolvedValueOnce("access-token-123")
+        .mockResolvedValueOnce("refresh-token-123");
+
+      const result = await service.generateTokens(mockUser as User);
+
+      expect(result.accessToken).toBe("access-token-123");
+      expect(result.refreshToken).toBe("refresh-token-123");
+      expect(result.expiresIn).toBe(900); // 15m = 900s
+    });
+
+    it("should sign tokens with correct payload", async () => {
+      await service.generateTokens(mockUser as User);
+
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: mockUser.id,
+          username: mockUser.username,
+          role: mockUser.role,
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("getCurrentUser", () => {
+    it("should return user by ID", async () => {
+      userRepository.findOne.mockResolvedValue(mockUser as User);
+
+      const result = await service.getCurrentUser("test-user-id");
+
+      expect(result).toEqual(mockUser);
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { id: "test-user-id" },
+      });
+    });
+
+    it("should throw UnauthorizedException if user not found", async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getCurrentUser("nonexistent"),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe("requestPasswordReset", () => {
+    it("should silently succeed for non-existent email (prevent enumeration)", async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.requestPasswordReset("nonexistent@example.com"),
+      ).resolves.toBeUndefined();
+
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it("should generate reset token and send email for existing user", async () => {
+      userRepository.findOne.mockResolvedValue(mockUser as User);
+      userRepository.update.mockResolvedValue({} as any);
+
+      await service.requestPasswordReset("test@example.com");
+
+      expect(userRepository.update).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.objectContaining({
+          passwordResetToken: expect.any(String),
+          passwordResetExpires: expect.any(Date),
+        }),
+      );
+      expect(mailService.sendPasswordReset).toHaveBeenCalledWith(
+        "test@example.com",
+        expect.stringContaining("token="),
       );
     });
   });
