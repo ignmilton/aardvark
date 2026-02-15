@@ -100,29 +100,69 @@ export class UploadService {
 
   /**
    * Validate image magic bytes to prevent MIME spoofing.
+   * Covers JPEG, PNG, GIF, WebP, and AVIF formats.
    */
   private validateImageMagicBytes(file: Express.Multer.File): void {
-    if (!file.buffer || file.buffer.length < 4) return;
+    if (!file.buffer || file.buffer.length < 12) return;
 
-    const bytes = file.buffer.slice(0, 8);
+    const bytes = file.buffer.slice(0, 12);
+
+    // Standard signature-based validation
     const signatures: Record<string, number[][]> = {
       "image/jpeg": [[0xff, 0xd8, 0xff]],
       "image/png": [[0x89, 0x50, 0x4e, 0x47]],
       "image/gif": [[0x47, 0x49, 0x46, 0x38]],
-      "image/webp": [], // RIFF header checked separately
     };
 
     const expectedSigs = signatures[file.mimetype];
-    if (!expectedSigs || expectedSigs.length === 0) return;
 
-    const matches = expectedSigs.some((sig) =>
-      sig.every((byte, index) => bytes[index] === byte),
-    );
-
-    if (!matches) {
-      throw new BadRequestException(
-        "File content does not match its declared type. Possible file spoofing detected.",
+    if (expectedSigs) {
+      const matches = expectedSigs.some((sig) =>
+        sig.every((byte, index) => bytes[index] === byte),
       );
+      if (!matches) {
+        throw new BadRequestException(
+          "File content does not match its declared type. Possible file spoofing detected.",
+        );
+      }
+      return;
+    }
+
+    // WebP: RIFF....WEBP (bytes 0-3 = "RIFF", bytes 8-11 = "WEBP")
+    if (file.mimetype === "image/webp") {
+      const isRiff =
+        bytes[0] === 0x52 &&
+        bytes[1] === 0x49 &&
+        bytes[2] === 0x46 &&
+        bytes[3] === 0x46;
+      const isWebp =
+        bytes[8] === 0x57 &&
+        bytes[9] === 0x45 &&
+        bytes[10] === 0x42 &&
+        bytes[11] === 0x50;
+      if (!isRiff || !isWebp) {
+        throw new BadRequestException(
+          "File content does not match its declared type. Possible file spoofing detected.",
+        );
+      }
+      return;
+    }
+
+    // AVIF: ISO BMFF container with "ftyp" box, brand "avif" or "avis"
+    if (file.mimetype === "image/avif") {
+      // Bytes 4-7 should be "ftyp", bytes 8-11 should be "avif" or "avis"
+      const ftyp =
+        bytes[4] === 0x66 &&
+        bytes[5] === 0x74 &&
+        bytes[6] === 0x79 &&
+        bytes[7] === 0x70;
+      const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+      if (!ftyp || (brand !== "avif" && brand !== "avis")) {
+        throw new BadRequestException(
+          "File content does not match its declared type. Possible file spoofing detected.",
+        );
+      }
+      return;
     }
   }
 

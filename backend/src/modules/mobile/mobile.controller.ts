@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   ApiTags,
   ApiOperation,
@@ -109,6 +110,7 @@ export class MobileController {
    * Verify iOS App Store receipt
    */
   @Post("verify-ios")
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: "Verify iOS App Store receipt" })
   @ApiResponse({ status: 200, description: "Verification result" })
   async verifyIosReceipt(
@@ -122,6 +124,7 @@ export class MobileController {
    * Verify Android Google Play receipt
    */
   @Post("verify-android")
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: "Verify Android Google Play receipt" })
   @ApiResponse({ status: 200, description: "Verification result" })
   async verifyAndroidReceipt(

@@ -87,11 +87,18 @@ async function bootstrap() {
   );
   app.use(compression());
 
-  // CORS configuration
+  // CORS configuration - explicit whitelist in all environments
+  const corsOrigin = isProduction
+    ? configService.get("CORS_ORIGIN", "https://aardvark.com")
+    : [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+      ];
   app.enableCors({
-    origin: isProduction
-      ? configService.get("CORS_ORIGIN", "https://aardvark.com")
-      : true, // Allow all origins in development for mobile testing
+    origin: corsOrigin,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],

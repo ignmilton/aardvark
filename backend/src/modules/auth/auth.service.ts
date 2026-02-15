@@ -239,13 +239,19 @@ export class AuthService {
   }
 
   /**
-   * Refresh access token using refresh token
+   * Refresh access token using refresh token.
+   * Implements token rotation: issues a new refresh token each time
+   * to limit the window of compromise for stolen refresh tokens.
    */
   async refreshToken(
-    refreshToken: string,
-  ): Promise<{ accessToken: string; expiresIn: number }> {
+    refreshTokenStr: string,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+  }> {
     try {
-      const payload = await this.jwtService.verifyAsync(refreshToken, {
+      const payload = await this.jwtService.verifyAsync(refreshTokenStr, {
         secret: this.configService.get("jwt.refreshSecret"),
       });
 
@@ -268,24 +274,8 @@ export class AuthService {
         throw new UnauthorizedException("Account has been deactivated");
       }
 
-      const newPayload = {
-        sub: user.id,
-        username: user.username,
-        role: user.role,
-      };
-
-      const accessExpiration = this.configService.get(
-        "jwt.accessExpiration",
-        "15m",
-      );
-      const accessToken = await this.jwtService.signAsync(newPayload, {
-        expiresIn: accessExpiration,
-      });
-
-      return {
-        accessToken,
-        expiresIn: this.parseExpirationToSeconds(accessExpiration),
-      };
+      // Token rotation: generate new access + refresh token pair
+      return this.generateTokens(user);
     } catch {
       throw new UnauthorizedException("Invalid refresh token");
     }
@@ -336,6 +326,9 @@ export class AuthService {
 
     await this.userRepository.update(userId, {
       passwordHash: newPasswordHash,
+      // Invalidate existing sessions by updating passwordChangedAt;
+      // JWT strategy should reject tokens issued before this timestamp
+      passwordChangedAt: new Date(),
     });
   }
 

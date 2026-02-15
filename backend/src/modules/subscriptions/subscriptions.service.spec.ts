@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, DataSource } from "typeorm";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
 import { SubscriptionsService } from "./subscriptions.service";
 import {
@@ -96,6 +96,20 @@ describe("SubscriptionsService", () => {
             getSubscription: jest.fn(),
             cancelSubscription: jest.fn(),
             resumeSubscription: jest.fn(),
+          },
+        },
+        {
+          provide: DataSource,
+          useValue: {
+            transaction: jest.fn((cb) =>
+              cb({
+                getRepository: jest.fn().mockImplementation((entity) => {
+                  if (entity === User) return userRepo;
+                  if (entity === Transaction) return transactionRepo;
+                  return {};
+                }),
+              }),
+            ),
           },
         },
       ],

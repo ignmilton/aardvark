@@ -1314,6 +1314,16 @@ export class AnalyticsService {
   }
 
   /**
+   * Escape a value for safe CSV output.
+   * Prevents CSV injection by escaping quotes and wrapping in quotes.
+   */
+  private escapeCsvField(value: string | number | null | undefined): string {
+    if (value === null || value === undefined) return '""';
+    const str = String(value).replace(/"/g, '""');
+    return `"${str}"`;
+  }
+
+  /**
    * Convert data to CSV format
    */
   private convertToCSV(data: any, type: string): string {
@@ -1325,14 +1335,29 @@ export class AnalyticsService {
       );
       for (const story of data) {
         lines.push(
-          `"${story.id}","${story.title}",${story.viewCount},${story.uniqueReaders},${story.averageRating},${story.completionRate},${story.earnings}`,
+          [
+            this.escapeCsvField(story.id),
+            this.escapeCsvField(story.title),
+            this.escapeCsvField(story.viewCount),
+            this.escapeCsvField(story.uniqueReaders),
+            this.escapeCsvField(story.averageRating),
+            this.escapeCsvField(story.completionRate),
+            this.escapeCsvField(story.earnings),
+          ].join(","),
         );
       }
     } else if (type === "earnings" && data.byStory) {
       lines.push("Story ID,Story Title,Gross,Fees,Net,Transaction Count");
       for (const story of data.byStory) {
         lines.push(
-          `"${story.storyId}","${story.storyTitle}",${story.gross},${story.fees},${story.net},${story.transactionCount}`,
+          [
+            this.escapeCsvField(story.storyId),
+            this.escapeCsvField(story.storyTitle),
+            this.escapeCsvField(story.gross),
+            this.escapeCsvField(story.fees),
+            this.escapeCsvField(story.net),
+            this.escapeCsvField(story.transactionCount),
+          ].join(","),
         );
       }
     } else {
