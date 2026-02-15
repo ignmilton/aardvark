@@ -83,11 +83,18 @@ export class Subscription {
   plan: SubscriptionPlan;
 
   @Index()
-  @Column()
-  stripeSubscriptionId: string;
+  @Column({ nullable: true })
+  stripeSubscriptionId: string | null;
 
-  @Column()
-  stripeCustomerId: string;
+  @Column({ nullable: true })
+  stripeCustomerId: string | null;
+
+  // Mobile subscription support
+  @Column({ type: "varchar", length: 20, nullable: true })
+  platform: "web" | "ios" | "android" | null;
+
+  @Column({ nullable: true })
+  platformSubscriptionId: string | null;
 
   @Index()
   @Column({

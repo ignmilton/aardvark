@@ -280,12 +280,27 @@ All 22 entities verified against design specification:
    - **Fix Applied:** Added `"@elastic/elasticsearch": "^8.11.0"` to backend dependencies
    - **File:** `backend/package.json`
 
+### Issues Found & Fixed (February 2026 Re-Audit)
+
+1. **Missing Story `slug` Field**
+   - **Issue:** Story entity lacked a `slug` column; `findBySlug` used hacky title transformation
+   - **Fix Applied:** Added `slug` column to `story.entity.ts`, auto-generated with uniqueness in `stories.service.ts`
+   - **Files:** `backend/src/database/entities/story.entity.ts`, `backend/src/modules/stories/stories.service.ts`
+
+2. **Missing Admin Page Routes**
+   - **Issue:** Admin components existed (admin-layout, admin-sidebar, etc.) but no page routes
+   - **Fix Applied:** Created 7 admin pages: dashboard, moderation-queue, reports, users, analytics, settings, redirect
+   - **Files:** `frontend/src/app/admin/**/page.tsx`
+
+3. **False "Removal Compliance Score: 100%" Claim**
+   - **Issue:** IMPLEMENTATION_AUDIT_REPORT falsely claimed state variable fields were removed
+   - **Actual:** `conditionJson`/`stateEffects` on Choice and `stateVariables` on ReaderProgress are present and actively used
+   - **Fix Applied:** Updated IMPLEMENTATION_AUDIT_REPORT and PRODUCTION_ARCHITECTURE.md to reflect reality
+
 ### Minor (Not Blocking)
 
 1. **Razorpay Integration**
-   - Status: Not implemented
-   - Impact: India/UPI payments unavailable
-   - Recommendation: Add if targeting Indian market
+   - Status: Implemented (webhooks + verification present)
 
 2. **Ad Network Integration**
    - Status: Infrastructure ready, needs AdSense/AdMob API keys
@@ -293,9 +308,8 @@ All 22 entities verified against design specification:
    - Recommendation: Add API keys in environment variables
 
 3. **Full i18n Setup**
-   - Status: Framework installed (next-i18next), partial implementation
-   - Impact: Non-English users
-   - Recommendation: Complete translation files for Phase 2
+   - Status: 10 languages supported (en, es, fr, de, pt, ja, ko, zh, hi, ar) with RTL support
+   - Recommendation: Review translation quality for non-English languages
 
 ---
 

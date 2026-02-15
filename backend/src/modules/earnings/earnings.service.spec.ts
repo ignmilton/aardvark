@@ -391,6 +391,175 @@ describe("EarningsService", () => {
     });
   });
 
+  describe("getEarningsByStory", () => {
+    it("should return earnings grouped by story", async () => {
+      (earningRepo.createQueryBuilder as jest.Mock).mockReturnValue({
+        leftJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        addGroupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { storyId: "story-1", title: "First Story", amount: "5000" },
+          { storyId: "story-2", title: "Second Story", amount: "3000" },
+        ]),
+      });
+
+      const result = await service.getEarningsByStory("author-123", "month");
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        storyId: "story-1",
+        title: "First Story",
+        amount: 5000,
+      });
+      expect(result[1]).toEqual({
+        storyId: "story-2",
+        title: "Second Story",
+        amount: 3000,
+      });
+    });
+
+    it("should handle null title as Unknown Story", async () => {
+      (earningRepo.createQueryBuilder as jest.Mock).mockReturnValue({
+        leftJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        addGroupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { storyId: "story-1", title: null, amount: "1000" },
+        ]),
+      });
+
+      const result = await service.getEarningsByStory("author-123", "all_time");
+
+      expect(result[0].title).toBe("Unknown Story");
+    });
+  });
+
+  describe("updateAccountStatus", () => {
+    it("should silently return if account not found", async () => {
+      accountRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateAccountStatus("acct_nonexistent"),
+      ).resolves.toBeUndefined();
+    });
+
+    it("should update account status from Stripe", async () => {
+      accountRepo.findOne.mockResolvedValue(mockPayoutAccount as any);
+      paymentsService.getConnectAccount.mockResolvedValue({
+        charges_enabled: true,
+        payouts_enabled: true,
+        requirements: { disabled_reason: null, currently_due: [] },
+      } as any);
+      accountRepo.save.mockImplementation((a) => Promise.resolve(a as any));
+
+      await service.updateAccountStatus("acct_123");
+
+      expect(paymentsService.getConnectAccount).toHaveBeenCalledWith("acct_123");
+      expect(accountRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chargesEnabled: true,
+          payoutsEnabled: true,
+          accountStatus: "active",
+        }),
+      );
+    });
+
+    it("should set restricted status when requirements are due", async () => {
+      accountRepo.findOne.mockResolvedValue(mockPayoutAccount as any);
+      paymentsService.getConnectAccount.mockResolvedValue({
+        charges_enabled: false,
+        payouts_enabled: false,
+        requirements: { disabled_reason: null, currently_due: ["id_document"] },
+      } as any);
+      accountRepo.save.mockImplementation((a) => Promise.resolve(a as any));
+
+      await service.updateAccountStatus("acct_123");
+
+      expect(accountRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accountStatus: "restricted",
+        }),
+      );
+    });
+  });
+
+  describe("requestPayout - additional paths", () => {
+    it("should throw BadRequestException if pending payout already exists", async () => {
+      const mockManager = {
+        getRepository: jest.fn().mockImplementation((entity) => {
+          if (entity === AuthorPayoutAccount) {
+            return {
+              findOne: jest.fn().mockResolvedValue(mockPayoutAccount),
+            };
+          }
+          if (entity === Payout) {
+            return {
+              findOne: jest.fn().mockResolvedValue({ id: "payout-pending", status: "pending" }),
+            };
+          }
+          return {};
+        }),
+      };
+      dataSource.transaction.mockImplementation((cb: any) => cb(mockManager));
+
+      await expect(service.requestPayout("author-123")).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("should create payout successfully with full balance", async () => {
+      const mockManager = {
+        getRepository: jest.fn().mockImplementation((entity) => {
+          if (entity === AuthorPayoutAccount) {
+            return {
+              findOne: jest.fn().mockResolvedValue(mockPayoutAccount),
+            };
+          }
+          if (entity === Payout) {
+            return {
+              findOne: jest.fn().mockResolvedValue(null),
+              create: jest.fn().mockImplementation((data) => ({ id: "payout-new", ...data })),
+              save: jest.fn().mockImplementation((data) => Promise.resolve(data)),
+              createQueryBuilder: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnThis(),
+                where: jest.fn().mockReturnThis(),
+                andWhere: jest.fn().mockReturnThis(),
+                getRawOne: jest.fn().mockResolvedValue({ total: "0" }),
+              }),
+            };
+          }
+          if (entity === AuthorEarning) {
+            return {
+              createQueryBuilder: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnThis(),
+                where: jest.fn().mockReturnThis(),
+                getRawOne: jest.fn().mockResolvedValue({ total: "50000" }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+      dataSource.transaction.mockImplementation((cb: any) => cb(mockManager));
+
+      const result = await service.requestPayout("author-123");
+
+      expect(result).toBeDefined();
+      expect(result.amount).toBe(50000);
+      expect(result.status).toBe("pending");
+    });
+  });
+
   describe("getPayoutHistory", () => {
     it("should return payout history sorted by date", async () => {
       const payouts = [

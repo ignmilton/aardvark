@@ -181,6 +181,11 @@ export class SubscriptionsService {
       throw new NotFoundException("No active subscription found");
     }
 
+    if (!subscription.stripeSubscriptionId) {
+      throw new BadRequestException(
+        "Mobile subscriptions must be canceled through their respective app store.",
+      );
+    }
     // Cancel in Stripe
     const stripeSubscription = await this.paymentsService.cancelSubscription(
       subscription.stripeSubscriptionId,
@@ -221,6 +226,11 @@ export class SubscriptionsService {
       throw new BadRequestException("No subscription to resume");
     }
 
+    if (!subscription.stripeSubscriptionId) {
+      throw new BadRequestException(
+        "Mobile subscriptions must be managed through their respective app store.",
+      );
+    }
     // Resume in Stripe
     await this.paymentsService.resumeSubscription(
       subscription.stripeSubscriptionId,

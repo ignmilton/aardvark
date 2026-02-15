@@ -97,6 +97,7 @@ export interface Story {
   id: string;
   authorId: string;
   title: string;
+  slug: string;
   description: string;
   synopsis: string; // Longer description for story page
   coverImageUrl: string | null;

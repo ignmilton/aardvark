@@ -393,6 +393,93 @@ describe("CreditsService", () => {
     });
   });
 
+  describe("getTransactionHistory", () => {
+    it("should return paginated transaction history", async () => {
+      const txns = [
+        { id: "tx-1", type: TransactionType.CREDIT_PURCHASE, amount: 100 },
+        { id: "tx-2", type: TransactionType.DAILY_BONUS, amount: 10 },
+      ];
+      (transactionRepo.createQueryBuilder as jest.Mock).mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([txns, 2]),
+      });
+
+      const result = await service.getTransactionHistory("user-123", {
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result.transactions).toEqual(txns);
+      expect(result.total).toBe(2);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(20);
+    });
+
+    it("should filter by transaction type", async () => {
+      const mockQb = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      (transactionRepo.createQueryBuilder as jest.Mock).mockReturnValue(mockQb);
+
+      await service.getTransactionHistory("user-123", {
+        page: 1,
+        limit: 20,
+        type: TransactionType.CREDIT_PURCHASE,
+      });
+
+      expect(mockQb.andWhere).toHaveBeenCalledWith(
+        "tx.type = :type",
+        { type: TransactionType.CREDIT_PURCHASE },
+      );
+    });
+
+    it("should cap limit to 100", async () => {
+      const mockQb = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      (transactionRepo.createQueryBuilder as jest.Mock).mockReturnValue(mockQb);
+
+      const result = await service.getTransactionHistory("user-123", {
+        page: 1,
+        limit: 500,
+      });
+
+      expect(result.limit).toBe(100);
+      expect(mockQb.take).toHaveBeenCalledWith(100);
+    });
+  });
+
+  describe("addCredits", () => {
+    it("should add credits to user balance via transaction", async () => {
+      userRepo.findOne.mockResolvedValue(mockUser as any);
+      transactionRepo.create.mockReturnValue({ id: "tx-new" } as any);
+      transactionRepo.save.mockResolvedValue({ id: "tx-new" } as any);
+
+      const result = await service.addCredits(
+        "user-123",
+        50,
+        TransactionType.DAILY_BONUS,
+        "Daily bonus",
+      );
+
+      expect(result).toBeDefined();
+    });
+  });
+
   describe("getTodayAdWatchCount", () => {
     it("should return count of ad watches today", async () => {
       transactionRepo.count.mockResolvedValue(3);

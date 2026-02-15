@@ -360,12 +360,12 @@ The previous IMPLEMENTATION_AUDIT_REPORT.md (dated 2026-01-29) contained **sever
 | Feature | Status | Notes |
 |---------|--------|-------|
 | StoryStateVariable entity | ✅ REMOVED | Confirmed not present |
-| stateEffects on segments | ✅ REMOVED | Simplified segment |
-| conditions on choices | ✅ REMOVED | Simplified choice |
-| requiredState on choices | ✅ REMOVED | No state conditions |
-| stateVariables on progress | ✅ REMOVED | Simplified progress |
+| stateEffects on segments | ✅ REMOVED | Not on segment entity |
+| conditionJson on choices | ❌ NOT REMOVED | `choice.entity.ts` line 50-51, used in `progress.service.ts` |
+| stateEffects on choices | ❌ NOT REMOVED | `choice.entity.ts` line 55-56, used in `progress.service.ts` |
+| stateVariables on progress | ❌ NOT REMOVED | `reader-progress.entity.ts` line 62-63, used in `progress.service.ts` |
 
-**Removal Compliance Score: 100%**
+**Removal Compliance Score: 40% (2/5)** - Three fields remain and are actively used by `progress.service.ts` for complex branching logic. PRODUCTION_ARCHITECTURE.md Section 8 is aspirational but the implementation retains state management for reader decision tracking.
 
 ### 5.2 Seed Data Compliance (Per PRODUCTION_ARCHITECTURE.md Section 9)
 

@@ -303,6 +303,9 @@ These 23 endpoints were completely non-functional until the fix:
 | 5 | Jest path mapping | **FIXED** |
 | 6 | Documentation versions | **FIXED** |
 | 7 | Integration tests | **ADDED** |
+| 8 | Story entity missing `slug` field | **FIXED** (Feb 2026 re-audit) |
+| 9 | Missing admin page routes (6 pages) | **FIXED** (Feb 2026 re-audit) |
+| 10 | False state-variable removal claims in docs | **FIXED** (Feb 2026 re-audit) |
 
 ---
 
