@@ -7,9 +7,9 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
-} from '@nestjs/common';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
-import { AICompanionService } from './ai-companion.service';
+} from "@nestjs/common";
+import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AICompanionService } from "./ai-companion.service";
 import {
   ContinueStoryDto,
   SuggestBranchesDto,
@@ -18,13 +18,13 @@ import {
   GenerateDialogueDto,
   SummarizeStoryDto,
   GeneratePlotIdeasDto,
-} from './dto';
+} from "./dto";
 
 /**
  * AI Companion Controller
  * Provides REST endpoints for AI-powered writing assistance
  */
-@Controller('ai')
+@Controller("ai")
 @UseGuards(JwtAuthGuard)
 export class AICompanionController {
   constructor(private readonly aiCompanionService: AICompanionService) {}
@@ -33,7 +33,7 @@ export class AICompanionController {
    * Continue story with AI generation
    * POST /ai/continue-story
    */
-  @Post('continue-story')
+  @Post("continue-story")
   @HttpCode(HttpStatus.OK)
   async continueStory(@Req() req: any, @Body() dto: ContinueStoryDto) {
     const userId = req.user.id;
@@ -55,7 +55,7 @@ export class AICompanionController {
    * Suggest story branches with AI
    * POST /ai/suggest-branches
    */
-  @Post('suggest-branches')
+  @Post("suggest-branches")
   @HttpCode(HttpStatus.OK)
   async suggestBranches(@Req() req: any, @Body() dto: SuggestBranchesDto) {
     const userId = req.user.id;
@@ -76,7 +76,7 @@ export class AICompanionController {
    * Improve writing with AI suggestions
    * POST /ai/improve-writing
    */
-  @Post('improve-writing')
+  @Post("improve-writing")
   @HttpCode(HttpStatus.OK)
   async improveWriting(@Req() req: any, @Body() dto: ImproveWritingDto) {
     const userId = req.user.id;
@@ -96,7 +96,7 @@ export class AICompanionController {
    * Generate character profile with AI
    * POST /ai/generate-character
    */
-  @Post('generate-character')
+  @Post("generate-character")
   @HttpCode(HttpStatus.OK)
   async generateCharacter(@Req() req: any, @Body() dto: GenerateCharacterDto) {
     const userId = req.user.id;
@@ -117,7 +117,7 @@ export class AICompanionController {
    * Generate dialogue options with AI
    * POST /ai/generate-dialogue
    */
-  @Post('generate-dialogue')
+  @Post("generate-dialogue")
   @HttpCode(HttpStatus.OK)
   async generateDialogue(@Req() req: any, @Body() dto: GenerateDialogueDto) {
     const userId = req.user.id;
@@ -138,7 +138,7 @@ export class AICompanionController {
    * Summarize story content with AI
    * POST /ai/summarize
    */
-  @Post('summarize')
+  @Post("summarize")
   @HttpCode(HttpStatus.OK)
   async summarizeStory(@Req() req: any, @Body() dto: SummarizeStoryDto) {
     const userId = req.user.id;
@@ -158,7 +158,7 @@ export class AICompanionController {
    * Generate plot ideas with AI
    * POST /ai/generate-plot-ideas
    */
-  @Post('generate-plot-ideas')
+  @Post("generate-plot-ideas")
   @HttpCode(HttpStatus.OK)
   async generatePlotIdeas(@Req() req: any, @Body() dto: GeneratePlotIdeasDto) {
     const userId = req.user.id;
@@ -179,13 +179,13 @@ export class AICompanionController {
    * Check remaining AI credits
    * GET /ai/credits
    */
-  @Get('credits')
+  @Get("credits")
   async getCredits(@Req() req: any) {
     const userId = req.user.id;
     // Use a default operation to check credits
     const result = await this.aiCompanionService.checkCredits(
       userId,
-      'continue_story' as any,
+      "continue_story" as any,
     );
 
     return {

@@ -23,8 +23,8 @@ export default function AboutPage() {
         <section className="mb-16">
           <h2 className="text-2xl font-bold mb-4">Our Mission</h2>
           <p className="text-muted-foreground text-lg leading-relaxed">
-            Aardvark was built with a simple belief: stories are more engaging when you're part of them.
-            We're creating a platform where readers don't just consume content—they shape it. Every choice
+            Aardvark was built with a simple belief: stories are more engaging when you&apos;re part of them.
+            We&apos;re creating a platform where readers don&apos;t just consume content—they shape it. Every choice
             leads to a new path, every decision changes the outcome, and every reader experiences
             something unique.
           </p>

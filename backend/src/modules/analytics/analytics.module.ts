@@ -1,5 +1,5 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import {
   Story,
   StorySegment,
@@ -9,9 +9,9 @@ import {
   Transaction,
   Choice,
   User,
-} from '@entities';
-import { AnalyticsController } from './analytics.controller';
-import { AnalyticsService } from './analytics.service';
+} from "@entities";
+import { AnalyticsController } from "./analytics.controller";
+import { AnalyticsService } from "./analytics.service";
 
 /**
  * Analytics module providing comprehensive analytics and reporting features

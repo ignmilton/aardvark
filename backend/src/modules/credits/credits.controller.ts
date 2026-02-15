@@ -8,18 +8,18 @@ import {
   UseGuards,
   BadRequestException,
   Inject,
-} from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
-import { randomBytes } from 'crypto';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
-import { CreditsService } from './credits.service';
+} from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { Cache } from "cache-manager";
+import { randomBytes } from "crypto";
+import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { CreditsService } from "./credits.service";
 import {
   UnlockStoryDto,
   TipAuthorDto,
   AdWatchRewardDto,
   TransactionHistoryQueryDto,
-} from './dto';
+} from "./dto";
 
 const AD_MIN_DURATION_MS = 25_000; // Minimum 25 seconds must elapse
 const AD_SESSION_TTL_MS = 600_000; // 10 minute session expiry
@@ -29,7 +29,7 @@ const MAX_ADS_PER_DAY = 50; // Maximum ads a user can watch per day
  * Controller for credit operations.
  * Handles balance inquiries, spending, and earning credits.
  */
-@Controller('credits')
+@Controller("credits")
 @UseGuards(JwtAuthGuard)
 export class CreditsController {
   constructor(
@@ -41,7 +41,7 @@ export class CreditsController {
    * Get current credit balance
    * GET /credits/balance
    */
-  @Get('balance')
+  @Get("balance")
   async getBalance(@Req() req: any) {
     const balance = await this.creditsService.getBalance(req.user.id);
     return { success: true, data: balance };
@@ -51,12 +51,15 @@ export class CreditsController {
    * Get transaction history
    * GET /credits/transactions
    */
-  @Get('transactions')
+  @Get("transactions")
   async getTransactions(
     @Req() req: any,
     @Query() query: TransactionHistoryQueryDto,
   ) {
-    const result = await this.creditsService.getTransactionHistory(req.user.id, query);
+    const result = await this.creditsService.getTransactionHistory(
+      req.user.id,
+      query,
+    );
     return {
       success: true,
       data: result.transactions,
@@ -73,7 +76,7 @@ export class CreditsController {
    * Get available credit bundles
    * GET /credits/bundles
    */
-  @Get('bundles')
+  @Get("bundles")
   async getBundles() {
     const bundles = await this.creditsService.getBundles();
     return {
@@ -95,12 +98,12 @@ export class CreditsController {
    * Check if a story is unlocked
    * GET /credits/unlock-status?storyId=xxx
    */
-  @Get('unlock-status')
-  async checkUnlockStatus(
-    @Req() req: any,
-    @Query('storyId') storyId: string,
-  ) {
-    const unlocked = await this.creditsService.isStoryUnlocked(req.user.id, storyId);
+  @Get("unlock-status")
+  async checkUnlockStatus(@Req() req: any, @Query("storyId") storyId: string) {
+    const unlocked = await this.creditsService.isStoryUnlocked(
+      req.user.id,
+      storyId,
+    );
     return { success: true, data: { unlocked } };
   }
 
@@ -108,11 +111,8 @@ export class CreditsController {
    * Unlock a premium story
    * POST /credits/unlock-story
    */
-  @Post('unlock-story')
-  async unlockStory(
-    @Req() req: any,
-    @Body() dto: UnlockStoryDto,
-  ) {
+  @Post("unlock-story")
+  async unlockStory(@Req() req: any, @Body() dto: UnlockStoryDto) {
     const transaction = await this.creditsService.unlockStory(req.user.id, dto);
     return {
       success: true,
@@ -127,11 +127,8 @@ export class CreditsController {
    * Tip an author
    * POST /credits/tip
    */
-  @Post('tip')
-  async tipAuthor(
-    @Req() req: any,
-    @Body() dto: TipAuthorDto,
-  ) {
+  @Post("tip")
+  async tipAuthor(@Req() req: any, @Body() dto: TipAuthorDto) {
     const transaction = await this.creditsService.tipAuthor(req.user.id, dto);
     return {
       success: true,
@@ -146,7 +143,7 @@ export class CreditsController {
    * Claim daily bonus
    * POST /credits/daily-bonus
    */
-  @Post('daily-bonus')
+  @Post("daily-bonus")
   async claimDailyBonus(@Req() req: any) {
     const transaction = await this.creditsService.claimDailyBonus(req.user.id);
     return {
@@ -165,7 +162,7 @@ export class CreditsController {
    * Uses Redis for multi-instance support.
    * POST /credits/ad-session
    */
-  @Post('ad-session')
+  @Post("ad-session")
   async startAdSession(@Req() req: any) {
     const userId = req.user.id;
 
@@ -178,7 +175,7 @@ export class CreditsController {
     }
 
     // Generate a cryptographically secure session token
-    const sessionToken = `${userId}_${Date.now()}_${randomBytes(16).toString('hex')}`;
+    const sessionToken = `${userId}_${Date.now()}_${randomBytes(16).toString("hex")}`;
 
     // Store session in Redis with TTL
     const cacheKey = `ad_session:${sessionToken}`;
@@ -219,7 +216,7 @@ export class CreditsController {
    */
   private async incrementDailyAdCount(userId: string): Promise<void> {
     const cacheKey = `ad_daily_count:${userId}`;
-    const current = await this.cacheManager.get<number>(cacheKey) || 0;
+    const current = (await this.cacheManager.get<number>(cacheKey)) || 0;
 
     // Calculate TTL until end of day
     const now = new Date();
@@ -235,7 +232,7 @@ export class CreditsController {
    * Uses Redis for session verification and enforces daily limits.
    * POST /credits/ad-reward
    */
-  @Post('ad-reward')
+  @Post("ad-reward")
   async rewardAdWatch(
     @Req() req: any,
     @Body() dto: AdWatchRewardDto & { sessionToken?: string },
@@ -253,20 +250,23 @@ export class CreditsController {
     // Verify session token if provided
     if (dto.sessionToken) {
       const cacheKey = `ad_session:${dto.sessionToken}`;
-      const session = await this.cacheManager.get<{ userId: string; startedAt: number }>(cacheKey);
+      const session = await this.cacheManager.get<{
+        userId: string;
+        startedAt: number;
+      }>(cacheKey);
 
       if (!session) {
-        throw new BadRequestException('Invalid or expired ad session');
+        throw new BadRequestException("Invalid or expired ad session");
       }
       if (session.userId !== userId) {
-        throw new BadRequestException('Session token mismatch');
+        throw new BadRequestException("Session token mismatch");
       }
 
       // Verify minimum time has elapsed (prevents instant claims)
       const elapsed = Date.now() - session.startedAt;
       if (elapsed < AD_MIN_DURATION_MS) {
         throw new BadRequestException(
-          'Ad not watched long enough. Please watch the full ad.',
+          "Ad not watched long enough. Please watch the full ad.",
         );
       }
 
@@ -279,7 +279,7 @@ export class CreditsController {
     if (!transaction) {
       return {
         success: true,
-        data: { creditsAwarded: 0, message: 'Ad not completed' },
+        data: { creditsAwarded: 0, message: "Ad not completed" },
       };
     }
 

@@ -3,10 +3,10 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { UserBan } from '@/database/entities';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { UserBan } from "@/database/entities";
 
 /**
  * Guard to check if the authenticated user is banned.
@@ -57,14 +57,14 @@ export class BanCheckGuard implements CanActivate {
       }
 
       // Regular ban - deny access
-      const reason = activeBan.details || 'Your account has been suspended.';
+      const reason = activeBan.details || "Your account has been suspended.";
       const expiryMsg = activeBan.isPermanent
-        ? 'This ban is permanent.'
+        ? "This ban is permanent."
         : `Your ban expires on ${activeBan.expiresAt?.toISOString()}.`;
 
       throw new ForbiddenException({
         statusCode: 403,
-        error: 'Forbidden',
+        error: "Forbidden",
         message: `Account suspended: ${reason}`,
         details: expiryMsg,
         banId: activeBan.id,

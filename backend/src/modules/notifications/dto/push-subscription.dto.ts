@@ -1,26 +1,31 @@
-import { IsString, IsNotEmpty, IsObject, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsString,
+  IsNotEmpty,
+  IsObject,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApiProperty } from "@nestjs/swagger";
 
 class PushSubscriptionKeys {
-  @ApiProperty({ description: 'P256DH key' })
+  @ApiProperty({ description: "P256DH key" })
   @IsString()
   @IsNotEmpty()
   p256dh: string;
 
-  @ApiProperty({ description: 'Auth key' })
+  @ApiProperty({ description: "Auth key" })
   @IsString()
   @IsNotEmpty()
   auth: string;
 }
 
 export class PushSubscribeDto {
-  @ApiProperty({ description: 'Push subscription endpoint URL' })
+  @ApiProperty({ description: "Push subscription endpoint URL" })
   @IsString()
   @IsNotEmpty()
   endpoint: string;
 
-  @ApiProperty({ description: 'Subscription keys', type: PushSubscriptionKeys })
+  @ApiProperty({ description: "Subscription keys", type: PushSubscriptionKeys })
   @IsObject()
   @ValidateNested()
   @Type(() => PushSubscriptionKeys)
@@ -28,7 +33,7 @@ export class PushSubscribeDto {
 }
 
 export class PushUnsubscribeDto {
-  @ApiProperty({ description: 'Push subscription endpoint URL to remove' })
+  @ApiProperty({ description: "Push subscription endpoint URL to remove" })
   @IsString()
   @IsNotEmpty()
   endpoint: string;

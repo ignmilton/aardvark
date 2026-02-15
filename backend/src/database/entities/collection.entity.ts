@@ -8,17 +8,17 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
-} from 'typeorm';
-import { User } from './user.entity';
-import { Story } from './story.entity';
+} from "typeorm";
+import { User } from "./user.entity";
+import { Story } from "./story.entity";
 
 /**
  * Collection entity for user-curated story playlists.
  * Users can create public or private collections to organize stories.
  */
-@Entity('collections')
+@Entity("collections")
 export class Collection {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
@@ -29,19 +29,19 @@ export class Collection {
   @Column({ length: 120 })
   slug: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   description: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   coverImageUrl: string | null;
 
   // Owner
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   ownerId: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'ownerId' })
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "ownerId" })
   owner: User;
 
   // Visibility
@@ -57,38 +57,38 @@ export class Collection {
   @Column({ default: 0 })
   followerCount: number;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 }
 
 /**
  * Join table for Collection-Story with ordering and curator notes
  */
-@Entity('collection_stories')
-@Index(['collectionId', 'storyId'], { unique: true })
+@Entity("collection_stories")
+@Index(["collectionId", "storyId"], { unique: true })
 export class CollectionStory {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   collectionId: string;
 
   @ManyToOne(() => Collection, (collection) => collection.collectionStories, {
-    onDelete: 'CASCADE',
+    onDelete: "CASCADE",
   })
-  @JoinColumn({ name: 'collectionId' })
+  @JoinColumn({ name: "collectionId" })
   collection: Collection;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   storyId: string;
 
-  @ManyToOne(() => Story, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'storyId' })
+  @ManyToOne(() => Story, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "storyId" })
   story: Story;
 
   // Display order within the collection
@@ -96,38 +96,38 @@ export class CollectionStory {
   order: number;
 
   // Optional curator note about why this story is in the collection
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   curatorNote: string | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   addedAt: Date;
 }
 
 /**
  * Collection followers join table
  */
-@Entity('collection_followers')
-@Index(['collectionId', 'userId'], { unique: true })
+@Entity("collection_followers")
+@Index(["collectionId", "userId"], { unique: true })
 export class CollectionFollower {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   collectionId: string;
 
-  @ManyToOne(() => Collection, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'collectionId' })
+  @ManyToOne(() => Collection, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "collectionId" })
   collection: Collection;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   userId: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "userId" })
   user: User;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   followedAt: Date;
 }

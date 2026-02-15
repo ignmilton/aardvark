@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 
 export interface SendMailOptions {
   to: string;
@@ -23,19 +23,22 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     this.initializeTransporter();
-    this.fromName = this.configService.get<string>('mail.fromName', 'Aardvark');
-    this.fromEmail = this.configService.get<string>('mail.fromEmail', 'noreply@aardvark.local');
+    this.fromName = this.configService.get<string>("mail.fromName", "Aardvark");
+    this.fromEmail = this.configService.get<string>(
+      "mail.fromEmail",
+      "noreply@aardvark.local",
+    );
   }
 
   private initializeTransporter() {
-    const host = this.configService.get<string>('mail.host');
-    const port = this.configService.get<number>('mail.port');
-    const secure = this.configService.get<boolean>('mail.secure');
-    const user = this.configService.get<string>('mail.user');
-    const pass = this.configService.get<string>('mail.pass');
+    const host = this.configService.get<string>("mail.host");
+    const port = this.configService.get<number>("mail.port");
+    const secure = this.configService.get<boolean>("mail.secure");
+    const user = this.configService.get<string>("mail.user");
+    const pass = this.configService.get<string>("mail.pass");
 
     if (!host) {
-      this.logger.warn('SMTP host not configured - emails will not be sent');
+      this.logger.warn("SMTP host not configured - emails will not be sent");
       return;
     }
 
@@ -48,14 +51,19 @@ export class MailService {
       });
 
       // Verify connection on startup
-      this.transporter.verify().then(() => {
-        this.logger.log(`Mail service connected to ${host}:${port}`);
-      }).catch((error) => {
-        this.logger.error(`Mail service failed to connect: ${error.message}`);
-        this.transporter = null;
-      });
+      this.transporter
+        .verify()
+        .then(() => {
+          this.logger.log(`Mail service connected to ${host}:${port}`);
+        })
+        .catch((error) => {
+          this.logger.error(`Mail service failed to connect: ${error.message}`);
+          this.transporter = null;
+        });
     } catch (error) {
-      this.logger.error(`Failed to initialize mail transporter: ${error.message}`);
+      this.logger.error(
+        `Failed to initialize mail transporter: ${error.message}`,
+      );
       this.transporter = null;
     }
   }
@@ -65,7 +73,9 @@ export class MailService {
    */
   async send(options: SendMailOptions): Promise<boolean> {
     if (!this.transporter) {
-      this.logger.warn(`Email not sent to ${options.to} - mail service not configured`);
+      this.logger.warn(
+        `Email not sent to ${options.to} - mail service not configured`,
+      );
       return false;
     }
 
@@ -81,7 +91,9 @@ export class MailService {
       this.logger.log(`Email sent successfully to ${options.to}`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send email to ${options.to}: ${error.message}`);
+      this.logger.error(
+        `Failed to send email to ${options.to}: ${error.message}`,
+      );
       return false;
     }
   }
@@ -92,7 +104,7 @@ export class MailService {
   async sendPasswordReset(email: string, resetUrl: string): Promise<boolean> {
     return this.send({
       to: email,
-      subject: 'Reset Your Aardvark Password',
+      subject: "Reset Your Aardvark Password",
       text: `You requested a password reset. Click this link to reset your password: ${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -113,10 +125,13 @@ export class MailService {
   /**
    * Send email verification email
    */
-  async sendEmailVerification(email: string, verifyUrl: string): Promise<boolean> {
+  async sendEmailVerification(
+    email: string,
+    verifyUrl: string,
+  ): Promise<boolean> {
     return this.send({
       to: email,
-      subject: 'Verify Your Aardvark Email',
+      subject: "Verify Your Aardvark Email",
       text: `Welcome to Aardvark! Please verify your email by clicking this link: ${verifyUrl}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

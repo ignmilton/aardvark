@@ -1,1 +1,1 @@
-export * from './reading-lists.dto';
+export * from "./reading-lists.dto";

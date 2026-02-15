@@ -2,4 +2,4 @@
  * Export all DTOs for analytics module
  */
 
-export * from './analytics.dto';
+export * from "./analytics.dto";

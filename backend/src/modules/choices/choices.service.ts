@@ -3,11 +3,11 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { Choice, StorySegment, Story } from '@/database/entities';
-import { CreateChoiceDto, UpdateChoiceDto, ReorderChoicesDto } from './dto';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, In } from "typeorm";
+import { Choice, StorySegment, Story } from "@/database/entities";
+import { CreateChoiceDto, UpdateChoiceDto, ReorderChoicesDto } from "./dto";
 
 @Injectable()
 export class ChoicesService {
@@ -29,7 +29,7 @@ export class ChoicesService {
       where: { id: createDto.segmentId },
     });
     if (!sourceSegment) {
-      throw new NotFoundException('Source segment not found');
+      throw new NotFoundException("Source segment not found");
     }
 
     // Validate destination segment
@@ -37,12 +37,14 @@ export class ChoicesService {
       where: { id: createDto.nextSegmentId },
     });
     if (!destSegment) {
-      throw new NotFoundException('Destination segment not found');
+      throw new NotFoundException("Destination segment not found");
     }
 
     // Verify segments belong to same story
     if (sourceSegment.storyId !== destSegment.storyId) {
-      throw new BadRequestException('Source and destination segments must be in the same story');
+      throw new BadRequestException(
+        "Source and destination segments must be in the same story",
+      );
     }
 
     // Check permission
@@ -52,8 +54,12 @@ export class ChoicesService {
     }
 
     // Check for cycle (simple check - destination shouldn't be an ancestor of source)
-    if (await this.wouldCreateCycle(createDto.segmentId, createDto.nextSegmentId)) {
-      throw new BadRequestException('This choice would create a narrative cycle');
+    if (
+      await this.wouldCreateCycle(createDto.segmentId, createDto.nextSegmentId)
+    ) {
+      throw new BadRequestException(
+        "This choice would create a narrative cycle",
+      );
     }
 
     // Auto-assign order if not provided
@@ -88,11 +94,11 @@ export class ChoicesService {
   async findById(id: string): Promise<Choice> {
     const choice = await this.choiceRepository.findOne({
       where: { id },
-      relations: ['segment', 'nextSegment'],
+      relations: ["segment", "nextSegment"],
     });
 
     if (!choice) {
-      throw new NotFoundException('Choice not found');
+      throw new NotFoundException("Choice not found");
     }
 
     return choice;
@@ -104,8 +110,8 @@ export class ChoicesService {
   async findBySegment(segmentId: string): Promise<Choice[]> {
     return this.choiceRepository.find({
       where: { segmentId },
-      relations: ['nextSegment'],
-      order: { order: 'ASC' },
+      relations: ["nextSegment"],
+      order: { order: "ASC" },
     });
   }
 
@@ -115,15 +121,19 @@ export class ChoicesService {
   async getAvailableChoices(segmentId: string): Promise<Choice[]> {
     return this.choiceRepository.find({
       where: { segmentId, isHidden: false },
-      relations: ['nextSegment'],
-      order: { order: 'ASC' },
+      relations: ["nextSegment"],
+      order: { order: "ASC" },
     });
   }
 
   /**
    * Update a choice
    */
-  async update(id: string, updateDto: UpdateChoiceDto, userId: string): Promise<Choice> {
+  async update(
+    id: string,
+    updateDto: UpdateChoiceDto,
+    userId: string,
+  ): Promise<Choice> {
     const choice = await this.findById(id);
 
     // Check permission
@@ -131,7 +141,7 @@ export class ChoicesService {
       where: { id: choice.segmentId },
     });
     if (!segment) {
-      throw new NotFoundException('Segment not found');
+      throw new NotFoundException("Segment not found");
     }
 
     const canEdit = await this.canEditChoice(segment.storyId, userId);
@@ -140,20 +150,27 @@ export class ChoicesService {
     }
 
     // If changing destination, validate new destination
-    if (updateDto.nextSegmentId && updateDto.nextSegmentId !== choice.nextSegmentId) {
+    if (
+      updateDto.nextSegmentId &&
+      updateDto.nextSegmentId !== choice.nextSegmentId
+    ) {
       const newDest = await this.segmentRepository.findOne({
         where: { id: updateDto.nextSegmentId },
       });
       if (!newDest) {
-        throw new NotFoundException('New destination segment not found');
+        throw new NotFoundException("New destination segment not found");
       }
       if (newDest.storyId !== segment.storyId) {
-        throw new BadRequestException('Destination must be in the same story');
+        throw new BadRequestException("Destination must be in the same story");
       }
 
       // Check for cycle
-      if (await this.wouldCreateCycle(choice.segmentId, updateDto.nextSegmentId)) {
-        throw new BadRequestException('This change would create a narrative cycle');
+      if (
+        await this.wouldCreateCycle(choice.segmentId, updateDto.nextSegmentId)
+      ) {
+        throw new BadRequestException(
+          "This change would create a narrative cycle",
+        );
       }
 
       // Update parent references
@@ -163,7 +180,10 @@ export class ChoicesService {
       if (oldDest) {
         // Remove old parent reference if no other choices point to it from same segment
         const otherChoices = await this.choiceRepository.count({
-          where: { segmentId: choice.segmentId, nextSegmentId: choice.nextSegmentId },
+          where: {
+            segmentId: choice.segmentId,
+            nextSegmentId: choice.nextSegmentId,
+          },
         });
         if (otherChoices <= 1) {
           oldDest.parentSegmentIds = oldDest.parentSegmentIds.filter(
@@ -197,7 +217,7 @@ export class ChoicesService {
       where: { id: segmentId },
     });
     if (!segment) {
-      throw new NotFoundException('Segment not found');
+      throw new NotFoundException("Segment not found");
     }
 
     const canEdit = await this.canEditChoice(segment.storyId, userId);
@@ -211,7 +231,9 @@ export class ChoicesService {
     });
 
     if (choices.length !== dto.choiceIds.length) {
-      throw new BadRequestException('Some choice IDs are invalid or belong to different segment');
+      throw new BadRequestException(
+        "Some choice IDs are invalid or belong to different segment",
+      );
     }
 
     // Update order
@@ -234,7 +256,7 @@ export class ChoicesService {
       where: { id: choice.segmentId },
     });
     if (!segment) {
-      throw new NotFoundException('Segment not found');
+      throw new NotFoundException("Segment not found");
     }
 
     const canEdit = await this.canEditChoice(segment.storyId, userId);
@@ -249,7 +271,10 @@ export class ChoicesService {
     if (destSegment) {
       // Check if other choices still connect to destination
       const otherChoices = await this.choiceRepository.count({
-        where: { segmentId: choice.segmentId, nextSegmentId: choice.nextSegmentId },
+        where: {
+          segmentId: choice.segmentId,
+          nextSegmentId: choice.nextSegmentId,
+        },
       });
       if (otherChoices <= 1) {
         destSegment.parentSegmentIds = destSegment.parentSegmentIds.filter(
@@ -267,7 +292,7 @@ export class ChoicesService {
     // Reorder remaining choices
     const remainingChoices = await this.choiceRepository.find({
       where: { segmentId: choice.segmentId },
-      order: { order: 'ASC' },
+      order: { order: "ASC" },
     });
     for (let i = 0; i < remainingChoices.length; i++) {
       if (remainingChoices[i].order !== i + 1) {
@@ -281,21 +306,23 @@ export class ChoicesService {
    * Increment times chosen counter
    */
   async incrementTimesChosen(id: string): Promise<void> {
-    await this.choiceRepository.increment({ id }, 'timesChosen', 1);
+    await this.choiceRepository.increment({ id }, "timesChosen", 1);
   }
 
   /**
    * Get choice statistics for a segment
    */
-  async getChoiceStats(segmentId: string): Promise<{
-    choiceId: string;
-    choiceText: string;
-    timesChosen: number;
-    percentage: number;
-  }[]> {
+  async getChoiceStats(segmentId: string): Promise<
+    {
+      choiceId: string;
+      choiceText: string;
+      timesChosen: number;
+      percentage: number;
+    }[]
+  > {
     const choices = await this.choiceRepository.find({
       where: { segmentId },
-      order: { order: 'ASC' },
+      order: { order: "ASC" },
     });
 
     const totalChosen = choices.reduce((sum, c) => sum + c.timesChosen, 0);
@@ -304,7 +331,8 @@ export class ChoicesService {
       choiceId: c.id,
       choiceText: c.choiceText,
       timesChosen: c.timesChosen,
-      percentage: totalChosen > 0 ? Math.round((c.timesChosen / totalChosen) * 100) : 0,
+      percentage:
+        totalChosen > 0 ? Math.round((c.timesChosen / totalChosen) * 100) : 0,
     }));
   }
 
@@ -316,16 +344,18 @@ export class ChoicesService {
     storyId: string,
     userId: string,
   ): Promise<{ allowed: boolean; reason?: string }> {
-    const story = await this.storyRepository.findOne({ where: { id: storyId } });
+    const story = await this.storyRepository.findOne({
+      where: { id: storyId },
+    });
     if (!story) {
-      return { allowed: false, reason: 'Story not found' };
+      return { allowed: false, reason: "Story not found" };
     }
 
     if (story.authorId === userId) {
       return { allowed: true };
     }
 
-    return { allowed: false, reason: 'Only the story author can edit choices' };
+    return { allowed: false, reason: "Only the story author can edit choices" };
   }
 
   private async wouldCreateCycle(
@@ -349,7 +379,9 @@ export class ChoicesService {
     });
 
     for (const choice of choices) {
-      if (await this.wouldCreateCycle(sourceId, choice.nextSegmentId, visited)) {
+      if (
+        await this.wouldCreateCycle(sourceId, choice.nextSegmentId, visited)
+      ) {
         return true;
       }
     }

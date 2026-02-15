@@ -4,11 +4,11 @@ import {
   ConflictException,
   BadRequestException,
   Logger,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, In, MoreThanOrEqual } from 'typeorm';
-import { Tag, StoryTag, Story, TagAlias } from '@/database/entities';
-import { TagType } from '@aardvark/shared';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, ILike, In, MoreThanOrEqual } from "typeorm";
+import { Tag, StoryTag, Story, TagAlias } from "@/database/entities";
+import { TagType } from "@aardvark/shared";
 import {
   CreateTagDto,
   UpdateTagDto,
@@ -17,7 +17,7 @@ import {
   TagSuggestDto,
   BulkTagActionDto,
   CreateTagAliasDto,
-} from './dto';
+} from "./dto";
 
 @Injectable()
 export class TagsService {
@@ -47,7 +47,7 @@ export class TagsService {
     });
 
     if (existing) {
-      throw new ConflictException('A tag with this name already exists');
+      throw new ConflictException("A tag with this name already exists");
     }
 
     // Validate parent tag if provided
@@ -56,7 +56,7 @@ export class TagsService {
         where: { id: createDto.parentTagId },
       });
       if (!parentTag) {
-        throw new BadRequestException('Parent tag not found');
+        throw new BadRequestException("Parent tag not found");
       }
     }
 
@@ -80,50 +80,59 @@ export class TagsService {
    * Get all tags with filtering and pagination
    */
   async findAll(query: TagQueryDto) {
-    const { search, type, featured, official, minUsage, page = 1, limit = 50, sortBy = 'usage' } = query;
+    const {
+      search,
+      type,
+      featured,
+      official,
+      minUsage,
+      page = 1,
+      limit = 50,
+      sortBy = "usage",
+    } = query;
 
-    const queryBuilder = this.tagRepository.createQueryBuilder('tag');
+    const queryBuilder = this.tagRepository.createQueryBuilder("tag");
 
     if (search) {
       queryBuilder.andWhere(
-        '(tag.name ILIKE :search OR tag.slug ILIKE :search OR :search = ANY(tag.synonyms))',
+        "(tag.name ILIKE :search OR tag.slug ILIKE :search OR :search = ANY(tag.synonyms))",
         { search: `%${search}%` },
       );
     }
 
     if (type) {
-      queryBuilder.andWhere('tag.type = :type', { type });
+      queryBuilder.andWhere("tag.type = :type", { type });
     }
 
     if (featured !== undefined) {
-      queryBuilder.andWhere('tag.isFeatured = :featured', { featured });
+      queryBuilder.andWhere("tag.isFeatured = :featured", { featured });
     }
 
     if (official !== undefined) {
-      queryBuilder.andWhere('tag.isOfficial = :official', { official });
+      queryBuilder.andWhere("tag.isOfficial = :official", { official });
     }
 
     if (minUsage !== undefined) {
-      queryBuilder.andWhere('tag.usageCount >= :minUsage', { minUsage });
+      queryBuilder.andWhere("tag.usageCount >= :minUsage", { minUsage });
     }
 
     // Sorting
     switch (sortBy) {
-      case 'name':
-        queryBuilder.orderBy('tag.name', 'ASC');
+      case "name":
+        queryBuilder.orderBy("tag.name", "ASC");
         break;
-      case 'trending':
+      case "trending":
         // Simple trending: recently updated with high usage
         queryBuilder
-          .orderBy('tag.usageCount', 'DESC')
-          .addOrderBy('tag.updatedAt', 'DESC');
+          .orderBy("tag.usageCount", "DESC")
+          .addOrderBy("tag.updatedAt", "DESC");
         break;
-      case 'recent':
-        queryBuilder.orderBy('tag.createdAt', 'DESC');
+      case "recent":
+        queryBuilder.orderBy("tag.createdAt", "DESC");
         break;
-      case 'usage':
+      case "usage":
       default:
-        queryBuilder.orderBy('tag.usageCount', 'DESC');
+        queryBuilder.orderBy("tag.usageCount", "DESC");
     }
 
     const skip = (page - 1) * limit;
@@ -149,11 +158,11 @@ export class TagsService {
   async findOne(idOrSlug: string): Promise<Tag> {
     const tag = await this.tagRepository.findOne({
       where: [{ id: idOrSlug }, { slug: idOrSlug }],
-      relations: ['parentTag', 'childTags'],
+      relations: ["parentTag", "childTags"],
     });
 
     if (!tag) {
-      throw new NotFoundException('Tag not found');
+      throw new NotFoundException("Tag not found");
     }
 
     return tag;
@@ -186,7 +195,7 @@ export class TagsService {
     const tag = await this.tagRepository.findOne({ where: { id } });
 
     if (!tag) {
-      throw new NotFoundException('Tag not found');
+      throw new NotFoundException("Tag not found");
     }
 
     // If name is being updated, regenerate slug
@@ -196,7 +205,7 @@ export class TagsService {
         where: [{ name: updateDto.name }, { slug: newSlug }],
       });
       if (existing && existing.id !== id) {
-        throw new ConflictException('A tag with this name already exists');
+        throw new ConflictException("A tag with this name already exists");
       }
       tag.name = updateDto.name;
       tag.slug = newSlug;
@@ -212,7 +221,7 @@ export class TagsService {
 
     if (updateDto.parentTagId !== undefined) {
       if (updateDto.parentTagId === id) {
-        throw new BadRequestException('A tag cannot be its own parent');
+        throw new BadRequestException("A tag cannot be its own parent");
       }
       tag.parentTagId = updateDto.parentTagId || null;
     }
@@ -243,7 +252,7 @@ export class TagsService {
     const tag = await this.tagRepository.findOne({ where: { id } });
 
     if (!tag) {
-      throw new NotFoundException('Tag not found');
+      throw new NotFoundException("Tag not found");
     }
 
     // Check if tag has children
@@ -252,7 +261,9 @@ export class TagsService {
     });
 
     if (childCount > 0) {
-      throw new BadRequestException('Cannot delete a tag with child tags. Delete or reassign children first.');
+      throw new BadRequestException(
+        "Cannot delete a tag with child tags. Delete or reassign children first.",
+      );
     }
 
     await this.tagRepository.remove(tag);
@@ -265,23 +276,23 @@ export class TagsService {
     // Featured tags
     const featured = await this.tagRepository.find({
       where: { isFeatured: true },
-      order: { usageCount: 'DESC' },
+      order: { usageCount: "DESC" },
       take: 10,
     });
 
     // Most used tags
     const mostUsed = await this.tagRepository.find({
       where: { usageCount: MoreThanOrEqual(1) },
-      order: { usageCount: 'DESC' },
+      order: { usageCount: "DESC" },
       take: 20,
     });
 
     // Trending (recently updated with usage)
     const trending = await this.tagRepository
-      .createQueryBuilder('tag')
-      .where('tag.usageCount > 0')
-      .orderBy('tag.updatedAt', 'DESC')
-      .addOrderBy('tag.usageCount', 'DESC')
+      .createQueryBuilder("tag")
+      .where("tag.usageCount > 0")
+      .orderBy("tag.updatedAt", "DESC")
+      .addOrderBy("tag.usageCount", "DESC")
       .take(10)
       .getMany();
 
@@ -306,7 +317,7 @@ export class TagsService {
     for (const type of types) {
       const tags = await this.tagRepository.find({
         where: { type, usageCount: MoreThanOrEqual(1) },
-        order: { usageCount: 'DESC' },
+        order: { usageCount: "DESC" },
         take: 10,
       });
 
@@ -329,16 +340,16 @@ export class TagsService {
     const { prefix, type, limit = 10 } = dto;
 
     const queryBuilder = this.tagRepository
-      .createQueryBuilder('tag')
-      .where('tag.name ILIKE :prefix', { prefix: `${prefix}%` })
-      .orWhere('tag.slug ILIKE :prefix', { prefix: `${prefix}%` });
+      .createQueryBuilder("tag")
+      .where("tag.name ILIKE :prefix", { prefix: `${prefix}%` })
+      .orWhere("tag.slug ILIKE :prefix", { prefix: `${prefix}%` });
 
     if (type) {
-      queryBuilder.andWhere('tag.type = :type', { type });
+      queryBuilder.andWhere("tag.type = :type", { type });
     }
 
     const tags = await queryBuilder
-      .orderBy('tag.usageCount', 'DESC')
+      .orderBy("tag.usageCount", "DESC")
       .take(limit)
       .getMany();
 
@@ -354,10 +365,16 @@ export class TagsService {
   /**
    * Add tags to a story
    */
-  async addTagsToStory(storyId: string, dto: AddTagsToStoryDto, userId: string): Promise<Tag[]> {
-    const story = await this.storyRepository.findOne({ where: { id: storyId } });
+  async addTagsToStory(
+    storyId: string,
+    dto: AddTagsToStoryDto,
+    userId: string,
+  ): Promise<Tag[]> {
+    const story = await this.storyRepository.findOne({
+      where: { id: storyId },
+    });
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     const tags = await this.tagRepository.find({
@@ -365,7 +382,7 @@ export class TagsService {
     });
 
     if (tags.length !== dto.tagIds.length) {
-      throw new BadRequestException('One or more tags not found');
+      throw new BadRequestException("One or more tags not found");
     }
 
     // Add story tags (ignore duplicates)
@@ -382,7 +399,7 @@ export class TagsService {
         });
 
         // Increment usage count
-        await this.tagRepository.increment({ id: tag.id }, 'usageCount', 1);
+        await this.tagRepository.increment({ id: tag.id }, "usageCount", 1);
       }
     }
 
@@ -398,13 +415,13 @@ export class TagsService {
     });
 
     if (!storyTag) {
-      throw new NotFoundException('Tag not associated with this story');
+      throw new NotFoundException("Tag not associated with this story");
     }
 
     await this.storyTagRepository.remove(storyTag);
 
     // Decrement usage count
-    await this.tagRepository.decrement({ id: tagId }, 'usageCount', 1);
+    await this.tagRepository.decrement({ id: tagId }, "usageCount", 1);
   }
 
   /**
@@ -413,7 +430,7 @@ export class TagsService {
   async getStoryTags(storyId: string): Promise<Tag[]> {
     const storyTags = await this.storyTagRepository.find({
       where: { storyId },
-      relations: ['tag'],
+      relations: ["tag"],
     });
 
     return storyTags.map((st) => st.tag);
@@ -426,16 +443,16 @@ export class TagsService {
     const tag = await this.findOne(tagIdOrSlug);
 
     const queryBuilder = this.storyRepository
-      .createQueryBuilder('story')
-      .innerJoin('story_tags', 'st', 'st.storyId = story.id')
-      .leftJoinAndSelect('story.author', 'author')
-      .where('st.tagId = :tagId', { tagId: tag.id })
-      .andWhere('story.status = :status', { status: 'published' });
+      .createQueryBuilder("story")
+      .innerJoin("story_tags", "st", "st.storyId = story.id")
+      .leftJoinAndSelect("story.author", "author")
+      .where("st.tagId = :tagId", { tagId: tag.id })
+      .andWhere("story.status = :status", { status: "published" });
 
     const skip = (page - 1) * limit;
     const [stories, total] = await queryBuilder
-      .orderBy('story.averageRating', 'DESC')
-      .addOrderBy('story.viewCount', 'DESC')
+      .orderBy("story.averageRating", "DESC")
+      .addOrderBy("story.viewCount", "DESC")
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -461,13 +478,13 @@ export class TagsService {
     });
 
     if (tags.length === 0) {
-      throw new NotFoundException('No tags found');
+      throw new NotFoundException("No tags found");
     }
 
     let affected = 0;
 
     switch (dto.action) {
-      case 'feature':
+      case "feature":
         await this.tagRepository.update(
           { id: In(dto.tagIds) },
           { isFeatured: true },
@@ -475,7 +492,7 @@ export class TagsService {
         affected = tags.length;
         break;
 
-      case 'unfeature':
+      case "unfeature":
         await this.tagRepository.update(
           { id: In(dto.tagIds) },
           { isFeatured: false },
@@ -483,14 +500,14 @@ export class TagsService {
         affected = tags.length;
         break;
 
-      case 'merge':
+      case "merge":
         if (!dto.targetTagId) {
-          throw new BadRequestException('Target tag ID required for merge');
+          throw new BadRequestException("Target tag ID required for merge");
         }
         affected = await this.mergeTags(dto.tagIds, dto.targetTagId);
         break;
 
-      case 'delete':
+      case "delete":
         for (const tag of tags) {
           try {
             await this.delete(tag.id);
@@ -508,13 +525,16 @@ export class TagsService {
   /**
    * Merge multiple tags into one
    */
-  private async mergeTags(sourceTagIds: string[], targetTagId: string): Promise<number> {
+  private async mergeTags(
+    sourceTagIds: string[],
+    targetTagId: string,
+  ): Promise<number> {
     const targetTag = await this.tagRepository.findOne({
       where: { id: targetTagId },
     });
 
     if (!targetTag) {
-      throw new NotFoundException('Target tag not found');
+      throw new NotFoundException("Target tag not found");
     }
 
     // Filter out target from sources
@@ -560,13 +580,18 @@ export class TagsService {
    */
   private async getRelatedTags(tagId: string, limit = 5): Promise<Tag[]> {
     const result = await this.storyTagRepository
-      .createQueryBuilder('st')
-      .select('st2.tagId', 'relatedTagId')
-      .addSelect('COUNT(*)', 'count')
-      .innerJoin('story_tags', 'st2', 'st2.storyId = st.storyId AND st2.tagId != :tagId', { tagId })
-      .where('st.tagId = :tagId', { tagId })
-      .groupBy('st2.tagId')
-      .orderBy('count', 'DESC')
+      .createQueryBuilder("st")
+      .select("st2.tagId", "relatedTagId")
+      .addSelect("COUNT(*)", "count")
+      .innerJoin(
+        "story_tags",
+        "st2",
+        "st2.storyId = st.storyId AND st2.tagId != :tagId",
+        { tagId },
+      )
+      .where("st.tagId = :tagId", { tagId })
+      .groupBy("st2.tagId")
+      .orderBy("count", "DESC")
       .limit(limit)
       .getRawMany();
 
@@ -583,7 +608,10 @@ export class TagsService {
   /**
    * Get or create tag by name (for user input)
    */
-  async getOrCreateByName(name: string, type: TagType = TagType.CUSTOM): Promise<Tag> {
+  async getOrCreateByName(
+    name: string,
+    type: TagType = TagType.CUSTOM,
+  ): Promise<Tag> {
     const slug = this.generateSlug(name);
 
     let tag = await this.tagRepository.findOne({
@@ -604,9 +632,9 @@ export class TagsService {
     return name
       .toLowerCase()
       .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   }
 
   /**
@@ -614,14 +642,14 @@ export class TagsService {
    */
   private getTypeName(type: TagType): string {
     const names: Record<TagType, string> = {
-      [TagType.GENRE]: 'Genres',
-      [TagType.THEME]: 'Themes',
-      [TagType.MOOD]: 'Moods',
-      [TagType.SETTING]: 'Settings',
-      [TagType.CHARACTER]: 'Character Types',
-      [TagType.TROPE]: 'Tropes',
-      [TagType.CONTENT]: 'Content Types',
-      [TagType.CUSTOM]: 'Other',
+      [TagType.GENRE]: "Genres",
+      [TagType.THEME]: "Themes",
+      [TagType.MOOD]: "Moods",
+      [TagType.SETTING]: "Settings",
+      [TagType.CHARACTER]: "Character Types",
+      [TagType.TROPE]: "Tropes",
+      [TagType.CONTENT]: "Content Types",
+      [TagType.CUSTOM]: "Other",
     };
     return names[type] || type;
   }
@@ -636,12 +664,12 @@ export class TagsService {
   async getTagAliases(tagId: string): Promise<TagAlias[]> {
     const tag = await this.tagRepository.findOne({ where: { id: tagId } });
     if (!tag) {
-      throw new NotFoundException('Tag not found');
+      throw new NotFoundException("Tag not found");
     }
 
     return this.tagAliasRepository.find({
       where: { tagId },
-      order: { alias: 'ASC' },
+      order: { alias: "ASC" },
     });
   }
 
@@ -651,7 +679,7 @@ export class TagsService {
   async addTagAlias(tagId: string, dto: CreateTagAliasDto): Promise<TagAlias> {
     const tag = await this.tagRepository.findOne({ where: { id: tagId } });
     if (!tag) {
-      throw new NotFoundException('Tag not found');
+      throw new NotFoundException("Tag not found");
     }
 
     // Normalize alias
@@ -663,7 +691,7 @@ export class TagsService {
     });
 
     if (existingAlias) {
-      throw new ConflictException('This alias is already in use');
+      throw new ConflictException("This alias is already in use");
     }
 
     // Check if alias matches an existing tag name or slug
@@ -672,7 +700,9 @@ export class TagsService {
     });
 
     if (existingTag) {
-      throw new ConflictException('This alias conflicts with an existing tag name');
+      throw new ConflictException(
+        "This alias conflicts with an existing tag name",
+      );
     }
 
     const alias = this.tagAliasRepository.create({
@@ -692,7 +722,7 @@ export class TagsService {
     });
 
     if (!alias) {
-      throw new NotFoundException('Alias not found');
+      throw new NotFoundException("Alias not found");
     }
 
     await this.tagAliasRepository.remove(alias);
@@ -706,7 +736,7 @@ export class TagsService {
 
     const alias = await this.tagAliasRepository.findOne({
       where: { alias: normalizedAlias },
-      relations: ['tag'],
+      relations: ["tag"],
     });
 
     return alias?.tag || null;
@@ -730,7 +760,7 @@ export class TagsService {
     // Search in aliases
     const aliasMatches = await this.tagAliasRepository.find({
       where: { alias: ILike(`%${normalizedSearch}%`) },
-      relations: ['tag'],
+      relations: ["tag"],
       take: limit,
     });
 

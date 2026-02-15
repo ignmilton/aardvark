@@ -1,11 +1,5 @@
-import {
-  IsOptional,
-  IsString,
-  IsInt,
-  IsEnum,
-  Min,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, IsInt, IsEnum, Min } from "class-validator";
+import { Type } from "class-transformer";
 
 /**
  * DTO for requesting a payout
@@ -25,8 +19,8 @@ export class SetupPayoutAccountDto {
   @IsString()
   country: string;
 
-  @IsEnum(['individual', 'company'])
-  businessType: 'individual' | 'company';
+  @IsEnum(["individual", "company"])
+  businessType: "individual" | "company";
 
   @IsString()
   returnUrl: string;
@@ -40,8 +34,8 @@ export class SetupPayoutAccountDto {
  */
 export class EarningsQueryDto {
   @IsOptional()
-  @IsEnum(['day', 'week', 'month', 'year', 'all_time'])
-  period?: 'day' | 'week' | 'month' | 'year' | 'all_time' = 'month';
+  @IsEnum(["day", "week", "month", "year", "all_time"])
+  period?: "day" | "week" | "month" | "year" | "all_time" = "month";
 
   @IsOptional()
   @Type(() => Number)

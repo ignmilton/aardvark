@@ -89,14 +89,14 @@ export interface AIUsageLog {
 }
 
 export enum AIOperationType {
-  CONTINUE_STORY = 'continue_story',
-  SUGGEST_BRANCHES = 'suggest_branches',
-  IMPROVE_WRITING = 'improve_writing',
-  GENERATE_CHARACTER = 'generate_character',
-  GENERATE_DIALOGUE = 'generate_dialogue',
-  SUMMARIZE_STORY = 'summarize_story',
-  CHECK_PLAGIARISM = 'check_plagiarism',
-  GENERATE_PLOT_IDEAS = 'generate_plot_ideas',
+  CONTINUE_STORY = "continue_story",
+  SUGGEST_BRANCHES = "suggest_branches",
+  IMPROVE_WRITING = "improve_writing",
+  GENERATE_CHARACTER = "generate_character",
+  GENERATE_DIALOGUE = "generate_dialogue",
+  SUMMARIZE_STORY = "summarize_story",
+  CHECK_PLAGIARISM = "check_plagiarism",
+  GENERATE_PLOT_IDEAS = "generate_plot_ideas",
 }
 
 /** Rate limits for AI operations */

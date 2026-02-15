@@ -1,15 +1,15 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { ConfigModule } from "@nestjs/config";
 import {
   Subscription,
   SubscriptionPlan,
   User,
   Transaction,
-} from '@/database/entities';
-import { PaymentsModule } from '@/modules/payments';
-import { SubscriptionsController } from './subscriptions.controller';
-import { SubscriptionsService } from './subscriptions.service';
+} from "@/database/entities";
+import { PaymentsModule } from "@/modules/payments";
+import { SubscriptionsController } from "./subscriptions.controller";
+import { SubscriptionsService } from "./subscriptions.service";
 
 @Module({
   imports: [

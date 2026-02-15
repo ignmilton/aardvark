@@ -3,13 +3,17 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { StorySegment, Story, Choice, User } from '@/database/entities';
-import { CreateSegmentDto, UpdateSegmentDto, SegmentQueryDto, BulkUpdatePositionsDto } from './dto';
-import { CollaborationMode } from '@aardvark/shared';
-import * as sanitizeHtml from 'sanitize-html';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, In } from "typeorm";
+import { StorySegment, Story, Choice } from "@/database/entities";
+import {
+  CreateSegmentDto,
+  UpdateSegmentDto,
+  BulkUpdatePositionsDto,
+} from "./dto";
+import { CollaborationMode } from "@aardvark/shared";
+import * as sanitizeHtml from "sanitize-html";
 
 @Injectable()
 export class SegmentsService {
@@ -25,13 +29,16 @@ export class SegmentsService {
   /**
    * Create a new story segment
    */
-  async create(createDto: CreateSegmentDto, authorId: string): Promise<StorySegment> {
+  async create(
+    createDto: CreateSegmentDto,
+    authorId: string,
+  ): Promise<StorySegment> {
     const story = await this.storyRepository.findOne({
       where: { id: createDto.storyId },
     });
 
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     // Check permissions based on collaboration mode
@@ -54,7 +61,7 @@ export class SegmentsService {
         where: { storyId: createDto.storyId, isRootSegment: true },
       });
       if (existingRoot) {
-        throw new BadRequestException('Story already has a root segment');
+        throw new BadRequestException("Story already has a root segment");
       }
     }
 
@@ -65,7 +72,7 @@ export class SegmentsService {
         where: { id: createDto.parentSegmentId, storyId: createDto.storyId },
       });
       if (!parentSegment) {
-        throw new NotFoundException('Parent segment not found');
+        throw new NotFoundException("Parent segment not found");
       }
       parentSegmentIds.push(createDto.parentSegmentId);
     }
@@ -88,9 +95,11 @@ export class SegmentsService {
       wordCount,
       estimatedReadTime,
       // Set approval status for collaborative stories
-      approvalStatus: story.collaborationMode === CollaborationMode.MODERATED && story.authorId !== authorId
-        ? 'pending'
-        : null,
+      approvalStatus:
+        story.collaborationMode === CollaborationMode.MODERATED &&
+        story.authorId !== authorId
+          ? "pending"
+          : null,
       submittedByUserId: story.authorId !== authorId ? authorId : null,
     });
 
@@ -98,7 +107,9 @@ export class SegmentsService {
 
     // Update story's root segment if this is the root
     if (isRootSegment) {
-      await this.storyRepository.update(story.id, { rootSegmentId: savedSegment.id });
+      await this.storyRepository.update(story.id, {
+        rootSegmentId: savedSegment.id,
+      });
     }
 
     return savedSegment;
@@ -110,11 +121,11 @@ export class SegmentsService {
   async findById(id: string): Promise<StorySegment> {
     const segment = await this.segmentRepository.findOne({
       where: { id },
-      relations: ['story', 'author', 'choices', 'choices.nextSegment'],
+      relations: ["story", "author", "choices", "choices.nextSegment"],
     });
 
     if (!segment) {
-      throw new NotFoundException('Segment not found');
+      throw new NotFoundException("Segment not found");
     }
 
     return segment;
@@ -123,17 +134,20 @@ export class SegmentsService {
   /**
    * Find all segments for a story
    */
-  async findByStory(storyId: string, includeUnapproved = false): Promise<StorySegment[]> {
+  async findByStory(
+    storyId: string,
+    includeUnapproved = false,
+  ): Promise<StorySegment[]> {
     const queryBuilder = this.segmentRepository
-      .createQueryBuilder('segment')
-      .where('segment.storyId = :storyId', { storyId })
-      .leftJoinAndSelect('segment.choices', 'choices')
-      .orderBy('segment.createdAt', 'ASC');
+      .createQueryBuilder("segment")
+      .where("segment.storyId = :storyId", { storyId })
+      .leftJoinAndSelect("segment.choices", "choices")
+      .orderBy("segment.createdAt", "ASC");
 
     if (!includeUnapproved) {
       queryBuilder.andWhere(
-        '(segment.approvalStatus IS NULL OR segment.approvalStatus = :approved)',
-        { approved: 'approved' },
+        "(segment.approvalStatus IS NULL OR segment.approvalStatus = :approved)",
+        { approved: "approved" },
       );
     }
 
@@ -148,23 +162,26 @@ export class SegmentsService {
     choices: Choice[];
     rootSegmentId: string | null;
   }> {
-    const story = await this.storyRepository.findOne({ where: { id: storyId } });
+    const story = await this.storyRepository.findOne({
+      where: { id: storyId },
+    });
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     const segments = await this.segmentRepository.find({
       where: { storyId },
-      order: { createdAt: 'ASC' },
+      order: { createdAt: "ASC" },
     });
 
     const segmentIds = segments.map((s) => s.id);
-    const choices = segmentIds.length > 0
-      ? await this.choiceRepository.find({
-          where: { segmentId: In(segmentIds) },
-          order: { order: 'ASC' },
-        })
-      : [];
+    const choices =
+      segmentIds.length > 0
+        ? await this.choiceRepository.find({
+            where: { segmentId: In(segmentIds) },
+            order: { order: "ASC" },
+          })
+        : [];
 
     return {
       segments,
@@ -214,14 +231,18 @@ export class SegmentsService {
     dto: BulkUpdatePositionsDto,
     userId: string,
   ): Promise<void> {
-    const story = await this.storyRepository.findOne({ where: { id: storyId } });
+    const story = await this.storyRepository.findOne({
+      where: { id: storyId },
+    });
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     // Only story author can update positions
     if (story.authorId !== userId) {
-      throw new ForbiddenException('Only the story author can update segment positions');
+      throw new ForbiddenException(
+        "Only the story author can update segment positions",
+      );
     }
 
     // Update all positions in a transaction
@@ -252,7 +273,9 @@ export class SegmentsService {
         where: { parentSegmentIds: In([segment.id]) },
       });
       if (childCount > 0) {
-        throw new BadRequestException('Cannot delete root segment with children. Delete children first.');
+        throw new BadRequestException(
+          "Cannot delete root segment with children. Delete children first.",
+        );
       }
     }
 
@@ -261,12 +284,14 @@ export class SegmentsService {
       // Remove this segment from parent references of other segments
       const childSegments = await manager
         .getRepository(StorySegment)
-        .createQueryBuilder('segment')
-        .where(':id = ANY(segment.parentSegmentIds)', { id })
+        .createQueryBuilder("segment")
+        .where(":id = ANY(segment.parentSegmentIds)", { id })
         .getMany();
 
       for (const child of childSegments) {
-        child.parentSegmentIds = child.parentSegmentIds.filter((pid) => pid !== id);
+        child.parentSegmentIds = child.parentSegmentIds.filter(
+          (pid) => pid !== id,
+        );
         await manager.save(child);
       }
 
@@ -274,7 +299,9 @@ export class SegmentsService {
 
       // Update story's root segment reference if needed
       if (segment.isRootSegment) {
-        await manager.getRepository(Story).update(segment.storyId, { rootSegmentId: null });
+        await manager
+          .getRepository(Story)
+          .update(segment.storyId, { rootSegmentId: null });
       }
     });
   }
@@ -292,7 +319,7 @@ export class SegmentsService {
 
     // Verify same story
     if (segment.storyId !== parentSegment.storyId) {
-      throw new BadRequestException('Segments must be from the same story');
+      throw new BadRequestException("Segments must be from the same story");
     }
 
     // Check permissions
@@ -303,7 +330,7 @@ export class SegmentsService {
 
     // Prevent cycles
     if (await this.wouldCreateCycle(parentSegmentId, segmentId)) {
-      throw new BadRequestException('This connection would create a cycle');
+      throw new BadRequestException("This connection would create a cycle");
     }
 
     // Add parent connection
@@ -332,7 +359,9 @@ export class SegmentsService {
       throw new ForbiddenException(canEdit.reason);
     }
 
-    segment.parentSegmentIds = segment.parentSegmentIds.filter((id) => id !== parentSegmentId);
+    segment.parentSegmentIds = segment.parentSegmentIds.filter(
+      (id) => id !== parentSegmentId,
+    );
 
     // If no more parents, this becomes a root or orphan
     if (segment.parentSegmentIds.length === 0) {
@@ -350,22 +379,26 @@ export class SegmentsService {
     approverId: string,
   ): Promise<StorySegment> {
     const segment = await this.findById(segmentId);
-    const story = await this.storyRepository.findOne({ where: { id: segment.storyId } });
+    const story = await this.storyRepository.findOne({
+      where: { id: segment.storyId },
+    });
 
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     // Only story author can approve
     if (story.authorId !== approverId) {
-      throw new ForbiddenException('Only the story author can approve segments');
+      throw new ForbiddenException(
+        "Only the story author can approve segments",
+      );
     }
 
-    if (segment.approvalStatus !== 'pending') {
-      throw new BadRequestException('Segment is not pending approval');
+    if (segment.approvalStatus !== "pending") {
+      throw new BadRequestException("Segment is not pending approval");
     }
 
-    segment.approvalStatus = 'approved';
+    segment.approvalStatus = "approved";
     segment.approvedByUserId = approverId;
 
     return this.segmentRepository.save(segment);
@@ -380,21 +413,23 @@ export class SegmentsService {
     reason: string,
   ): Promise<StorySegment> {
     const segment = await this.findById(segmentId);
-    const story = await this.storyRepository.findOne({ where: { id: segment.storyId } });
+    const story = await this.storyRepository.findOne({
+      where: { id: segment.storyId },
+    });
 
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     if (story.authorId !== approverId) {
-      throw new ForbiddenException('Only the story author can reject segments');
+      throw new ForbiddenException("Only the story author can reject segments");
     }
 
-    if (segment.approvalStatus !== 'pending') {
-      throw new BadRequestException('Segment is not pending approval');
+    if (segment.approvalStatus !== "pending") {
+      throw new BadRequestException("Segment is not pending approval");
     }
 
-    segment.approvalStatus = 'rejected';
+    segment.approvalStatus = "rejected";
     segment.approvedByUserId = approverId;
     segment.rejectionReason = reason;
 
@@ -406,9 +441,9 @@ export class SegmentsService {
    */
   async getPendingSegments(storyId: string): Promise<StorySegment[]> {
     return this.segmentRepository.find({
-      where: { storyId, approvalStatus: 'pending' },
-      relations: ['author'],
-      order: { createdAt: 'ASC' },
+      where: { storyId, approvalStatus: "pending" },
+      relations: ["author"],
+      order: { createdAt: "ASC" },
     });
   }
 
@@ -416,7 +451,7 @@ export class SegmentsService {
    * Increment read count for a segment
    */
   async incrementReadCount(id: string): Promise<void> {
-    await this.segmentRepository.increment({ id }, 'readCount', 1);
+    await this.segmentRepository.increment({ id }, "readCount", 1);
   }
 
   // ============================================================================
@@ -434,12 +469,15 @@ export class SegmentsService {
 
     switch (story.collaborationMode) {
       case CollaborationMode.PRIVATE:
-        return { allowed: false, reason: 'This story does not accept contributions' };
+        return {
+          allowed: false,
+          reason: "This story does not accept contributions",
+        };
       case CollaborationMode.MODERATED:
       case CollaborationMode.OPEN:
         return { allowed: true };
       default:
-        return { allowed: false, reason: 'Unknown collaboration mode' };
+        return { allowed: false, reason: "Unknown collaboration mode" };
     }
   }
 
@@ -452,7 +490,7 @@ export class SegmentsService {
     });
 
     if (!story) {
-      return { allowed: false, reason: 'Story not found' };
+      return { allowed: false, reason: "Story not found" };
     }
 
     // Story author can edit all segments
@@ -461,11 +499,14 @@ export class SegmentsService {
     }
 
     // Segment author can edit their own segments (if not approved yet)
-    if (segment.authorId === userId && segment.approvalStatus !== 'approved') {
+    if (segment.authorId === userId && segment.approvalStatus !== "approved") {
       return { allowed: true };
     }
 
-    return { allowed: false, reason: 'You do not have permission to edit this segment' };
+    return {
+      allowed: false,
+      reason: "You do not have permission to edit this segment",
+    };
   }
 
   private async wouldCreateCycle(
@@ -483,7 +524,9 @@ export class SegmentsService {
 
     visited.add(fromId);
 
-    const segment = await this.segmentRepository.findOne({ where: { id: fromId } });
+    const segment = await this.segmentRepository.findOne({
+      where: { id: fromId },
+    });
     if (!segment) {
       return false;
     }
@@ -498,7 +541,10 @@ export class SegmentsService {
   }
 
   private stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    return html
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   private countWords(text: string): number {
@@ -513,44 +559,74 @@ export class SegmentsService {
     return sanitizeHtml(html, {
       allowedTags: [
         // Text formatting
-        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'ins',
-        'mark', 'sub', 'sup', 'small',
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "ins",
+        "mark",
+        "sub",
+        "sup",
+        "small",
         // Headings
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
         // Lists
-        'ul', 'ol', 'li',
+        "ul",
+        "ol",
+        "li",
         // Block elements
-        'blockquote', 'pre', 'code', 'hr', 'div', 'span',
+        "blockquote",
+        "pre",
+        "code",
+        "hr",
+        "div",
+        "span",
         // Links (with restricted attributes)
-        'a',
+        "a",
         // Images (with restricted attributes)
-        'img',
+        "img",
         // Tables
-        'table', 'thead', 'tbody', 'tr', 'th', 'td',
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "th",
+        "td",
         // Media
-        'figure', 'figcaption',
+        "figure",
+        "figcaption",
       ],
       allowedAttributes: {
-        a: ['href', 'target', 'rel', 'title'],
-        img: ['src', 'alt', 'title', 'width', 'height'],
-        '*': ['class', 'id'],
-        table: ['border', 'cellpadding', 'cellspacing'],
-        th: ['colspan', 'rowspan'],
-        td: ['colspan', 'rowspan'],
+        a: ["href", "target", "rel", "title"],
+        img: ["src", "alt", "title", "width", "height"],
+        "*": ["class", "id"],
+        table: ["border", "cellpadding", "cellspacing"],
+        th: ["colspan", "rowspan"],
+        td: ["colspan", "rowspan"],
       },
-      allowedSchemes: ['http', 'https', 'mailto'],
+      allowedSchemes: ["http", "https", "mailto"],
       transformTags: {
         a: (tagName, attribs) => ({
           tagName,
           attribs: {
             ...attribs,
-            target: '_blank',
-            rel: 'noopener noreferrer',
+            target: "_blank",
+            rel: "noopener noreferrer",
           },
         }),
       },
       // Strip all dangerous tags
-      disallowedTagsMode: 'discard',
+      disallowedTagsMode: "discard",
     });
   }
 }

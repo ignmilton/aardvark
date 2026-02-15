@@ -6,26 +6,26 @@ import {
   IsInt,
   Min,
   Max,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 
 /**
  * Time period for analytics queries
  */
 export enum AnalyticsPeriod {
-  DAY = 'day',
-  WEEK = 'week',
-  MONTH = 'month',
-  YEAR = 'year',
-  ALL = 'all',
+  DAY = "day",
+  WEEK = "week",
+  MONTH = "month",
+  YEAR = "year",
+  ALL = "all",
 }
 
 /**
  * Export format
  */
 export enum ExportFormat {
-  CSV = 'csv',
-  JSON = 'json',
+  CSV = "csv",
+  JSON = "json",
 }
 
 /**
@@ -117,6 +117,6 @@ export class RecentActivityDto {
   limit?: number = 20;
 
   @IsOptional()
-  @IsEnum(['read', 'comment', 'rating', 'earning', 'all'])
-  type?: 'read' | 'comment' | 'rating' | 'earning' | 'all' = 'all';
+  @IsEnum(["read", "comment", "rating", "earning", "all"])
+  type?: "read" | "comment" | "rating" | "earning" | "all" = "all";
 }

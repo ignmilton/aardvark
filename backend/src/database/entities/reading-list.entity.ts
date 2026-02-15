@@ -9,36 +9,36 @@ import {
   JoinTable,
   JoinColumn,
   Index,
-} from 'typeorm';
-import { User } from './user.entity';
-import { Story } from './story.entity';
+} from "typeorm";
+import { User } from "./user.entity";
+import { Story } from "./story.entity";
 
 /**
  * ReadingList entity - user-curated collections of stories.
  */
-@Entity('reading_lists')
+@Entity("reading_lists")
 export class ReadingList {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   userId: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @Column({ length: 100 })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   description: string | null;
 
   @Column({ default: false })
   isPublic: boolean;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   coverImageUrl: string | null;
 
   @Column({ default: 0 })
@@ -49,43 +49,43 @@ export class ReadingList {
 
   @ManyToMany(() => Story)
   @JoinTable({
-    name: 'reading_list_stories',
-    joinColumn: { name: 'readingListId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'storyId', referencedColumnName: 'id' },
+    name: "reading_list_stories",
+    joinColumn: { name: "readingListId", referencedColumnName: "id" },
+    inverseJoinColumn: { name: "storyId", referencedColumnName: "id" },
   })
   stories: Story[];
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 }
 
 /**
  * ReadingListFollow entity - users following reading lists.
  */
-@Entity('reading_list_follows')
+@Entity("reading_list_follows")
 export class ReadingListFollow {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   userId: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   readingListId: string;
 
-  @ManyToOne(() => ReadingList, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'readingListId' })
+  @ManyToOne(() => ReadingList, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "readingListId" })
   readingList: ReadingList;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 }

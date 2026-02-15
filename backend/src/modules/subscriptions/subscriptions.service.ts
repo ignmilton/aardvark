@@ -2,23 +2,23 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import {
   Subscription,
   SubscriptionPlan,
   User,
   Transaction,
-} from '@/database/entities';
+} from "@/database/entities";
 import {
   SubscriptionTier,
   SubscriptionStatus,
   PREMIUM_BENEFITS,
   PremiumBenefits,
   TransactionType,
-} from '@aardvark/shared';
-import { PaymentsService } from '@/modules/payments/payments.service';
+} from "@aardvark/shared";
+import { PaymentsService } from "@/modules/payments/payments.service";
 
 @Injectable()
 export class SubscriptionsService {
@@ -40,7 +40,7 @@ export class SubscriptionsService {
   async getPlans(): Promise<SubscriptionPlan[]> {
     return this.planRepository.find({
       where: { isActive: true },
-      order: { priceInCents: 'ASC' },
+      order: { priceInCents: "ASC" },
     });
   }
 
@@ -50,7 +50,7 @@ export class SubscriptionsService {
   async getPlan(planId: string): Promise<SubscriptionPlan> {
     const plan = await this.planRepository.findOne({ where: { id: planId } });
     if (!plan) {
-      throw new NotFoundException('Plan not found');
+      throw new NotFoundException("Plan not found");
     }
     return plan;
   }
@@ -68,8 +68,8 @@ export class SubscriptionsService {
     canceledAt: Date | null;
   }> {
     const subscription = await this.subscriptionRepository.findOne({
-      where: { userId, status: 'active' },
-      relations: ['plan'],
+      where: { userId, status: "active" },
+      relations: ["plan"],
     });
 
     if (!subscription) {
@@ -89,8 +89,13 @@ export class SubscriptionsService {
       tier: subscription.plan.tier,
       subscription,
       plan: subscription.plan,
-      benefits: subscription.plan.tier === SubscriptionTier.PREMIUM ? PREMIUM_BENEFITS : null,
-      renewsAt: subscription.cancelAtPeriodEnd ? null : subscription.currentPeriodEnd,
+      benefits:
+        subscription.plan.tier === SubscriptionTier.PREMIUM
+          ? PREMIUM_BENEFITS
+          : null,
+      renewsAt: subscription.cancelAtPeriodEnd
+        ? null
+        : subscription.currentPeriodEnd,
       canceledAt: subscription.canceledAt,
     };
   }
@@ -116,15 +121,16 @@ export class SubscriptionsService {
 
     // Check for existing active subscription
     const existing = await this.subscriptionRepository.findOne({
-      where: { userId, status: 'active' },
+      where: { userId, status: "active" },
     });
 
     if (existing) {
-      throw new BadRequestException('User already has an active subscription');
+      throw new BadRequestException("User already has an active subscription");
     }
 
     // Get subscription details from Stripe
-    const stripeSubscription = await this.paymentsService.getSubscription(stripeSubscriptionId);
+    const stripeSubscription =
+      await this.paymentsService.getSubscription(stripeSubscriptionId);
 
     const subscription = this.subscriptionRepository.create({
       userId,
@@ -132,7 +138,9 @@ export class SubscriptionsService {
       stripeSubscriptionId,
       stripeCustomerId,
       status: stripeSubscription.status as any,
-      currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+      currentPeriodStart: new Date(
+        stripeSubscription.current_period_start * 1000,
+      ),
       currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
       cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
       trialStart: stripeSubscription.trial_start
@@ -166,11 +174,11 @@ export class SubscriptionsService {
     cancelImmediately: boolean = false,
   ): Promise<Subscription> {
     const subscription = await this.subscriptionRepository.findOne({
-      where: { userId, status: 'active' },
+      where: { userId, status: "active" },
     });
 
     if (!subscription) {
-      throw new NotFoundException('No active subscription found');
+      throw new NotFoundException("No active subscription found");
     }
 
     // Cancel in Stripe
@@ -202,15 +210,21 @@ export class SubscriptionsService {
   async resumeSubscription(userId: string): Promise<Subscription> {
     const subscription = await this.subscriptionRepository.findOne({
       where: { userId },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
 
-    if (!subscription || subscription.status !== 'active' || !subscription.cancelAtPeriodEnd) {
-      throw new BadRequestException('No subscription to resume');
+    if (
+      !subscription ||
+      subscription.status !== "active" ||
+      !subscription.cancelAtPeriodEnd
+    ) {
+      throw new BadRequestException("No subscription to resume");
     }
 
     // Resume in Stripe
-    await this.paymentsService.resumeSubscription(subscription.stripeSubscriptionId);
+    await this.paymentsService.resumeSubscription(
+      subscription.stripeSubscriptionId,
+    );
 
     // Update local record
     subscription.cancelAtPeriodEnd = false;
@@ -225,7 +239,7 @@ export class SubscriptionsService {
   async handleRenewal(stripeSubscriptionId: string): Promise<void> {
     const subscription = await this.subscriptionRepository.findOne({
       where: { stripeSubscriptionId },
-      relations: ['plan'],
+      relations: ["plan"],
     });
 
     if (!subscription) {
@@ -233,12 +247,17 @@ export class SubscriptionsService {
     }
 
     // Get updated info from Stripe
-    const stripeSubscription = await this.paymentsService.getSubscription(stripeSubscriptionId);
+    const stripeSubscription =
+      await this.paymentsService.getSubscription(stripeSubscriptionId);
 
     // Update local record
     subscription.status = stripeSubscription.status as any;
-    subscription.currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
-    subscription.currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+    subscription.currentPeriodStart = new Date(
+      stripeSubscription.current_period_start * 1000,
+    );
+    subscription.currentPeriodEnd = new Date(
+      stripeSubscription.current_period_end * 1000,
+    );
 
     await this.subscriptionRepository.save(subscription);
 
@@ -260,7 +279,7 @@ export class SubscriptionsService {
       return;
     }
 
-    subscription.status = 'canceled';
+    subscription.status = "canceled";
     await this.subscriptionRepository.save(subscription);
 
     // Downgrade user subscription status
@@ -276,7 +295,8 @@ export class SubscriptionsService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) return;
 
-    const newBalance = user.creditsBalance + PREMIUM_BENEFITS.monthlyBonusCredits;
+    const newBalance =
+      user.creditsBalance + PREMIUM_BENEFITS.monthlyBonusCredits;
 
     await this.userRepository.update(userId, { creditsBalance: newBalance });
 
@@ -285,7 +305,7 @@ export class SubscriptionsService {
       type: TransactionType.SUBSCRIPTION_CREDIT,
       amount: PREMIUM_BENEFITS.monthlyBonusCredits,
       balance: newBalance,
-      description: 'Monthly Premium bonus credits',
+      description: "Monthly Premium bonus credits",
     });
 
     await this.transactionRepository.save(transaction);
@@ -297,8 +317,8 @@ export class SubscriptionsService {
   async getHistory(userId: string): Promise<Subscription[]> {
     return this.subscriptionRepository.find({
       where: { userId },
-      relations: ['plan'],
-      order: { createdAt: 'DESC' },
+      relations: ["plan"],
+      order: { createdAt: "DESC" },
     });
   }
 }

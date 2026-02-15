@@ -9,18 +9,18 @@ import {
   OneToMany,
   ManyToMany,
   JoinColumn,
-} from 'typeorm';
-import { TagType } from '@aardvark/shared';
-import { Story } from './story.entity';
-import { User } from './user.entity';
+} from "typeorm";
+import { TagType } from "@aardvark/shared";
+import { Story } from "./story.entity";
+import { User } from "./user.entity";
 
 /**
  * Tag entity for story categorization and discovery.
  * Tags can be official (curated) or user-created.
  */
-@Entity('tags')
+@Entity("tags")
 export class Tag {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index({ unique: true })
@@ -31,12 +31,12 @@ export class Tag {
   @Column({ length: 60 })
   slug: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   description: string | null;
 
   @Index()
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: TagType,
     default: TagType.CUSTOM,
   })
@@ -53,31 +53,31 @@ export class Tag {
   @Column({ default: false })
   isFeatured: boolean;
 
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   parentTagId: string | null;
 
   @ManyToOne(() => Tag, (tag) => tag.childTags, { nullable: true })
-  @JoinColumn({ name: 'parentTagId' })
+  @JoinColumn({ name: "parentTagId" })
   parentTag: Tag | null;
 
   @OneToMany(() => Tag, (tag) => tag.parentTag)
   childTags: Tag[];
 
-  @Column('text', { array: true, default: [] })
+  @Column("text", { array: true, default: [] })
   synonyms: string[];
 
-  @Column({ type: 'varchar', length: 7, nullable: true })
+  @Column({ type: "varchar", length: 7, nullable: true })
   color: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   iconUrl: string | null;
 
   // Creator (author who first used this tag)
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   createdById: string | null;
 
-  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'createdById' })
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "createdById" })
   createdBy: User | null;
 
   @ManyToMany(() => Story, (story) => story.storyTags)
@@ -87,10 +87,10 @@ export class Tag {
   @OneToMany(() => TagAlias, (alias) => alias.tag)
   aliases: TagAlias[];
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 }
 
@@ -98,31 +98,31 @@ export class Tag {
  * StoryTag join table entity for many-to-many relationship
  * with additional metadata about the tagging
  */
-@Entity('story_tags')
+@Entity("story_tags")
 export class StoryTag {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   storyId: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   tagId: string;
 
-  @ManyToOne(() => Story, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'storyId' })
+  @ManyToOne(() => Story, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "storyId" })
   story: Story;
 
-  @ManyToOne(() => Tag, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'tagId' })
+  @ManyToOne(() => Tag, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "tagId" })
   tag: Tag;
 
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   addedByUserId: string | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   addedAt: Date;
 }
 
@@ -130,23 +130,23 @@ export class StoryTag {
  * TagAlias entity for alternative tag names.
  * Allows users to search using synonyms that resolve to the canonical tag.
  */
-@Entity('tag_aliases')
-@Index(['alias'], { unique: true })
+@Entity("tag_aliases")
+@Index(["alias"], { unique: true })
 export class TagAlias {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ length: 50 })
   alias: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   tagId: string;
 
-  @ManyToOne(() => Tag, (tag) => tag.aliases, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'tagId' })
+  @ManyToOne(() => Tag, (tag) => tag.aliases, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "tagId" })
   tag: Tag;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 }

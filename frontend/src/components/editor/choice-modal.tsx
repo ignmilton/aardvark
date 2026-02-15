@@ -28,7 +28,7 @@ export function ChoiceModal({
 
   useEffect(() => {
     if (isOpen) {
-      setChoiceText('');
+      setChoiceText(''); // eslint-disable-line react-hooks/set-state-in-effect -- resetting form state when modal opens
       // Focus input after modal renders
       setTimeout(() => inputRef.current?.focus(), 50);
     }

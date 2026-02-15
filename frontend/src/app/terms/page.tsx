@@ -15,7 +15,7 @@ export default function TermsPage() {
         <div className="prose prose-lg dark:prose-invert max-w-none">
           <h2>1. Acceptance of Terms</h2>
           <p>
-            By accessing or using Aardvark ("the Platform"), you agree to be bound by these Terms of
+            By accessing or using Aardvark (&quot;the Platform&quot;), you agree to be bound by these Terms of
             Service. If you do not agree to these terms, please do not use the Platform.
           </p>
 
@@ -56,7 +56,7 @@ export default function TermsPage() {
           <ul>
             <li>Use the Platform for any illegal purpose</li>
             <li>Attempt to gain unauthorized access to the Platform</li>
-            <li>Interfere with other users' enjoyment of the Platform</li>
+            <li>Interfere with other users&apos; enjoyment of the Platform</li>
             <li>Use automated systems to access the Platform without permission</li>
             <li>Impersonate others or misrepresent your affiliation</li>
           </ul>
@@ -82,7 +82,7 @@ export default function TermsPage() {
 
           <h2>9. Disclaimer of Warranties</h2>
           <p>
-            The Platform is provided "as is" without warranties of any kind. We do not guarantee
+            The Platform is provided &quot;as is&quot; without warranties of any kind. We do not guarantee
             that the Platform will be uninterrupted, secure, or error-free.
           </p>
 

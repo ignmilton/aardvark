@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { WifiOff, BookOpen } from 'lucide-react';
 import { useOfflineReading } from '@/hooks/use-offline-reading';
 import Link from 'next/link';
@@ -12,13 +12,11 @@ interface OfflineStory {
   savedAt: number;
 }
 
+const emptySubscribe = () => () => {};
+
 export default function OfflinePage() {
   const { savedStories, isOnline } = useOfflineReading();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   if (!mounted) return null;
 

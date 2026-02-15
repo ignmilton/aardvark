@@ -12,21 +12,21 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
-} from '@nestjs/common';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
-import { BranchSubmissionsService } from './branch-submissions.service';
+} from "@nestjs/common";
+import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { BranchSubmissionsService } from "./branch-submissions.service";
 import {
   CreateBranchSubmissionDto,
   ReviewBranchSubmissionDto,
   UpdateBranchSubmissionDto,
   QueryBranchSubmissionsDto,
-} from './dto';
+} from "./dto";
 
 /**
  * Controller for managing branch submissions in collaborative stories.
  * Handles submission creation, review process, and listing.
  */
-@Controller('branch-submissions')
+@Controller("branch-submissions")
 @UseGuards(JwtAuthGuard)
 export class BranchSubmissionsController {
   constructor(private readonly submissionsService: BranchSubmissionsService) {}
@@ -36,10 +36,7 @@ export class BranchSubmissionsController {
    * POST /branch-submissions
    */
   @Post()
-  async create(
-    @Req() req: any,
-    @Body() dto: CreateBranchSubmissionDto,
-  ) {
+  async create(@Req() req: any, @Body() dto: CreateBranchSubmissionDto) {
     const userId = req.user.id;
     const submission = await this.submissionsService.create(userId, dto);
     return {
@@ -52,8 +49,8 @@ export class BranchSubmissionsController {
    * Get a specific submission by ID
    * GET /branch-submissions/:id
    */
-  @Get(':id')
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+  @Get(":id")
+  async findOne(@Param("id", ParseUUIDPipe) id: string) {
     const submission = await this.submissionsService.findOne(id);
     return {
       success: true,
@@ -84,9 +81,10 @@ export class BranchSubmissionsController {
    * Get pending submissions for a story (for authors/moderators)
    * GET /branch-submissions/story/:storyId/pending
    */
-  @Get('story/:storyId/pending')
-  async findPendingForStory(@Param('storyId', ParseUUIDPipe) storyId: string) {
-    const submissions = await this.submissionsService.findPendingForStory(storyId);
+  @Get("story/:storyId/pending")
+  async findPendingForStory(@Param("storyId", ParseUUIDPipe) storyId: string) {
+    const submissions =
+      await this.submissionsService.findPendingForStory(storyId);
     return {
       success: true,
       data: submissions,
@@ -97,7 +95,7 @@ export class BranchSubmissionsController {
    * Get submissions by current user
    * GET /branch-submissions/my-submissions
    */
-  @Get('my-submissions')
+  @Get("my-submissions")
   async findMySubmissions(@Req() req: any) {
     const userId = req.user.id;
     const submissions = await this.submissionsService.findByUser(userId);
@@ -111,8 +109,8 @@ export class BranchSubmissionsController {
    * Get submission statistics for a story
    * GET /branch-submissions/story/:storyId/stats
    */
-  @Get('story/:storyId/stats')
-  async getStoryStats(@Param('storyId', ParseUUIDPipe) storyId: string) {
+  @Get("story/:storyId/stats")
+  async getStoryStats(@Param("storyId", ParseUUIDPipe) storyId: string) {
     const stats = await this.submissionsService.getStoryStats(storyId);
     return {
       success: true,
@@ -124,9 +122,9 @@ export class BranchSubmissionsController {
    * Update a submission (by submitter only)
    * PUT /branch-submissions/:id
    */
-  @Put(':id')
+  @Put(":id")
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @Req() req: any,
     @Body() dto: UpdateBranchSubmissionDto,
   ) {
@@ -142,14 +140,18 @@ export class BranchSubmissionsController {
    * Review a submission (approve/reject/request revision)
    * POST /branch-submissions/:id/review
    */
-  @Post(':id/review')
+  @Post(":id/review")
   async review(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @Req() req: any,
     @Body() dto: ReviewBranchSubmissionDto,
   ) {
     const reviewerId = req.user.id;
-    const submission = await this.submissionsService.review(id, reviewerId, dto);
+    const submission = await this.submissionsService.review(
+      id,
+      reviewerId,
+      dto,
+    );
     return {
       success: true,
       data: submission,
@@ -160,12 +162,9 @@ export class BranchSubmissionsController {
    * Delete a submission (by submitter only, only if pending)
    * DELETE /branch-submissions/:id
    */
-  @Delete(':id')
+  @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: any,
-  ) {
+  async delete(@Param("id", ParseUUIDPipe) id: string, @Req() req: any) {
     const userId = req.user.id;
     await this.submissionsService.delete(id, userId);
   }

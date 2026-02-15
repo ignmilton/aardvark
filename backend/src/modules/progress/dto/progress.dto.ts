@@ -5,21 +5,23 @@ import {
   IsInt,
   Min,
   MaxLength,
-} from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class StartReadingDto {
-  @ApiProperty({ description: 'Story ID' })
+  @ApiProperty({ description: "Story ID" })
   @IsUUID()
   storyId: string;
 }
 
 export class MakeChoiceDto {
-  @ApiProperty({ description: 'Choice ID selected by reader' })
+  @ApiProperty({ description: "Choice ID selected by reader" })
   @IsUUID()
   choiceId: string;
 
-  @ApiPropertyOptional({ description: 'Time spent on current segment (seconds)' })
+  @ApiPropertyOptional({
+    description: "Time spent on current segment (seconds)",
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -27,17 +29,17 @@ export class MakeChoiceDto {
 }
 
 export class NavigateToSegmentDto {
-  @ApiProperty({ description: 'Segment ID to navigate to' })
+  @ApiProperty({ description: "Segment ID to navigate to" })
   @IsUUID()
   segmentId: string;
 }
 
 export class AddBookmarkDto {
-  @ApiProperty({ description: 'Segment ID to bookmark' })
+  @ApiProperty({ description: "Segment ID to bookmark" })
   @IsUUID()
   segmentId: string;
 
-  @ApiPropertyOptional({ description: 'Note for the bookmark', maxLength: 500 })
+  @ApiPropertyOptional({ description: "Note for the bookmark", maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)
@@ -45,7 +47,7 @@ export class AddBookmarkDto {
 }
 
 export class UpdateBookmarkDto {
-  @ApiPropertyOptional({ description: 'Updated note', maxLength: 500 })
+  @ApiPropertyOptional({ description: "Updated note", maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)
@@ -53,12 +55,12 @@ export class UpdateBookmarkDto {
 }
 
 export class ProgressQueryDto {
-  @ApiPropertyOptional({ description: 'Filter by story ID' })
+  @ApiPropertyOptional({ description: "Filter by story ID" })
   @IsOptional()
   @IsUUID()
   storyId?: string;
 
-  @ApiPropertyOptional({ description: 'Only show completed' })
+  @ApiPropertyOptional({ description: "Only show completed" })
   @IsOptional()
   isCompleted?: boolean;
 }

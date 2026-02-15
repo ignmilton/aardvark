@@ -1,28 +1,32 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-import { AuthService } from './auth.service';
-import { User } from '@/database/entities';
-import { UserRole, AccountStatus } from '@aardvark/shared';
-import { MailService } from '@/common/mail/mail.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import {
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from "@nestjs/common";
+import * as bcrypt from "bcrypt";
+import { AuthService } from "./auth.service";
+import { User } from "@/database/entities";
+import { UserRole, AccountStatus } from "@aardvark/shared";
+import { MailService } from "@/common/mail/mail.service";
 
-describe('AuthService', () => {
+describe("AuthService", () => {
   let service: AuthService;
   let userRepository: jest.Mocked<Repository<User>>;
   let jwtService: jest.Mocked<JwtService>;
-  let configService: jest.Mocked<ConfigService>;
-  let mailService: jest.Mocked<MailService>;
+  let _configService: jest.Mocked<ConfigService>;
+  let _mailService: jest.Mocked<MailService>;
 
   const mockUser: Partial<User> = {
-    id: 'test-user-id',
-    username: 'testuser',
-    email: 'test@example.com',
-    passwordHash: '',
-    displayName: 'Test User',
+    id: "test-user-id",
+    username: "testuser",
+    email: "test@example.com",
+    passwordHash: "",
+    displayName: "Test User",
     role: UserRole.READER,
     accountStatus: AccountStatus.ACTIVE,
     creditsBalance: 0,
@@ -33,7 +37,7 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     // Hash a test password
-    mockUser.passwordHash = await bcrypt.hash('TestPassword123!', 12);
+    mockUser.passwordHash = await bcrypt.hash("TestPassword123!", 12);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -50,7 +54,7 @@ describe('AuthService', () => {
         {
           provide: JwtService,
           useValue: {
-            signAsync: jest.fn().mockResolvedValue('mock-token'),
+            signAsync: jest.fn().mockResolvedValue("mock-token"),
             verifyAsync: jest.fn(),
           },
         },
@@ -59,10 +63,10 @@ describe('AuthService', () => {
           useValue: {
             get: jest.fn((key: string, defaultValue?: string) => {
               const config: Record<string, string> = {
-                'jwt.accessExpiration': '15m',
-                'jwt.refreshExpiration': '7d',
-                'jwt.refreshSecret': 'test-refresh-secret',
-                'appUrl': 'http://localhost:3000',
+                "jwt.accessExpiration": "15m",
+                "jwt.refreshExpiration": "7d",
+                "jwt.refreshSecret": "test-refresh-secret",
+                appUrl: "http://localhost:3000",
               };
               return config[key] || defaultValue;
             }),
@@ -83,87 +87,96 @@ describe('AuthService', () => {
     service = module.get<AuthService>(AuthService);
     userRepository = module.get(getRepositoryToken(User));
     jwtService = module.get(JwtService);
-    configService = module.get(ConfigService);
-    mailService = module.get(MailService);
+    _configService = module.get(ConfigService);
+    _mailService = module.get(MailService);
   });
 
-  describe('register', () => {
-    it('should throw ConflictException if username already exists', async () => {
-      userRepository.findOne.mockResolvedValue({ ...mockUser, username: 'testuser' } as User);
+  describe("register", () => {
+    it("should throw ConflictException if username already exists", async () => {
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        username: "testuser",
+      } as User);
 
       await expect(
         service.register({
-          username: 'testuser',
-          email: 'new@example.com',
-          password: 'Password123!',
+          username: "testuser",
+          email: "new@example.com",
+          password: "Password123!",
           acceptTerms: true,
         }),
       ).rejects.toThrow(ConflictException);
     });
 
-    it('should throw ConflictException if email already exists', async () => {
-      userRepository.findOne.mockResolvedValue({ ...mockUser, email: 'test@example.com' } as User);
+    it("should throw ConflictException if email already exists", async () => {
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        email: "test@example.com",
+      } as User);
 
       await expect(
         service.register({
-          username: 'newuser',
-          email: 'test@example.com',
-          password: 'Password123!',
+          username: "newuser",
+          email: "test@example.com",
+          password: "Password123!",
           acceptTerms: true,
         }),
       ).rejects.toThrow(ConflictException);
     });
 
-    it('should successfully register a new user', async () => {
+    it("should successfully register a new user", async () => {
       userRepository.findOne.mockResolvedValue(null);
       userRepository.create.mockReturnValue(mockUser as User);
       userRepository.save.mockResolvedValue(mockUser as User);
 
       const result = await service.register({
-        username: 'newuser',
-        email: 'new@example.com',
-        password: 'Password123!',
+        username: "newuser",
+        email: "new@example.com",
+        password: "Password123!",
         acceptTerms: true,
       });
 
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      expect(result).toHaveProperty("accessToken");
+      expect(result).toHaveProperty("refreshToken");
       expect(result.user).toBeDefined();
     });
   });
 
-  describe('validateUser', () => {
-    it('should return null for non-existent user', async () => {
+  describe("validateUser", () => {
+    it("should return null for non-existent user", async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.validateUser('nonexistent@example.com', 'password');
+      const result = await service.validateUser(
+        "nonexistent@example.com",
+        "password",
+      );
 
       expect(result).toBeNull();
     });
 
-    it('should throw UnauthorizedException for banned account', async () => {
+    it("should throw UnauthorizedException for banned account", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         accountStatus: AccountStatus.BANNED,
       } as User);
 
       await expect(
-        service.validateUser('test@example.com', 'TestPassword123!'),
+        service.validateUser("test@example.com", "TestPassword123!"),
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should throw UnauthorizedException for suspended account', async () => {
+    it("should throw UnauthorizedException for suspended account", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         accountStatus: AccountStatus.SUSPENDED,
       } as User);
 
       await expect(
-        service.validateUser('test@example.com', 'TestPassword123!'),
+        service.validateUser("test@example.com", "TestPassword123!"),
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should throw UnauthorizedException for locked account', async () => {
+    it("should throw UnauthorizedException for locked account", async () => {
       const futureDate = new Date();
       futureDate.setMinutes(futureDate.getMinutes() + 10);
 
@@ -173,17 +186,20 @@ describe('AuthService', () => {
       } as User);
 
       await expect(
-        service.validateUser('test@example.com', 'TestPassword123!'),
+        service.validateUser("test@example.com", "TestPassword123!"),
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should track failed login attempts', async () => {
+    it("should track failed login attempts", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         loginAttempts: 0,
       } as User);
 
-      const result = await service.validateUser('test@example.com', 'WrongPassword');
+      const result = await service.validateUser(
+        "test@example.com",
+        "WrongPassword",
+      );
 
       expect(result).toBeNull();
       expect(userRepository.update).toHaveBeenCalledWith(
@@ -192,13 +208,13 @@ describe('AuthService', () => {
       );
     });
 
-    it('should lockout account after 5 failed attempts', async () => {
+    it("should lockout account after 5 failed attempts", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         loginAttempts: 4,
       } as User);
 
-      await service.validateUser('test@example.com', 'WrongPassword');
+      await service.validateUser("test@example.com", "WrongPassword");
 
       expect(userRepository.update).toHaveBeenCalledWith(
         mockUser.id,
@@ -209,13 +225,13 @@ describe('AuthService', () => {
       );
     });
 
-    it('should clear login attempts on successful login', async () => {
+    it("should clear login attempts on successful login", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         loginAttempts: 3,
       } as User);
 
-      await service.validateUser('test@example.com', 'TestPassword123!');
+      await service.validateUser("test@example.com", "TestPassword123!");
 
       expect(userRepository.update).toHaveBeenCalledWith(
         mockUser.id,
@@ -224,81 +240,85 @@ describe('AuthService', () => {
     });
   });
 
-  describe('refreshToken', () => {
-    it('should throw UnauthorizedException for banned user', async () => {
+  describe("refreshToken", () => {
+    it("should throw UnauthorizedException for banned user", async () => {
       jwtService.verifyAsync.mockResolvedValue({ sub: mockUser.id });
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         accountStatus: AccountStatus.BANNED,
       } as User);
 
-      await expect(service.refreshToken('valid-refresh-token')).rejects.toThrow(
+      await expect(service.refreshToken("valid-refresh-token")).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('should throw UnauthorizedException for suspended user', async () => {
+    it("should throw UnauthorizedException for suspended user", async () => {
       jwtService.verifyAsync.mockResolvedValue({ sub: mockUser.id });
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         accountStatus: AccountStatus.SUSPENDED,
       } as User);
 
-      await expect(service.refreshToken('valid-refresh-token')).rejects.toThrow(
+      await expect(service.refreshToken("valid-refresh-token")).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('should throw UnauthorizedException for deactivated user', async () => {
+    it("should throw UnauthorizedException for deactivated user", async () => {
       jwtService.verifyAsync.mockResolvedValue({ sub: mockUser.id });
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         accountStatus: AccountStatus.DEACTIVATED,
       } as User);
 
-      await expect(service.refreshToken('valid-refresh-token')).rejects.toThrow(
+      await expect(service.refreshToken("valid-refresh-token")).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('should return new access token for active user', async () => {
+    it("should return new access token for active user", async () => {
       jwtService.verifyAsync.mockResolvedValue({ sub: mockUser.id });
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         accountStatus: AccountStatus.ACTIVE,
       } as User);
 
-      const result = await service.refreshToken('valid-refresh-token');
+      const result = await service.refreshToken("valid-refresh-token");
 
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('expiresIn');
+      expect(result).toHaveProperty("accessToken");
+      expect(result).toHaveProperty("expiresIn");
     });
 
-    it('should throw UnauthorizedException for invalid token', async () => {
-      jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
+    it("should throw UnauthorizedException for invalid token", async () => {
+      jwtService.verifyAsync.mockRejectedValue(new Error("Invalid token"));
 
-      await expect(service.refreshToken('invalid-token')).rejects.toThrow(
+      await expect(service.refreshToken("invalid-token")).rejects.toThrow(
         UnauthorizedException,
       );
     });
   });
 
-  describe('changePassword', () => {
-    it('should throw BadRequestException for incorrect current password', async () => {
+  describe("changePassword", () => {
+    it("should throw BadRequestException for incorrect current password", async () => {
       userRepository.findOne.mockResolvedValue(mockUser as User);
 
       await expect(
-        service.changePassword(mockUser.id!, 'WrongPassword', 'NewPassword123!'),
+        service.changePassword(
+          mockUser.id!,
+          "WrongPassword",
+          "NewPassword123!",
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should successfully change password with correct current password', async () => {
+    it("should successfully change password with correct current password", async () => {
       userRepository.findOne.mockResolvedValue(mockUser as User);
 
       await service.changePassword(
         mockUser.id!,
-        'TestPassword123!',
-        'NewPassword123!',
+        "TestPassword123!",
+        "NewPassword123!",
       );
 
       expect(userRepository.update).toHaveBeenCalledWith(
@@ -308,41 +328,41 @@ describe('AuthService', () => {
     });
   });
 
-  describe('resetPassword', () => {
-    it('should throw BadRequestException for invalid token', async () => {
+  describe("resetPassword", () => {
+    it("should throw BadRequestException for invalid token", async () => {
       userRepository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.resetPassword('invalid-token', 'NewPassword123!'),
+        service.resetPassword("invalid-token", "NewPassword123!"),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException for expired token', async () => {
+    it("should throw BadRequestException for expired token", async () => {
       const pastDate = new Date();
       pastDate.setHours(pastDate.getHours() - 2);
 
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
-        passwordResetToken: 'valid-token',
+        passwordResetToken: "valid-token",
         passwordResetExpires: pastDate,
       } as User);
 
       await expect(
-        service.resetPassword('valid-token', 'NewPassword123!'),
+        service.resetPassword("valid-token", "NewPassword123!"),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should successfully reset password with valid token', async () => {
+    it("should successfully reset password with valid token", async () => {
       const futureDate = new Date();
       futureDate.setHours(futureDate.getHours() + 1);
 
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
-        passwordResetToken: 'valid-token',
+        passwordResetToken: "valid-token",
         passwordResetExpires: futureDate,
       } as User);
 
-      await service.resetPassword('valid-token', 'NewPassword123!');
+      await service.resetPassword("valid-token", "NewPassword123!");
 
       expect(userRepository.update).toHaveBeenCalledWith(
         mockUser.id,
@@ -355,16 +375,16 @@ describe('AuthService', () => {
     });
   });
 
-  describe('password hashing', () => {
-    it('should use 12 rounds for bcrypt hashing', async () => {
+  describe("password hashing", () => {
+    it("should use 12 rounds for bcrypt hashing", async () => {
       userRepository.findOne.mockResolvedValue(null);
       userRepository.create.mockImplementation((dto) => dto as User);
       userRepository.save.mockImplementation(async (user) => user as User);
 
       await service.register({
-        username: 'newuser',
-        email: 'new@example.com',
-        password: 'TestPassword123!',
+        username: "newuser",
+        email: "new@example.com",
+        password: "TestPassword123!",
         acceptTerms: true,
       });
 

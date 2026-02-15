@@ -61,23 +61,22 @@ export function interpolate(template: string, params: Record<string, string | nu
  * Hook to load and manage locale state
  */
 export function useLocale() {
-  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
-  const [messages, setMessages] = useState<Messages>({});
-
-  useEffect(() => {
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window === 'undefined') return defaultLocale;
     // Load saved locale from localStorage
     const saved = localStorage.getItem('locale') as Locale | null;
     if (saved) {
-      setLocaleState(saved);
-    } else {
-      // Detect browser language
-      const browserLang = navigator.language.split('-')[0] as Locale;
-      const supportedLocales = ['en', 'es', 'fr', 'de', 'pt', 'ja', 'ko', 'zh', 'hi', 'ar'];
-      if (supportedLocales.includes(browserLang)) {
-        setLocaleState(browserLang);
-      }
+      return saved;
     }
-  }, []);
+    // Detect browser language
+    const browserLang = navigator.language.split('-')[0] as Locale;
+    const supportedLocales = ['en', 'es', 'fr', 'de', 'pt', 'ja', 'ko', 'zh', 'hi', 'ar'];
+    if (supportedLocales.includes(browserLang)) {
+      return browserLang;
+    }
+    return defaultLocale;
+  });
+  const [messages, setMessages] = useState<Messages>({});
 
   useEffect(() => {
     getMessages(locale).then(setMessages);

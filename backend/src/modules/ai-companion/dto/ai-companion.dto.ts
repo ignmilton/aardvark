@@ -10,8 +10,8 @@ import {
   MinLength,
   ArrayMinSize,
   ArrayMaxSize,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 
 /**
  * DTO for continuing a story
@@ -61,8 +61,8 @@ export class ImproveWritingDto {
   text: string;
 
   @IsOptional()
-  @IsEnum(['grammar', 'style', 'both'])
-  focus?: 'grammar' | 'style' | 'both' = 'both';
+  @IsEnum(["grammar", "style", "both"])
+  focus?: "grammar" | "style" | "both" = "both";
 }
 
 /**

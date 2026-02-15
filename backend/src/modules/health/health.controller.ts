@@ -1,10 +1,10 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { Controller, Get } from "@nestjs/common";
+import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { InjectDataSource } from "@nestjs/typeorm";
+import { DataSource } from "typeorm";
 
-@ApiTags('health')
-@Controller('health')
+@ApiTags("health")
+@Controller("health")
 export class HealthController {
   private readonly startTime = Date.now();
 
@@ -14,41 +14,41 @@ export class HealthController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Health check endpoint' })
+  @ApiOperation({ summary: "Health check endpoint" })
   async check() {
     const dbHealthy = await this.checkDatabase();
 
     return {
-      status: dbHealthy ? 'ok' : 'degraded',
+      status: dbHealthy ? "ok" : "degraded",
       timestamp: new Date().toISOString(),
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
-      version: process.env.npm_package_version || '1.0.0',
+      version: process.env.npm_package_version || "1.0.0",
       checks: {
-        database: dbHealthy ? 'healthy' : 'unhealthy',
+        database: dbHealthy ? "healthy" : "unhealthy",
         memory: this.getMemoryUsage(),
       },
     };
   }
 
-  @Get('ready')
-  @ApiOperation({ summary: 'Readiness probe for orchestrators' })
+  @Get("ready")
+  @ApiOperation({ summary: "Readiness probe for orchestrators" })
   async ready() {
     const dbHealthy = await this.checkDatabase();
     if (!dbHealthy) {
-      return { status: 'not_ready', reason: 'database connection failed' };
+      return { status: "not_ready", reason: "database connection failed" };
     }
-    return { status: 'ready' };
+    return { status: "ready" };
   }
 
-  @Get('live')
-  @ApiOperation({ summary: 'Liveness probe' })
+  @Get("live")
+  @ApiOperation({ summary: "Liveness probe" })
   live() {
-    return { status: 'alive' };
+    return { status: "alive" };
   }
 
   private async checkDatabase(): Promise<boolean> {
     try {
-      await this.dataSource.query('SELECT 1');
+      await this.dataSource.query("SELECT 1");
       return true;
     } catch {
       return false;

@@ -1,11 +1,6 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import Stripe from 'stripe';
+import { Injectable, BadRequestException, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import Stripe from "stripe";
 
 /**
  * Payment service handling all Stripe operations.
@@ -17,18 +12,23 @@ export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
 
   constructor(private readonly configService: ConfigService) {
-    const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-    const isDevelopment = this.configService.get<string>('NODE_ENV') !== 'production';
-    if (!stripeKey || stripeKey.includes('your_stripe')) {
+    const stripeKey = this.configService.get<string>("STRIPE_SECRET_KEY");
+    const isDevelopment =
+      this.configService.get<string>("NODE_ENV") !== "production";
+    if (!stripeKey || stripeKey.includes("your_stripe")) {
       if (isDevelopment) {
-        this.logger.warn('Stripe not configured - payment features disabled in development');
+        this.logger.warn(
+          "Stripe not configured - payment features disabled in development",
+        );
         this.stripe = null as unknown as Stripe;
         return;
       }
-      throw new Error('Stripe secret key not configured. Set STRIPE_SECRET_KEY environment variable.');
+      throw new Error(
+        "Stripe secret key not configured. Set STRIPE_SECRET_KEY environment variable.",
+      );
     }
     this.stripe = new Stripe(stripeKey, {
-      apiVersion: '2023-10-16',
+      apiVersion: "2023-10-16",
     });
   }
 
@@ -66,7 +66,7 @@ export class PaymentsService {
   async createPaymentIntent(
     customerId: string,
     amountInCents: number,
-    currency: string = 'usd',
+    currency: string = "usd",
     metadata: Record<string, string> = {},
   ): Promise<Stripe.PaymentIntent> {
     return this.stripe.paymentIntents.create({
@@ -93,7 +93,7 @@ export class PaymentsService {
   ): Promise<Stripe.Checkout.Session> {
     return this.stripe.checkout.sessions.create({
       customer: customerId,
-      mode: 'payment',
+      mode: "payment",
       line_items: [
         {
           price: priceId,
@@ -105,7 +105,7 @@ export class PaymentsService {
       metadata: {
         userId,
         bundleId,
-        type: 'credit_purchase',
+        type: "credit_purchase",
       },
     });
   }
@@ -124,7 +124,7 @@ export class PaymentsService {
   ): Promise<Stripe.Checkout.Session> {
     return this.stripe.checkout.sessions.create({
       customer: customerId,
-      mode: 'subscription',
+      mode: "subscription",
       line_items: [
         {
           price: priceId,
@@ -139,7 +139,7 @@ export class PaymentsService {
       metadata: {
         userId,
         planId,
-        type: 'subscription',
+        type: "subscription",
       },
     });
   }
@@ -155,11 +155,11 @@ export class PaymentsService {
     const subscriptionParams: Stripe.SubscriptionCreateParams = {
       customer: customerId,
       items: [{ price: priceId }],
-      payment_behavior: 'default_incomplete',
+      payment_behavior: "default_incomplete",
       payment_settings: {
-        save_default_payment_method: 'on_subscription',
+        save_default_payment_method: "on_subscription",
       },
-      expand: ['latest_invoice.payment_intent'],
+      expand: ["latest_invoice.payment_intent"],
     };
 
     if (paymentMethodId) {
@@ -188,7 +188,9 @@ export class PaymentsService {
   /**
    * Resume a canceled subscription (if still within period)
    */
-  async resumeSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
+  async resumeSubscription(
+    subscriptionId: string,
+  ): Promise<Stripe.Subscription> {
     return this.stripe.subscriptions.update(subscriptionId, {
       cancel_at_period_end: false,
     });
@@ -218,7 +220,7 @@ export class PaymentsService {
    */
   async listPaymentMethods(
     customerId: string,
-    type: Stripe.PaymentMethodListParams.Type = 'card',
+    type: Stripe.PaymentMethodListParams.Type = "card",
   ): Promise<Stripe.PaymentMethod[]> {
     const methods = await this.stripe.paymentMethods.list({
       customer: customerId,
@@ -230,7 +232,9 @@ export class PaymentsService {
   /**
    * Detach a payment method from customer
    */
-  async detachPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+  async detachPaymentMethod(
+    paymentMethodId: string,
+  ): Promise<Stripe.PaymentMethod> {
     return this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
@@ -245,10 +249,10 @@ export class PaymentsService {
     authorId: string,
     email: string,
     country: string,
-    businessType: 'individual' | 'company' = 'individual',
+    businessType: "individual" | "company" = "individual",
   ): Promise<Stripe.Account> {
     return this.stripe.accounts.create({
-      type: 'express',
+      type: "express",
       country,
       email,
       business_type: businessType,
@@ -273,7 +277,7 @@ export class PaymentsService {
       account: accountId,
       refresh_url: refreshUrl,
       return_url: returnUrl,
-      type: 'account_onboarding',
+      type: "account_onboarding",
     });
   }
 
@@ -295,7 +299,7 @@ export class PaymentsService {
   ): Promise<Stripe.Transfer> {
     return this.stripe.transfers.create({
       amount: amountInCents,
-      currency: 'usd',
+      currency: "usd",
       destination: destinationAccountId,
       description,
       metadata,
@@ -315,17 +319,25 @@ export class PaymentsService {
     webhookSecret: string,
   ): Stripe.Event {
     try {
-      return this.stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+      return this.stripe.webhooks.constructEvent(
+        payload,
+        signature,
+        webhookSecret,
+      );
     } catch (err) {
-      this.logger.error(`Webhook signature verification failed: ${err.message}`);
-      throw new BadRequestException('Invalid webhook signature');
+      this.logger.error(
+        `Webhook signature verification failed: ${err.message}`,
+      );
+      throw new BadRequestException("Invalid webhook signature");
     }
   }
 
   /**
    * Handle webhook events
    */
-  async handleWebhookEvent(event: Stripe.Event): Promise<{ handled: boolean; type: string }> {
+  async handleWebhookEvent(
+    event: Stripe.Event,
+  ): Promise<{ handled: boolean; type: string }> {
     const eventType = event.type;
     this.logger.log(`Processing webhook event: ${eventType}`);
 

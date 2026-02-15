@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { UploadController } from './upload.controller';
-import { UploadService } from './upload.service';
+import { Module } from "@nestjs/common";
+import { UploadController } from "./upload.controller";
+import { UploadService } from "./upload.service";
 
 /**
  * Upload module providing file upload endpoints with validation.

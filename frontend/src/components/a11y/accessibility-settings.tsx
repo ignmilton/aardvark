@@ -37,43 +37,46 @@ const LINE_SPACING_MAP: Record<string, string> = {
  * Accessibility settings panel for customizing reading experience.
  * Supports font size, contrast, reduced motion, and line spacing.
  */
+function applySettings(s: A11ySettings) {
+  const root = document.documentElement;
+  root.style.setProperty('--reading-font-size', FONT_SIZE_MAP[s.fontSize]);
+  root.style.setProperty('--reading-line-height', LINE_SPACING_MAP[s.lineSpacing]);
+
+  if (s.contrastMode === 'high') {
+    root.classList.add('high-contrast');
+  } else {
+    root.classList.remove('high-contrast');
+  }
+
+  if (s.reducedMotion) {
+    root.classList.add('reduce-motion');
+  } else {
+    root.classList.remove('reduce-motion');
+  }
+}
+
 export function AccessibilitySettings() {
   const [isOpen, setIsOpen] = useState(false);
-  const [settings, setSettings] = useState<A11ySettings>(DEFAULT_SETTINGS);
-
-  // Load settings from localStorage
-  useEffect(() => {
+  const [settings, setSettings] = useState<A11ySettings>(() => {
+    if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+    let initial = DEFAULT_SETTINGS;
     const stored = localStorage.getItem('a11y-settings');
     if (stored) {
-      const parsed = JSON.parse(stored) as A11ySettings;
-      setSettings(parsed);
-      applySettings(parsed);
+      initial = JSON.parse(stored) as A11ySettings;
     }
-
     // Respect system preference for reduced motion
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (motionQuery.matches) {
-      updateSetting('reducedMotion', true);
+    if (motionQuery.matches && !initial.reducedMotion) {
+      initial = { ...initial, reducedMotion: true };
+      localStorage.setItem('a11y-settings', JSON.stringify(initial));
     }
-  }, []);
+    return initial;
+  });
 
-  const applySettings = (s: A11ySettings) => {
-    const root = document.documentElement;
-    root.style.setProperty('--reading-font-size', FONT_SIZE_MAP[s.fontSize]);
-    root.style.setProperty('--reading-line-height', LINE_SPACING_MAP[s.lineSpacing]);
-
-    if (s.contrastMode === 'high') {
-      root.classList.add('high-contrast');
-    } else {
-      root.classList.remove('high-contrast');
-    }
-
-    if (s.reducedMotion) {
-      root.classList.add('reduce-motion');
-    } else {
-      root.classList.remove('reduce-motion');
-    }
-  };
+  // Apply settings on initial mount
+  useEffect(() => {
+    applySettings(settings);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateSetting = <K extends keyof A11ySettings>(key: K, value: A11ySettings[K]) => {
     const updated = { ...settings, [key]: value };

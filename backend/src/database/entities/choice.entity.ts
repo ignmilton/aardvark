@@ -7,36 +7,36 @@ import {
   ManyToOne,
   Index,
   JoinColumn,
-} from 'typeorm';
-import { StorySegment } from './story-segment.entity';
+} from "typeorm";
+import { StorySegment } from "./story-segment.entity";
 
 /**
  * Choice entity representing a decision point that connects
  * one story segment to another.
  */
-@Entity('choices')
+@Entity("choices")
 export class Choice {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   segmentId: string;
 
   @ManyToOne(() => StorySegment, (segment) => segment.choices, {
-    onDelete: 'CASCADE',
+    onDelete: "CASCADE",
   })
-  @JoinColumn({ name: 'segmentId' })
+  @JoinColumn({ name: "segmentId" })
   segment: StorySegment;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   nextSegmentId: string;
 
   @ManyToOne(() => StorySegment, (segment) => segment.incomingChoices, {
-    onDelete: 'CASCADE',
+    onDelete: "CASCADE",
   })
-  @JoinColumn({ name: 'nextSegmentId' })
+  @JoinColumn({ name: "nextSegmentId" })
   nextSegment: StorySegment;
 
   @Column({ length: 500 })
@@ -47,12 +47,12 @@ export class Choice {
 
   // Condition for showing this choice based on reader's state variables
   // e.g., { "has_sword": true, "trust_level": { "$gte": 5 } }
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   conditionJson: Record<string, unknown> | null;
 
   // State effects applied when this choice is made
   // e.g., { "$set": { "met_wizard": true }, "$inc": { "trust_level": 2 } }
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   stateEffects: Record<string, unknown> | null;
 
   // Statistics
@@ -62,9 +62,9 @@ export class Choice {
   @Column({ default: false })
   isHidden: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 }

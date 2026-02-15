@@ -6,8 +6,8 @@ import {
   Min,
   Max,
   MaxLength,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 
 /**
  * DTO for purchasing credits via bundle

@@ -45,7 +45,7 @@ export interface TopStory {
  * Recent activity item
  */
 export interface RecentActivity {
-  type: 'read' | 'comment' | 'rating' | 'earning';
+  type: "read" | "comment" | "rating" | "earning";
   storyId: string;
   storyTitle: string;
   userId?: string;
@@ -295,7 +295,7 @@ export interface EngagementTrends {
 /**
  * Export format type
  */
-export type ExportFormatType = 'csv' | 'json';
+export type ExportFormatType = "csv" | "json";
 
 /**
  * Export result

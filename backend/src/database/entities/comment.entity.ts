@@ -8,54 +8,54 @@ import {
   OneToMany,
   Index,
   JoinColumn,
-} from 'typeorm';
-import { User } from './user.entity';
-import { Story } from './story.entity';
+} from "typeorm";
+import { User } from "./user.entity";
+import { Story } from "./story.entity";
 
 /**
  * Comment entity for threaded discussions on stories.
  */
-@Entity('comments')
+@Entity("comments")
 export class Comment {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   userId: string;
 
-  @ManyToOne(() => User, (user) => user.comments, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, (user) => user.comments, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   storyId: string;
 
-  @ManyToOne(() => Story, (story) => story.comments, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'storyId' })
+  @ManyToOne(() => Story, (story) => story.comments, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "storyId" })
   story: Story;
 
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   segmentId: string | null;
 
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   parentCommentId: string | null;
 
   @ManyToOne(() => Comment, (comment) => comment.replies, {
     nullable: true,
-    onDelete: 'CASCADE',
+    onDelete: "CASCADE",
   })
-  @JoinColumn({ name: 'parentCommentId' })
+  @JoinColumn({ name: "parentCommentId" })
   parentComment: Comment | null;
 
   @OneToMany(() => Comment, (comment) => comment.parentComment)
   replies: Comment[];
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   content: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   contentHtml: string;
 
   @Column({ default: 0 })
@@ -70,12 +70,12 @@ export class Comment {
   @Column({ default: false })
   isDeleted: boolean;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   deletedAt: Date | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 }

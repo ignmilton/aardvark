@@ -17,8 +17,8 @@ const messageImports: Record<Locale, () => Promise<MessageModule>> = {
 
 export async function getMessages(locale: Locale): Promise<MessageModule> {
   const loader = messageImports[locale] || messageImports[defaultLocale];
-  const module = await loader();
-  return module.default || module;
+  const messages = await loader();
+  return messages.default || messages;
 }
 
 export { locales, defaultLocale, localeNames, isRTL } from './config';

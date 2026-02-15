@@ -1,19 +1,20 @@
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, In, MoreThan } from "typeorm";
 import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, MoreThan } from 'typeorm';
-import { PushSubscription, ReaderProgress, Story, User, Subscription } from '@/database/entities';
+  PushSubscription,
+  ReaderProgress,
+  Story,
+  User,
+  Subscription,
+} from "@/database/entities";
 import {
   RegisterPushTokenDto,
   SyncRequestDto,
   OfflineProgressDto,
   VerifyIosReceiptDto,
   VerifyAndroidReceiptDto,
-  Platform,
-} from './dto';
+} from "./dto";
 
 @Injectable()
 export class MobileService {
@@ -57,7 +58,7 @@ export class MobileService {
 
     await this.pushRepo.save(subscription);
 
-    return { success: true, message: 'Push token registered' };
+    return { success: true, message: "Push token registered" };
   }
 
   /**
@@ -73,7 +74,7 @@ export class MobileService {
       await this.pushRepo.save(subscription);
     }
 
-    return { success: true, message: 'Push token unregistered' };
+    return { success: true, message: "Push token unregistered" };
   }
 
   /**
@@ -84,18 +85,18 @@ export class MobileService {
 
     // Get user's progress that was updated after last sync
     const qb = this.progressRepo
-      .createQueryBuilder('progress')
-      .leftJoinAndSelect('progress.story', 'story')
-      .where('progress.userId = :userId', { userId });
+      .createQueryBuilder("progress")
+      .leftJoinAndSelect("progress.story", "story")
+      .where("progress.userId = :userId", { userId });
 
     if (lastSyncAt) {
-      qb.andWhere('progress.updatedAt > :lastSyncAt', {
+      qb.andWhere("progress.updatedAt > :lastSyncAt", {
         lastSyncAt: new Date(lastSyncAt),
       });
     }
 
     if (storyIds && storyIds.length > 0) {
-      qb.andWhere('progress.storyId IN (:...storyIds)', { storyIds });
+      qb.andWhere("progress.storyId IN (:...storyIds)", { storyIds });
     }
 
     const progress = await qb.getMany();
@@ -107,7 +108,7 @@ export class MobileService {
             updatedAt: MoreThan(new Date(lastSyncAt)),
             ...(storyIds?.length ? { id: In(storyIds) } : {}),
           },
-          select: ['id', 'title', 'updatedAt'],
+          select: ["id", "title", "updatedAt"],
         })
       : [];
 
@@ -137,9 +138,15 @@ export class MobileService {
 
     for (const item of offlineProgress) {
       // Verify story exists
-      const story = await this.storyRepo.findOne({ where: { id: item.storyId } });
+      const story = await this.storyRepo.findOne({
+        where: { id: item.storyId },
+      });
       if (!story) {
-        results.push({ storyId: item.storyId, status: 'error', message: 'Story not found' });
+        results.push({
+          storyId: item.storyId,
+          status: "error",
+          message: "Story not found",
+        });
         continue;
       }
 
@@ -154,10 +161,11 @@ export class MobileService {
         if (offlineTime > progress.lastReadAt) {
           progress.currentSegmentId = item.currentSegmentId;
           progress.visitedSegmentIds = item.visitedSegmentIds;
-          progress.choiceHistory = item.choiceHistory?.map((c) => ({
-            ...c,
-            timestamp: new Date(c.timestamp),
-          })) || progress.choiceHistory;
+          progress.choiceHistory =
+            item.choiceHistory?.map((c) => ({
+              ...c,
+              timestamp: new Date(c.timestamp),
+            })) || progress.choiceHistory;
           progress.lastReadAt = offlineTime;
         }
       } else {
@@ -166,17 +174,18 @@ export class MobileService {
           storyId: item.storyId,
           currentSegmentId: item.currentSegmentId,
           visitedSegmentIds: item.visitedSegmentIds,
-          choiceHistory: item.choiceHistory?.map((c) => ({
-            ...c,
-            timestamp: new Date(c.timestamp),
-          })) || [],
+          choiceHistory:
+            item.choiceHistory?.map((c) => ({
+              ...c,
+              timestamp: new Date(c.timestamp),
+            })) || [],
           startedAt: new Date(),
           lastReadAt: new Date(item.lastReadAt),
         });
       }
 
       await this.progressRepo.save(progress);
-      results.push({ storyId: item.storyId, status: 'synced' });
+      results.push({ storyId: item.storyId, status: "synced" });
     }
 
     return {
@@ -189,7 +198,7 @@ export class MobileService {
    * Verify iOS App Store receipt
    * NOTE: This is a placeholder - actual implementation requires App Store Connect API
    */
-  async verifyIosReceipt(userId: string, dto: VerifyIosReceiptDto) {
+  async verifyIosReceipt(_userId: string, _dto: VerifyIosReceiptDto) {
     // In production, you would:
     // 1. Call Apple's verifyReceipt endpoint
     // 2. Validate the response
@@ -199,7 +208,8 @@ export class MobileService {
     // TODO: Implement actual App Store receipt verification
     return {
       success: false,
-      message: 'iOS receipt verification not yet implemented. Please use web subscription.',
+      message:
+        "iOS receipt verification not yet implemented. Please use web subscription.",
       verified: false,
     };
   }
@@ -208,7 +218,7 @@ export class MobileService {
    * Verify Android Google Play receipt
    * NOTE: This is a placeholder - actual implementation requires Google Play API
    */
-  async verifyAndroidReceipt(userId: string, dto: VerifyAndroidReceiptDto) {
+  async verifyAndroidReceipt(_userId: string, _dto: VerifyAndroidReceiptDto) {
     // In production, you would:
     // 1. Use Google Play Developer API to verify purchase
     // 2. Validate the subscription status
@@ -218,7 +228,8 @@ export class MobileService {
     // TODO: Implement actual Google Play receipt verification
     return {
       success: false,
-      message: 'Android receipt verification not yet implemented. Please use web subscription.',
+      message:
+        "Android receipt verification not yet implemented. Please use web subscription.",
       verified: false,
     };
   }
@@ -229,7 +240,7 @@ export class MobileService {
   async getPushSettings(userId: string) {
     const subscriptions = await this.pushRepo.find({
       where: { userId, isActive: true },
-      select: ['id', 'platform', 'deviceId', 'createdAt'],
+      select: ["id", "platform", "deviceId", "createdAt"],
     });
 
     return {

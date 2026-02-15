@@ -6,30 +6,30 @@ import {
   UpdateDateColumn,
   OneToMany,
   Index,
-} from 'typeorm';
+} from "typeorm";
 import {
   UserRole,
   AccountStatus,
   SubscriptionStatus,
   UserPreferences,
   DEFAULT_USER_PREFERENCES,
-} from '@aardvark/shared';
-import { Story } from './story.entity';
-import { StorySegment } from './story-segment.entity';
-import { ReaderProgress } from './reader-progress.entity';
-import { Comment } from './comment.entity';
-import { Rating } from './rating.entity';
-import { Transaction } from './transaction.entity';
-import { Notification } from './notification.entity';
+} from "@aardvark/shared";
+import { Story } from "./story.entity";
+import { StorySegment } from "./story-segment.entity";
+import { ReaderProgress } from "./reader-progress.entity";
+import { Comment } from "./comment.entity";
+import { Rating } from "./rating.entity";
+import { Transaction } from "./transaction.entity";
+import { Notification } from "./notification.entity";
 
 /**
  * User entity representing registered accounts in the platform.
  * Supports multiple roles from reader to admin with various
  * subscription and account statuses.
  */
-@Entity('users')
+@Entity("users")
 export class User {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index({ unique: true })
@@ -43,102 +43,102 @@ export class User {
   @Column({ select: false })
   passwordHash: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: "varchar", length: 100, nullable: true })
   displayName: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   avatarUrl: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   bio: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   websiteUrl: string | null;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: "jsonb", default: {} })
   socialLinks: Record<string, string>;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: UserRole,
     default: UserRole.READER,
   })
   role: UserRole;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: AccountStatus,
     default: AccountStatus.PENDING_VERIFICATION,
   })
   accountStatus: AccountStatus;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: SubscriptionStatus,
     default: SubscriptionStatus.NONE,
   })
   subscriptionStatus: SubscriptionStatus;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   subscriptionExpiresAt: Date | null;
 
   @Column({ default: 0 })
   creditsBalance: number;
 
   // Revenue tracking for authors
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   pendingRevenue: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   totalEarnings: number;
 
-  @Column({ type: 'jsonb', default: DEFAULT_USER_PREFERENCES })
+  @Column({ type: "jsonb", default: DEFAULT_USER_PREFERENCES })
   preferences: UserPreferences;
 
   @Column({ default: false })
   emailVerified: boolean;
 
-  @Column({ type: 'varchar', nullable: true, select: false })
+  @Column({ type: "varchar", nullable: true, select: false })
   emailVerificationToken: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true, select: false })
+  @Column({ type: "timestamptz", nullable: true, select: false })
   emailVerificationExpires: Date | null;
 
-  @Column({ type: 'varchar', nullable: true, select: false })
+  @Column({ type: "varchar", nullable: true, select: false })
   passwordResetToken: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true, select: false })
+  @Column({ type: "timestamptz", nullable: true, select: false })
   passwordResetExpires: Date | null;
 
   @Column({ default: false })
   twoFactorEnabled: boolean;
 
-  @Column({ type: 'varchar', nullable: true, select: false })
+  @Column({ type: "varchar", nullable: true, select: false })
   twoFactorSecret: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   lastLoginAt: Date | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   lastLoginIp: string | null;
 
   @Column({ default: 0 })
   loginAttempts: number;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   lockoutUntil: Date | null;
 
   // Stripe integration
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   stripeCustomerId: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   stripeConnectAccountId: string | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 
   // Relations

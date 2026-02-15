@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { PushSubscription } from '@entities';
-import * as webpush from 'web-push';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { PushSubscription } from "@entities";
+import * as webpush from "web-push";
 
 @Injectable()
 export class PushNotificationService {
@@ -14,13 +14,16 @@ export class PushNotificationService {
   ) {
     const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
     const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-    const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@aardvark.com';
+    const vapidSubject =
+      process.env.VAPID_SUBJECT || "mailto:admin@aardvark.com";
 
     if (vapidPublicKey && vapidPrivateKey) {
       webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-      this.logger.log('Web Push VAPID credentials configured');
+      this.logger.log("Web Push VAPID credentials configured");
     } else {
-      this.logger.warn('VAPID keys not configured - push notifications disabled');
+      this.logger.warn(
+        "VAPID keys not configured - push notifications disabled",
+      );
     }
   }
 
@@ -105,7 +108,7 @@ export class PushNotificationService {
     // Remove expired/invalid subscriptions
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
-      if (result.status === 'rejected') {
+      if (result.status === "rejected") {
         const statusCode = (result.reason as any)?.statusCode;
         if (statusCode === 404 || statusCode === 410) {
           // Subscription no longer valid

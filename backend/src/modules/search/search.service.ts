@@ -1,15 +1,15 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { Client } from '@elastic/elasticsearch';
-import { Story, User, Tag, StoryTag, SearchHistory } from '@/database/entities';
-import { SearchStoriesDto, SearchUsersDto, AutocompleteDto } from './dto';
-import { StoryStatus, TagType } from '@aardvark/shared';
+import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, In } from "typeorm";
+import { Client } from "@elastic/elasticsearch";
+import { Story, User, Tag, StoryTag, SearchHistory } from "@/database/entities";
+import { SearchStoriesDto, SearchUsersDto, AutocompleteDto } from "./dto";
+import { StoryStatus, TagType } from "@aardvark/shared";
 
-const STORIES_INDEX = 'aardvark_stories';
-const USERS_INDEX = 'aardvark_users';
-const TAGS_INDEX = 'aardvark_tags';
+const STORIES_INDEX = "aardvark_stories";
+const USERS_INDEX = "aardvark_users";
+const TAGS_INDEX = "aardvark_tags";
 
 interface StoryDocument {
   id: string;
@@ -90,27 +90,29 @@ export class SearchService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const esConfig = this.configService.get('elasticsearch');
+      const esConfig = this.configService.get("elasticsearch");
 
       this.client = new Client({
         node: esConfig.node,
-        auth: esConfig.username ? {
-          username: esConfig.username,
-          password: esConfig.password,
-        } : undefined,
+        auth: esConfig.username
+          ? {
+              username: esConfig.username,
+              password: esConfig.password,
+            }
+          : undefined,
       });
 
       // Test connection
       await this.client.ping();
       this.isConnected = true;
-      this.logger.log('Connected to Elasticsearch');
+      this.logger.log("Connected to Elasticsearch");
 
       // Initialize indices
       await this.initializeIndices();
     } catch (error) {
       this.logger.error(
         `Failed to connect to Elasticsearch: ${error.message}. Search will fall back to database queries. ` +
-        `Ensure Elasticsearch is running at ${this.configService.get('elasticsearch.node', 'http://localhost:9200')}.`,
+          `Ensure Elasticsearch is running at ${this.configService.get("elasticsearch.node", "http://localhost:9200")}.`,
       );
       this.isConnected = false;
     }
@@ -121,7 +123,9 @@ export class SearchService implements OnModuleInit {
    */
   private async initializeIndices() {
     // Stories index
-    const storiesExists = await this.client.indices.exists({ index: STORIES_INDEX });
+    const storiesExists = await this.client.indices.exists({
+      index: STORIES_INDEX,
+    });
     if (!storiesExists) {
       await this.client.indices.create({
         index: STORIES_INDEX,
@@ -132,45 +136,51 @@ export class SearchService implements OnModuleInit {
             analysis: {
               analyzer: {
                 story_analyzer: {
-                  type: 'custom',
-                  tokenizer: 'standard',
-                  filter: ['lowercase', 'asciifolding', 'porter_stem'],
+                  type: "custom",
+                  tokenizer: "standard",
+                  filter: ["lowercase", "asciifolding", "porter_stem"],
                 },
               },
             },
           },
           mappings: {
             properties: {
-              id: { type: 'keyword' },
-              title: { type: 'text', analyzer: 'story_analyzer', fields: { keyword: { type: 'keyword' } } },
-              description: { type: 'text', analyzer: 'story_analyzer' },
-              synopsis: { type: 'text', analyzer: 'story_analyzer' },
-              authorId: { type: 'keyword' },
-              authorUsername: { type: 'keyword' },
-              authorDisplayName: { type: 'text' },
-              category: { type: 'keyword' },
-              tags: { type: 'keyword' },
-              contentWarnings: { type: 'keyword' },
-              collaborationMode: { type: 'keyword' },
-              isPremium: { type: 'boolean' },
-              language: { type: 'keyword' },
-              length: { type: 'keyword' },
-              complexity: { type: 'keyword' },
-              viewCount: { type: 'integer' },
-              averageRating: { type: 'float' },
-              ratingCount: { type: 'integer' },
-              publishedAt: { type: 'date' },
-              updatedAt: { type: 'date' },
-              suggest: { type: 'completion', analyzer: 'simple' },
+              id: { type: "keyword" },
+              title: {
+                type: "text",
+                analyzer: "story_analyzer",
+                fields: { keyword: { type: "keyword" } },
+              },
+              description: { type: "text", analyzer: "story_analyzer" },
+              synopsis: { type: "text", analyzer: "story_analyzer" },
+              authorId: { type: "keyword" },
+              authorUsername: { type: "keyword" },
+              authorDisplayName: { type: "text" },
+              category: { type: "keyword" },
+              tags: { type: "keyword" },
+              contentWarnings: { type: "keyword" },
+              collaborationMode: { type: "keyword" },
+              isPremium: { type: "boolean" },
+              language: { type: "keyword" },
+              length: { type: "keyword" },
+              complexity: { type: "keyword" },
+              viewCount: { type: "integer" },
+              averageRating: { type: "float" },
+              ratingCount: { type: "integer" },
+              publishedAt: { type: "date" },
+              updatedAt: { type: "date" },
+              suggest: { type: "completion", analyzer: "simple" },
             },
           },
         },
       });
-      this.logger.log('Created stories index');
+      this.logger.log("Created stories index");
     }
 
     // Users index
-    const usersExists = await this.client.indices.exists({ index: USERS_INDEX });
+    const usersExists = await this.client.indices.exists({
+      index: USERS_INDEX,
+    });
     if (!usersExists) {
       await this.client.indices.create({
         index: USERS_INDEX,
@@ -181,19 +191,22 @@ export class SearchService implements OnModuleInit {
           },
           mappings: {
             properties: {
-              id: { type: 'keyword' },
-              username: { type: 'text', fields: { keyword: { type: 'keyword' } } },
-              displayName: { type: 'text' },
-              bio: { type: 'text' },
-              role: { type: 'keyword' },
-              storiesCount: { type: 'integer' },
-              followersCount: { type: 'integer' },
-              suggest: { type: 'completion', analyzer: 'simple' },
+              id: { type: "keyword" },
+              username: {
+                type: "text",
+                fields: { keyword: { type: "keyword" } },
+              },
+              displayName: { type: "text" },
+              bio: { type: "text" },
+              role: { type: "keyword" },
+              storiesCount: { type: "integer" },
+              followersCount: { type: "integer" },
+              suggest: { type: "completion", analyzer: "simple" },
             },
           },
         },
       });
-      this.logger.log('Created users index');
+      this.logger.log("Created users index");
     }
 
     // Tags index
@@ -208,30 +221,34 @@ export class SearchService implements OnModuleInit {
             analysis: {
               analyzer: {
                 tag_analyzer: {
-                  type: 'custom',
-                  tokenizer: 'standard',
-                  filter: ['lowercase', 'asciifolding'],
+                  type: "custom",
+                  tokenizer: "standard",
+                  filter: ["lowercase", "asciifolding"],
                 },
               },
             },
           },
           mappings: {
             properties: {
-              id: { type: 'keyword' },
-              name: { type: 'text', analyzer: 'tag_analyzer', fields: { keyword: { type: 'keyword' } } },
-              slug: { type: 'keyword' },
-              description: { type: 'text', analyzer: 'tag_analyzer' },
-              type: { type: 'keyword' },
-              usageCount: { type: 'integer' },
-              isOfficial: { type: 'boolean' },
-              isFeatured: { type: 'boolean' },
-              synonyms: { type: 'text', analyzer: 'tag_analyzer' },
-              suggest: { type: 'completion', analyzer: 'simple' },
+              id: { type: "keyword" },
+              name: {
+                type: "text",
+                analyzer: "tag_analyzer",
+                fields: { keyword: { type: "keyword" } },
+              },
+              slug: { type: "keyword" },
+              description: { type: "text", analyzer: "tag_analyzer" },
+              type: { type: "keyword" },
+              usageCount: { type: "integer" },
+              isOfficial: { type: "boolean" },
+              isFeatured: { type: "boolean" },
+              synonyms: { type: "text", analyzer: "tag_analyzer" },
+              suggest: { type: "completion", analyzer: "simple" },
             },
           },
         },
       });
-      this.logger.log('Created tags index');
+      this.logger.log("Created tags index");
     }
   }
 
@@ -251,8 +268,15 @@ export class SearchService implements OnModuleInit {
       {
         multi_match: {
           query,
-          fields: ['title^3', 'description^2', 'synopsis', 'tags^2', 'authorUsername', 'authorDisplayName'],
-          fuzziness: 'AUTO',
+          fields: [
+            "title^3",
+            "description^2",
+            "synopsis",
+            "tags^2",
+            "authorUsername",
+            "authorDisplayName",
+          ],
+          fuzziness: "AUTO",
         },
       },
     ];
@@ -302,26 +326,26 @@ export class SearchService implements OnModuleInit {
     // Build sort
     let sort: any[] = [];
     switch (dto.sortBy) {
-      case 'rating':
-        sort = [{ averageRating: 'desc' }, { ratingCount: 'desc' }];
+      case "rating":
+        sort = [{ averageRating: "desc" }, { ratingCount: "desc" }];
         break;
-      case 'views':
-        sort = [{ viewCount: 'desc' }];
+      case "views":
+        sort = [{ viewCount: "desc" }];
         break;
-      case 'recent':
-        sort = [{ publishedAt: 'desc' }];
+      case "recent":
+        sort = [{ publishedAt: "desc" }];
         break;
-      case 'trending':
+      case "trending":
         // Simple trending: combine views and recency
         sort = [
-          { _score: 'desc' },
-          { viewCount: 'desc' },
-          { publishedAt: 'desc' },
+          { _score: "desc" },
+          { viewCount: "desc" },
+          { publishedAt: "desc" },
         ];
         break;
-      case 'relevance':
+      case "relevance":
       default:
-        sort = [{ _score: 'desc' }];
+        sort = [{ _score: "desc" }];
     }
 
     try {
@@ -341,9 +365,10 @@ export class SearchService implements OnModuleInit {
       });
 
       const hits = result.hits.hits as any[];
-      const total = typeof result.hits.total === 'number'
-        ? result.hits.total
-        : result.hits.total?.value || 0;
+      const total =
+        typeof result.hits.total === "number"
+          ? result.hits.total
+          : result.hits.total?.value || 0;
 
       return {
         data: hits.map((hit) => ({
@@ -358,7 +383,7 @@ export class SearchService implements OnModuleInit {
         },
       };
     } catch (error) {
-      this.logger.error('Elasticsearch search failed', error);
+      this.logger.error("Elasticsearch search failed", error);
       return this.fallbackSearchStories(dto);
     }
   }
@@ -383,18 +408,19 @@ export class SearchService implements OnModuleInit {
           query: {
             multi_match: {
               query,
-              fields: ['username^3', 'displayName^2', 'bio'],
-              fuzziness: 'AUTO',
+              fields: ["username^3", "displayName^2", "bio"],
+              fuzziness: "AUTO",
             },
           },
-          sort: [{ _score: 'desc' }, { followersCount: 'desc' }],
+          sort: [{ _score: "desc" }, { followersCount: "desc" }],
         },
       });
 
       const hits = result.hits.hits as any[];
-      const total = typeof result.hits.total === 'number'
-        ? result.hits.total
-        : result.hits.total?.value || 0;
+      const total =
+        typeof result.hits.total === "number"
+          ? result.hits.total
+          : result.hits.total?.value || 0;
 
       return {
         data: hits.map((hit) => hit._source),
@@ -406,7 +432,7 @@ export class SearchService implements OnModuleInit {
         },
       };
     } catch (error) {
-      this.logger.error('Elasticsearch user search failed', error);
+      this.logger.error("Elasticsearch user search failed", error);
       return this.fallbackSearchUsers(dto);
     }
   }
@@ -419,7 +445,7 @@ export class SearchService implements OnModuleInit {
       return { suggestions: [] };
     }
 
-    const index = dto.type === 'user' ? USERS_INDEX : STORIES_INDEX;
+    const index = dto.type === "user" ? USERS_INDEX : STORIES_INDEX;
 
     try {
       const result = await this.client.search({
@@ -429,10 +455,10 @@ export class SearchService implements OnModuleInit {
             story_suggest: {
               prefix: dto.prefix,
               completion: {
-                field: 'suggest',
+                field: "suggest",
                 size: dto.limit,
                 fuzzy: {
-                  fuzziness: 'AUTO',
+                  fuzziness: "AUTO",
                 },
               },
             },
@@ -440,18 +466,19 @@ export class SearchService implements OnModuleInit {
         },
       });
 
-      const suggestions = (result.suggest as any)?.story_suggest?.[0]?.options || [];
+      const suggestions =
+        (result.suggest as any)?.story_suggest?.[0]?.options || [];
 
       return {
         suggestions: suggestions.map((s: any) => ({
           text: s.text,
           id: s._source.id,
-          ...(dto.type === 'story' && { category: s._source.category }),
-          ...(dto.type === 'user' && { username: s._source.username }),
+          ...(dto.type === "story" && { category: s._source.category }),
+          ...(dto.type === "user" && { username: s._source.username }),
         })),
       };
     } catch (error) {
-      this.logger.error('Autocomplete failed', error);
+      this.logger.error("Autocomplete failed", error);
       return { suggestions: [] };
     }
   }
@@ -466,10 +493,11 @@ export class SearchService implements OnModuleInit {
       id: story.id,
       title: story.title,
       description: story.description,
-      synopsis: story.synopsis || '',
+      synopsis: story.synopsis || "",
       authorId: story.authorId,
-      authorUsername: story.author?.username || '',
-      authorDisplayName: story.author?.displayName || story.author?.username || '',
+      authorUsername: story.author?.username || "",
+      authorDisplayName:
+        story.author?.displayName || story.author?.username || "",
       category: story.category,
       tags: story.tags,
       contentWarnings: story.contentWarnings,
@@ -521,14 +549,18 @@ export class SearchService implements OnModuleInit {
   /**
    * Index a user
    */
-  async indexUser(user: User, storiesCount: number, followersCount: number): Promise<void> {
+  async indexUser(
+    user: User,
+    storiesCount: number,
+    followersCount: number,
+  ): Promise<void> {
     if (!this.isConnected) return;
 
     const doc: UserDocument = {
       id: user.id,
       username: user.username,
       displayName: user.displayName || user.username,
-      bio: user.bio || '',
+      bio: user.bio || "",
       role: user.role,
       storiesCount,
       followersCount,
@@ -560,7 +592,7 @@ export class SearchService implements OnModuleInit {
 
     const stories = await this.storyRepository.find({
       where: { status: StoryStatus.PUBLISHED },
-      relations: ['author'],
+      relations: ["author"],
     });
 
     let indexed = 0;
@@ -596,8 +628,8 @@ export class SearchService implements OnModuleInit {
       {
         multi_match: {
           query,
-          fields: ['name^3', 'description', 'synonyms^2'],
-          fuzziness: 'AUTO',
+          fields: ["name^3", "description", "synonyms^2"],
+          fuzziness: "AUTO",
         },
       },
     ];
@@ -619,14 +651,15 @@ export class SearchService implements OnModuleInit {
               filter,
             },
           },
-          sort: [{ _score: 'desc' }, { usageCount: 'desc' }],
+          sort: [{ _score: "desc" }, { usageCount: "desc" }],
         },
       });
 
       const hits = result.hits.hits as any[];
-      const total = typeof result.hits.total === 'number'
-        ? result.hits.total
-        : result.hits.total?.value || 0;
+      const total =
+        typeof result.hits.total === "number"
+          ? result.hits.total
+          : result.hits.total?.value || 0;
 
       return {
         data: hits.map((hit) => ({
@@ -641,7 +674,7 @@ export class SearchService implements OnModuleInit {
         },
       };
     } catch (error) {
-      this.logger.error('Tag search failed', error);
+      this.logger.error("Tag search failed", error);
       return this.fallbackSearchTags(query, type, limit, page);
     }
   }
@@ -656,7 +689,7 @@ export class SearchService implements OnModuleInit {
       id: tag.id,
       name: tag.name,
       slug: tag.slug,
-      description: tag.description || '',
+      description: tag.description || "",
       type: tag.type,
       usageCount: tag.usageCount,
       isOfficial: tag.isOfficial,
@@ -725,17 +758,19 @@ export class SearchService implements OnModuleInit {
   /**
    * Get tag facets/aggregations for story search
    */
-  async getTagAggregations(storyIds?: string[]): Promise<{ tag: string; count: number }[]> {
+  async getTagAggregations(
+    storyIds?: string[],
+  ): Promise<{ tag: string; count: number }[]> {
     if (storyIds && storyIds.length > 0) {
       // Get tag counts for specific stories
       const result = await this.storyTagRepository
-        .createQueryBuilder('st')
-        .select('tag.name', 'tag')
-        .addSelect('COUNT(*)', 'count')
-        .innerJoin('st.tag', 'tag')
-        .where('st.storyId IN (:...storyIds)', { storyIds })
-        .groupBy('tag.name')
-        .orderBy('count', 'DESC')
+        .createQueryBuilder("st")
+        .select("tag.name", "tag")
+        .addSelect("COUNT(*)", "count")
+        .innerJoin("st.tag", "tag")
+        .where("st.storyId IN (:...storyIds)", { storyIds })
+        .groupBy("tag.name")
+        .orderBy("count", "DESC")
         .limit(50)
         .getRawMany();
 
@@ -744,11 +779,11 @@ export class SearchService implements OnModuleInit {
 
     // Get overall tag counts
     const result = await this.tagRepository
-      .createQueryBuilder('tag')
-      .select('tag.name', 'tag')
-      .addSelect('tag.usageCount', 'count')
-      .where('tag.usageCount > 0')
-      .orderBy('tag.usageCount', 'DESC')
+      .createQueryBuilder("tag")
+      .select("tag.name", "tag")
+      .addSelect("tag.usageCount", "count")
+      .where("tag.usageCount > 0")
+      .orderBy("tag.usageCount", "DESC")
       .limit(50)
       .getRawMany();
 
@@ -768,7 +803,16 @@ export class SearchService implements OnModuleInit {
     page?: number;
     limit?: number;
   }) {
-    const { query, tagIds, tagNames, matchAllTags = false, categories, minRating, page = 1, limit = 20 } = params;
+    const {
+      query,
+      tagIds,
+      tagNames,
+      matchAllTags = false,
+      categories,
+      minRating,
+      page = 1,
+      limit = 20,
+    } = params;
 
     // If we have tags, find stories with those tags first
     let storyIdsFromTags: string[] | null = null;
@@ -779,30 +823,36 @@ export class SearchService implements OnModuleInit {
       // Convert tag names to IDs if needed
       if (tagNames && tagNames.length > 0) {
         const tagsByName = await this.tagRepository
-          .createQueryBuilder('tag')
-          .where('LOWER(tag.name) IN (:...names)', { names: tagNames.map(n => n.toLowerCase()) })
+          .createQueryBuilder("tag")
+          .where("LOWER(tag.name) IN (:...names)", {
+            names: tagNames.map((n) => n.toLowerCase()),
+          })
           .getMany();
-        tagIdsToSearch = [...tagIdsToSearch, ...tagsByName.map(t => t.id)];
+        tagIdsToSearch = [...tagIdsToSearch, ...tagsByName.map((t) => t.id)];
       }
 
       if (tagIdsToSearch.length > 0) {
         if (matchAllTags) {
           // Stories must have ALL specified tags
           const storiesWithAllTags = await this.storyTagRepository
-            .createQueryBuilder('st')
-            .select('st.storyId')
-            .where('st.tagId IN (:...tagIds)', { tagIds: tagIdsToSearch })
-            .groupBy('st.storyId')
-            .having('COUNT(DISTINCT st.tagId) = :count', { count: tagIdsToSearch.length })
+            .createQueryBuilder("st")
+            .select("st.storyId")
+            .where("st.tagId IN (:...tagIds)", { tagIds: tagIdsToSearch })
+            .groupBy("st.storyId")
+            .having("COUNT(DISTINCT st.tagId) = :count", {
+              count: tagIdsToSearch.length,
+            })
             .getRawMany();
-          storyIdsFromTags = storiesWithAllTags.map(s => s.st_storyId);
+          storyIdsFromTags = storiesWithAllTags.map((s) => s.st_storyId);
         } else {
           // Stories must have ANY of the specified tags
           const storiesWithAnyTag = await this.storyTagRepository.find({
             where: { tagId: In(tagIdsToSearch) },
-            select: ['storyId'],
+            select: ["storyId"],
           });
-          storyIdsFromTags = [...new Set(storiesWithAnyTag.map(s => s.storyId))];
+          storyIdsFromTags = [
+            ...new Set(storiesWithAnyTag.map((s) => s.storyId)),
+          ];
         }
 
         if (storyIdsFromTags.length === 0) {
@@ -813,33 +863,37 @@ export class SearchService implements OnModuleInit {
 
     // Build story query
     const queryBuilder = this.storyRepository
-      .createQueryBuilder('story')
-      .leftJoinAndSelect('story.author', 'author')
-      .where('story.status = :status', { status: StoryStatus.PUBLISHED });
+      .createQueryBuilder("story")
+      .leftJoinAndSelect("story.author", "author")
+      .where("story.status = :status", { status: StoryStatus.PUBLISHED });
 
     if (storyIdsFromTags) {
-      queryBuilder.andWhere('story.id IN (:...storyIds)', { storyIds: storyIdsFromTags });
+      queryBuilder.andWhere("story.id IN (:...storyIds)", {
+        storyIds: storyIdsFromTags,
+      });
     }
 
     if (query) {
       queryBuilder.andWhere(
-        '(story.title ILIKE :query OR story.description ILIKE :query)',
+        "(story.title ILIKE :query OR story.description ILIKE :query)",
         { query: `%${query}%` },
       );
     }
 
     if (categories && categories.length > 0) {
-      queryBuilder.andWhere('story.category IN (:...categories)', { categories });
+      queryBuilder.andWhere("story.category IN (:...categories)", {
+        categories,
+      });
     }
 
     if (minRating !== undefined) {
-      queryBuilder.andWhere('story.averageRating >= :minRating', { minRating });
+      queryBuilder.andWhere("story.averageRating >= :minRating", { minRating });
     }
 
     const skip = (page - 1) * limit;
     const [stories, total] = await queryBuilder
-      .orderBy('story.averageRating', 'DESC')
-      .addOrderBy('story.viewCount', 'DESC')
+      .orderBy("story.averageRating", "DESC")
+      .addOrderBy("story.viewCount", "DESC")
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -849,11 +903,11 @@ export class SearchService implements OnModuleInit {
       stories.map(async (story) => {
         const storyTags = await this.storyTagRepository.find({
           where: { storyId: story.id },
-          relations: ['tag'],
+          relations: ["tag"],
         });
         return {
           ...story,
-          storyTags: storyTags.map(st => st.tag),
+          storyTags: storyTags.map((st) => st.tag),
         };
       }),
     );
@@ -873,18 +927,25 @@ export class SearchService implements OnModuleInit {
   // Fallback Methods (when Elasticsearch is unavailable)
   // ============================================================================
 
-  private async fallbackSearchTags(query: string, type?: TagType, limit = 20, page = 1) {
+  private async fallbackSearchTags(
+    query: string,
+    type?: TagType,
+    limit = 20,
+    page = 1,
+  ) {
     const queryBuilder = this.tagRepository
-      .createQueryBuilder('tag')
-      .where('(tag.name ILIKE :query OR tag.slug ILIKE :query)', { query: `%${query}%` });
+      .createQueryBuilder("tag")
+      .where("(tag.name ILIKE :query OR tag.slug ILIKE :query)", {
+        query: `%${query}%`,
+      });
 
     if (type) {
-      queryBuilder.andWhere('tag.type = :type', { type });
+      queryBuilder.andWhere("tag.type = :type", { type });
     }
 
     const skip = (page - 1) * limit;
     const [tags, total] = await queryBuilder
-      .orderBy('tag.usageCount', 'DESC')
+      .orderBy("tag.usageCount", "DESC")
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -904,33 +965,39 @@ export class SearchService implements OnModuleInit {
     const { query, page = 1, limit = 20 } = dto;
 
     const queryBuilder = this.storyRepository
-      .createQueryBuilder('story')
-      .leftJoinAndSelect('story.author', 'author')
-      .where('story.status = :status', { status: StoryStatus.PUBLISHED })
+      .createQueryBuilder("story")
+      .leftJoinAndSelect("story.author", "author")
+      .where("story.status = :status", { status: StoryStatus.PUBLISHED })
       .andWhere(
-        '(story.title ILIKE :query OR story.description ILIKE :query OR story.tags::text ILIKE :query)',
+        "(story.title ILIKE :query OR story.description ILIKE :query OR story.tags::text ILIKE :query)",
         { query: `%${query}%` },
       );
 
     if (dto.categories?.length) {
-      queryBuilder.andWhere('story.category IN (:...categories)', { categories: dto.categories });
+      queryBuilder.andWhere("story.category IN (:...categories)", {
+        categories: dto.categories,
+      });
     }
 
     if (dto.minRating !== undefined) {
-      queryBuilder.andWhere('story.averageRating >= :minRating', { minRating: dto.minRating });
+      queryBuilder.andWhere("story.averageRating >= :minRating", {
+        minRating: dto.minRating,
+      });
     }
 
     if (dto.freeOnly) {
-      queryBuilder.andWhere('story.isPremium = false');
+      queryBuilder.andWhere("story.isPremium = false");
     }
 
     if (dto.authorId) {
-      queryBuilder.andWhere('story.authorId = :authorId', { authorId: dto.authorId });
+      queryBuilder.andWhere("story.authorId = :authorId", {
+        authorId: dto.authorId,
+      });
     }
 
     const skip = (page - 1) * limit;
     const [stories, total] = await queryBuilder
-      .orderBy('story.averageRating', 'DESC')
+      .orderBy("story.averageRating", "DESC")
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -950,16 +1017,16 @@ export class SearchService implements OnModuleInit {
     const { query, page = 1, limit = 20 } = dto;
 
     const queryBuilder = this.userRepository
-      .createQueryBuilder('user')
-      .where('user.accountStatus = :status', { status: 'active' })
+      .createQueryBuilder("user")
+      .where("user.accountStatus = :status", { status: "active" })
       .andWhere(
-        '(user.username ILIKE :query OR user.displayName ILIKE :query)',
+        "(user.username ILIKE :query OR user.displayName ILIKE :query)",
         { query: `%${query}%` },
       );
 
     const skip = (page - 1) * limit;
     const [users, total] = await queryBuilder
-      .orderBy('user.createdAt', 'DESC')
+      .orderBy("user.createdAt", "DESC")
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -1008,7 +1075,8 @@ export class SearchService implements OnModuleInit {
       existingSearch.searchCount += 1;
       existingSearch.lastSearchedAt = new Date();
       if (filters) existingSearch.filters = filters;
-      if (resultsCount !== undefined) existingSearch.resultsCount = resultsCount;
+      if (resultsCount !== undefined)
+        existingSearch.resultsCount = resultsCount;
       return this.searchHistoryRepository.save(existingSearch);
     }
 
@@ -1028,13 +1096,10 @@ export class SearchService implements OnModuleInit {
   /**
    * Get user's search history
    */
-  async getSearchHistory(
-    userId: string,
-    limit = 20,
-  ): Promise<SearchHistory[]> {
+  async getSearchHistory(userId: string, limit = 20): Promise<SearchHistory[]> {
     return this.searchHistoryRepository.find({
       where: { userId },
-      order: { lastSearchedAt: 'DESC' },
+      order: { lastSearchedAt: "DESC" },
       take: limit,
     });
   }
@@ -1048,7 +1113,7 @@ export class SearchService implements OnModuleInit {
   ): Promise<SearchHistory[]> {
     return this.searchHistoryRepository.find({
       where: { userId },
-      order: { searchCount: 'DESC' },
+      order: { searchCount: "DESC" },
       take: limit,
     });
   }
@@ -1056,10 +1121,7 @@ export class SearchService implements OnModuleInit {
   /**
    * Delete a search history entry
    */
-  async deleteSearchHistory(
-    userId: string,
-    historyId: string,
-  ): Promise<void> {
+  async deleteSearchHistory(userId: string, historyId: string): Promise<void> {
     await this.searchHistoryRepository.delete({
       id: historyId,
       userId,
@@ -1076,21 +1138,23 @@ export class SearchService implements OnModuleInit {
   /**
    * Get trending searches (across all users)
    */
-  async getTrendingSearches(limit = 10): Promise<{ query: string; count: number }[]> {
+  async getTrendingSearches(
+    limit = 10,
+  ): Promise<{ query: string; count: number }[]> {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
     const results = await this.searchHistoryRepository
-      .createQueryBuilder('sh')
-      .select('sh.query', 'query')
-      .addSelect('SUM(sh.searchCount)', 'count')
-      .where('sh.lastSearchedAt >= :oneWeekAgo', { oneWeekAgo })
-      .groupBy('sh.query')
-      .orderBy('count', 'DESC')
+      .createQueryBuilder("sh")
+      .select("sh.query", "query")
+      .addSelect("SUM(sh.searchCount)", "count")
+      .where("sh.lastSearchedAt >= :oneWeekAgo", { oneWeekAgo })
+      .groupBy("sh.query")
+      .orderBy("count", "DESC")
       .limit(limit)
       .getRawMany();
 
-    return results.map(r => ({
+    return results.map((r) => ({
       query: r.query,
       count: parseInt(r.count, 10),
     }));

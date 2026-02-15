@@ -1,13 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Request } from 'express';
-import { User } from '@/database/entities';
-import { AccountStatus } from '@aardvark/shared';
-import { TokenBlacklistService } from '../token-blacklist.service';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Request } from "express";
+import { User } from "@/database/entities";
+import { AccountStatus } from "@aardvark/shared";
+import { TokenBlacklistService } from "../token-blacklist.service";
 
 /**
  * JWT payload interface
@@ -33,9 +33,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly userRepository: Repository<User>,
     private readonly tokenBlacklistService: TokenBlacklistService,
   ) {
-    const jwtSecret = configService.get<string>('jwt.secret');
+    const jwtSecret = configService.get<string>("jwt.secret");
     if (!jwtSecret) {
-      throw new Error('JWT_SECRET environment variable is not set');
+      throw new Error("JWT_SECRET environment variable is not set");
     }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -53,23 +53,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Check if token has been blacklisted (user logged out)
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
     if (token && this.tokenBlacklistService.isBlacklisted(token)) {
-      throw new UnauthorizedException('Token has been invalidated');
+      throw new UnauthorizedException("Token has been invalidated");
     }
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
-      select: ['id', 'username', 'role', 'accountStatus'],
+      select: ["id", "username", "role", "accountStatus"],
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
     if (user.accountStatus === AccountStatus.BANNED) {
-      throw new UnauthorizedException('Account has been banned');
+      throw new UnauthorizedException("Account has been banned");
     }
 
     if (user.accountStatus === AccountStatus.SUSPENDED) {
-      throw new UnauthorizedException('Account is suspended');
+      throw new UnauthorizedException("Account is suspended");
     }
 
     return {

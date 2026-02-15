@@ -1,4 +1,4 @@
-declare module 'marked' {
+declare module "marked" {
   export interface MarkedOptions {
     async?: boolean;
     gfm?: boolean;
@@ -17,7 +17,7 @@ declare module 'marked' {
   export default marked;
 }
 
-declare module '@elastic/elasticsearch' {
+declare module "@elastic/elasticsearch" {
   export class Client {
     constructor(config: { node: string; [key: string]: any });
     ping(): Promise<boolean>;

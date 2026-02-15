@@ -1,13 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { SubscriptionsService } from './subscriptions.service';
-import { Subscription, SubscriptionPlan, User, Transaction } from '@/database/entities';
-import { PaymentsService } from '@/modules/payments/payments.service';
-import { SubscriptionTier } from '@aardvark/shared';
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { SubscriptionsService } from "./subscriptions.service";
+import {
+  Subscription,
+  SubscriptionPlan,
+  User,
+  Transaction,
+} from "@/database/entities";
+import { PaymentsService } from "@/modules/payments/payments.service";
+import { SubscriptionTier } from "@aardvark/shared";
 
-describe('SubscriptionsService', () => {
+describe("SubscriptionsService", () => {
   let service: SubscriptionsService;
   let subscriptionRepo: jest.Mocked<Repository<Subscription>>;
   let planRepo: jest.Mocked<Repository<SubscriptionPlan>>;
@@ -16,24 +21,24 @@ describe('SubscriptionsService', () => {
   let paymentsService: jest.Mocked<PaymentsService>;
 
   const mockPlan = {
-    id: 'plan-123',
-    name: 'Premium Monthly',
+    id: "plan-123",
+    name: "Premium Monthly",
     tier: SubscriptionTier.PREMIUM,
-    stripePriceId: 'price_123',
+    stripePriceId: "price_123",
     priceInCents: 999,
-    interval: 'month',
-    features: ['ad-free', 'unlimited-reading'],
+    interval: "month",
+    features: ["ad-free", "unlimited-reading"],
     isActive: true,
   };
 
   const mockSubscription = {
-    id: 'sub-123',
-    userId: 'user-123',
-    planId: 'plan-123',
+    id: "sub-123",
+    userId: "user-123",
+    planId: "plan-123",
     plan: mockPlan,
-    stripeSubscriptionId: 'sub_stripe_123',
-    stripeCustomerId: 'cus_123',
-    status: 'active',
+    stripeSubscriptionId: "sub_stripe_123",
+    stripeCustomerId: "cus_123",
+    status: "active",
     currentPeriodStart: new Date(),
     currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     cancelAtPeriodEnd: false,
@@ -41,8 +46,8 @@ describe('SubscriptionsService', () => {
   };
 
   const mockStripeSubscription = {
-    id: 'sub_stripe_123',
-    status: 'active',
+    id: "sub_stripe_123",
+    status: "active",
     current_period_start: Math.floor(Date.now() / 1000),
     current_period_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
     cancel_at_period_end: false,
@@ -103,9 +108,17 @@ describe('SubscriptionsService', () => {
     paymentsService = module.get(PaymentsService);
   });
 
-  describe('getPlans', () => {
-    it('should return all active plans sorted by price', async () => {
-      const plans = [mockPlan, { ...mockPlan, id: 'plan-456', name: 'Premium Yearly', priceInCents: 9999 }];
+  describe("getPlans", () => {
+    it("should return all active plans sorted by price", async () => {
+      const plans = [
+        mockPlan,
+        {
+          ...mockPlan,
+          id: "plan-456",
+          name: "Premium Yearly",
+          priceInCents: 9999,
+        },
+      ];
       planRepo.find.mockResolvedValue(plans as any);
 
       const result = await service.getPlans();
@@ -113,11 +126,11 @@ describe('SubscriptionsService', () => {
       expect(result).toEqual(plans);
       expect(planRepo.find).toHaveBeenCalledWith({
         where: { isActive: true },
-        order: { priceInCents: 'ASC' },
+        order: { priceInCents: "ASC" },
       });
     });
 
-    it('should return empty array if no plans', async () => {
+    it("should return empty array if no plans", async () => {
       planRepo.find.mockResolvedValue([]);
 
       const result = await service.getPlans();
@@ -126,27 +139,29 @@ describe('SubscriptionsService', () => {
     });
   });
 
-  describe('getPlan', () => {
-    it('should return plan by ID', async () => {
+  describe("getPlan", () => {
+    it("should return plan by ID", async () => {
       planRepo.findOne.mockResolvedValue(mockPlan as any);
 
-      const result = await service.getPlan('plan-123');
+      const result = await service.getPlan("plan-123");
 
       expect(result).toEqual(mockPlan);
     });
 
-    it('should throw NotFoundException if plan not found', async () => {
+    it("should throw NotFoundException if plan not found", async () => {
       planRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getPlan('invalid-plan')).rejects.toThrow(NotFoundException);
+      await expect(service.getPlan("invalid-plan")).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
-  describe('getSubscriptionStatus', () => {
-    it('should return active subscription status with benefits', async () => {
+  describe("getSubscriptionStatus", () => {
+    it("should return active subscription status with benefits", async () => {
       subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
 
-      const result = await service.getSubscriptionStatus('user-123');
+      const result = await service.getSubscriptionStatus("user-123");
 
       expect(result.isActive).toBe(true);
       expect(result.tier).toBe(SubscriptionTier.PREMIUM);
@@ -155,10 +170,10 @@ describe('SubscriptionsService', () => {
       expect(result.benefits).toBeDefined();
     });
 
-    it('should return free tier status when no subscription', async () => {
+    it("should return free tier status when no subscription", async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.getSubscriptionStatus('user-123');
+      const result = await service.getSubscriptionStatus("user-123");
 
       expect(result.isActive).toBe(false);
       expect(result.tier).toBe(SubscriptionTier.FREE);
@@ -167,63 +182,65 @@ describe('SubscriptionsService', () => {
       expect(result.benefits).toBeNull();
     });
 
-    it('should include renewal date when not canceling', async () => {
+    it("should include renewal date when not canceling", async () => {
       subscriptionRepo.findOne.mockResolvedValue({
         ...mockSubscription,
         cancelAtPeriodEnd: false,
       } as any);
 
-      const result = await service.getSubscriptionStatus('user-123');
+      const result = await service.getSubscriptionStatus("user-123");
 
       expect(result.renewsAt).toBeDefined();
       expect(result.canceledAt).toBeNull();
     });
 
-    it('should return null renewsAt when canceling at period end', async () => {
+    it("should return null renewsAt when canceling at period end", async () => {
       subscriptionRepo.findOne.mockResolvedValue({
         ...mockSubscription,
         cancelAtPeriodEnd: true,
       } as any);
 
-      const result = await service.getSubscriptionStatus('user-123');
+      const result = await service.getSubscriptionStatus("user-123");
 
       expect(result.renewsAt).toBeNull();
     });
   });
 
-  describe('isPremium', () => {
-    it('should return true for premium subscription', async () => {
+  describe("isPremium", () => {
+    it("should return true for premium subscription", async () => {
       subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
 
-      const result = await service.isPremium('user-123');
+      const result = await service.isPremium("user-123");
 
       expect(result).toBe(true);
     });
 
-    it('should return false when no subscription', async () => {
+    it("should return false when no subscription", async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.isPremium('user-123');
+      const result = await service.isPremium("user-123");
 
       expect(result).toBe(false);
     });
 
-    it('should return false for free tier plan', async () => {
+    it("should return false for free tier plan", async () => {
       subscriptionRepo.findOne.mockResolvedValue({
         ...mockSubscription,
         plan: { ...mockPlan, tier: SubscriptionTier.FREE },
       } as any);
 
-      const result = await service.isPremium('user-123');
+      const result = await service.isPremium("user-123");
 
       expect(result).toBe(false);
     });
   });
 
-  describe('createSubscription', () => {
+  describe("createSubscription", () => {
     beforeEach(() => {
       planRepo.findOne.mockResolvedValue(mockPlan as any);
-      paymentsService.getSubscription.mockResolvedValue(mockStripeSubscription as any);
+      paymentsService.getSubscription.mockResolvedValue(
+        mockStripeSubscription as any,
+      );
       subscriptionRepo.create.mockReturnValue(mockSubscription as any);
       subscriptionRepo.save.mockResolvedValue(mockSubscription as any);
       userRepo.update.mockResolvedValue({} as any);
@@ -231,14 +248,14 @@ describe('SubscriptionsService', () => {
       transactionRepo.save.mockResolvedValue({} as any);
     });
 
-    it('should create new subscription successfully', async () => {
+    it("should create new subscription successfully", async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
       const result = await service.createSubscription(
-        'user-123',
-        'plan-123',
-        'sub_stripe_123',
-        'cus_123',
+        "user-123",
+        "plan-123",
+        "sub_stripe_123",
+        "cus_123",
       );
 
       expect(result).toEqual(mockSubscription);
@@ -246,39 +263,64 @@ describe('SubscriptionsService', () => {
       expect(subscriptionRepo.save).toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException if user already has active subscription', async () => {
+    it("should throw BadRequestException if user already has active subscription", async () => {
       subscriptionRepo.findOne.mockResolvedValue(mockSubscription as any);
 
       await expect(
-        service.createSubscription('user-123', 'plan-123', 'sub_stripe_123', 'cus_123'),
+        service.createSubscription(
+          "user-123",
+          "plan-123",
+          "sub_stripe_123",
+          "cus_123",
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw NotFoundException if plan not found', async () => {
+    it("should throw NotFoundException if plan not found", async () => {
       planRepo.findOne.mockResolvedValue(null);
       subscriptionRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.createSubscription('user-123', 'invalid-plan', 'sub_stripe_123', 'cus_123'),
+        service.createSubscription(
+          "user-123",
+          "invalid-plan",
+          "sub_stripe_123",
+          "cus_123",
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should fetch subscription details from Stripe', async () => {
+    it("should fetch subscription details from Stripe", async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
-      await service.createSubscription('user-123', 'plan-123', 'sub_stripe_123', 'cus_123');
+      await service.createSubscription(
+        "user-123",
+        "plan-123",
+        "sub_stripe_123",
+        "cus_123",
+      );
 
-      expect(paymentsService.getSubscription).toHaveBeenCalledWith('sub_stripe_123');
+      expect(paymentsService.getSubscription).toHaveBeenCalledWith(
+        "sub_stripe_123",
+      );
     });
 
-    it('should update user subscription status', async () => {
+    it("should update user subscription status", async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
-      await service.createSubscription('user-123', 'plan-123', 'sub_stripe_123', 'cus_123');
+      await service.createSubscription(
+        "user-123",
+        "plan-123",
+        "sub_stripe_123",
+        "cus_123",
+      );
 
-      expect(userRepo.update).toHaveBeenCalledWith('user-123', expect.objectContaining({
-        subscriptionStatus: expect.any(String),
-      }));
+      expect(userRepo.update).toHaveBeenCalledWith(
+        "user-123",
+        expect.objectContaining({
+          subscriptionStatus: expect.any(String),
+        }),
+      );
     });
   });
 });

@@ -4,13 +4,13 @@ import {
   NotFoundException,
   InternalServerErrorException,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, MoreThanOrEqual } from 'typeorm';
-import OpenAI from 'openai';
-import { User, Transaction } from '@/database/entities';
-import { TransactionType } from '@aardvark/shared';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, DataSource, MoreThanOrEqual } from "typeorm";
+import OpenAI from "openai";
+import { User, Transaction } from "@/database/entities";
+import { TransactionType } from "@aardvark/shared";
 import {
   AIContinueStoryResponse,
   AISuggestBranchesResponse,
@@ -22,7 +22,7 @@ import {
   AICreditsResponse,
   AIOperationType,
   AI_RATE_LIMITS,
-} from './ai-companion.types';
+} from "./ai-companion.types";
 
 /**
  * AI Companion Service
@@ -53,9 +53,9 @@ export class AICompanionService {
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
   ) {
-    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+    const apiKey = this.configService.get<string>("OPENAI_API_KEY");
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is not configured');
+      throw new Error("OPENAI_API_KEY is not configured");
     }
     this.openai = new OpenAI({ apiKey });
   }
@@ -63,12 +63,17 @@ export class AICompanionService {
   /**
    * Validate input lengths to prevent excessive token usage
    */
-  private validateInputLength(inputs: Record<string, string | undefined>): void {
+  private validateInputLength(
+    inputs: Record<string, string | undefined>,
+  ): void {
     for (const [name, value] of Object.entries(inputs)) {
       if (!value) continue;
-      const maxLength = name.includes('prompt') || name.includes('role') || name.includes('situation')
-        ? this.MAX_PROMPT_LENGTH
-        : this.MAX_INPUT_LENGTH;
+      const maxLength =
+        name.includes("prompt") ||
+        name.includes("role") ||
+        name.includes("situation")
+          ? this.MAX_PROMPT_LENGTH
+          : this.MAX_INPUT_LENGTH;
       if (value.length > maxLength) {
         throw new BadRequestException(
           `Input "${name}" exceeds maximum length of ${maxLength} characters (received ${value.length})`,
@@ -94,34 +99,54 @@ export class AICompanionService {
 
     try {
       const systemPrompt = `You are a creative fiction writer helping to continue an interactive story.
-${style ? `Write in the following style: ${style}.` : ''}
+${style ? `Write in the following style: ${style}.` : ""}
 The continuation should be approximately ${length} words and maintain narrative consistency.`;
 
       const userPrompt = `Story context:\n${storyContext}\n\nWriter's prompt: ${prompt}\n\nPlease continue the story:`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         max_tokens: Math.ceil(length * 1.5),
         temperature: 0.8,
       });
 
-      const continuation = completion.choices[0]?.message?.content || '';
+      const continuation = completion.choices[0]?.message?.content || "";
       const tokenCount = completion.usage?.total_tokens || 0;
-      const creditsUsed = this.creditsPerOperation[AIOperationType.CONTINUE_STORY];
+      const creditsUsed =
+        this.creditsPerOperation[AIOperationType.CONTINUE_STORY];
 
       // Don't charge credits for empty responses
       if (!continuation.trim()) {
-        await this.logUsage(userId, AIOperationType.CONTINUE_STORY, tokenCount, 0, false, 'Empty response from AI');
-        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+        await this.logUsage(
+          userId,
+          AIOperationType.CONTINUE_STORY,
+          tokenCount,
+          0,
+          false,
+          "Empty response from AI",
+        );
+        throw new InternalServerErrorException(
+          "AI returned an empty response. No credits were charged.",
+        );
       }
 
       // Log usage and deduct credits
-      await this.logUsage(userId, AIOperationType.CONTINUE_STORY, tokenCount, creditsUsed, true);
-      await this.deductCredits(userId, AIOperationType.CONTINUE_STORY, tokenCount);
+      await this.logUsage(
+        userId,
+        AIOperationType.CONTINUE_STORY,
+        tokenCount,
+        creditsUsed,
+        true,
+      );
+      await this.deductCredits(
+        userId,
+        AIOperationType.CONTINUE_STORY,
+        tokenCount,
+      );
 
       return {
         continuation,
@@ -138,7 +163,9 @@ The continuation should be approximately ${length} words and maintain narrative 
         false,
         error.message,
       );
-      throw new InternalServerErrorException('Failed to generate story continuation');
+      throw new InternalServerErrorException(
+        "Failed to generate story continuation",
+      );
     }
   }
 
@@ -162,35 +189,55 @@ Each branch should lead to a different narrative direction.`;
       const userPrompt = `Story context:\n${storyContext}\n\nCurrent segment:\n${currentSegment}\n\nSuggest ${numBranches} branching options:`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         max_tokens: 500,
         temperature: 0.9,
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
       });
 
-      const rawContent = completion.choices[0]?.message?.content || '';
+      const rawContent = completion.choices[0]?.message?.content || "";
       const tokenCount = completion.usage?.total_tokens || 0;
-      const creditsUsed = this.creditsPerOperation[AIOperationType.SUGGEST_BRANCHES];
+      const creditsUsed =
+        this.creditsPerOperation[AIOperationType.SUGGEST_BRANCHES];
 
       if (!rawContent.trim()) {
-        await this.logUsage(userId, AIOperationType.SUGGEST_BRANCHES, tokenCount, 0, false, 'Empty response from AI');
-        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+        await this.logUsage(
+          userId,
+          AIOperationType.SUGGEST_BRANCHES,
+          tokenCount,
+          0,
+          false,
+          "Empty response from AI",
+        );
+        throw new InternalServerErrorException(
+          "AI returned an empty response. No credits were charged.",
+        );
       }
 
       const response = JSON.parse(rawContent);
 
       // Ensure branches have the correct format
       const branches = (response.branches || []).map((b: any) => ({
-        text: b.text || b.choice || '',
-        description: b.description || b.summary || '',
+        text: b.text || b.choice || "",
+        description: b.description || b.summary || "",
       }));
 
-      await this.logUsage(userId, AIOperationType.SUGGEST_BRANCHES, tokenCount, creditsUsed, true);
-      await this.deductCredits(userId, AIOperationType.SUGGEST_BRANCHES, tokenCount);
+      await this.logUsage(
+        userId,
+        AIOperationType.SUGGEST_BRANCHES,
+        tokenCount,
+        creditsUsed,
+        true,
+      );
+      await this.deductCredits(
+        userId,
+        AIOperationType.SUGGEST_BRANCHES,
+        tokenCount,
+      );
 
       return {
         branches,
@@ -207,7 +254,7 @@ Each branch should lead to a different narrative direction.`;
         false,
         error.message,
       );
-      throw new InternalServerErrorException('Failed to suggest branches');
+      throw new InternalServerErrorException("Failed to suggest branches");
     }
   }
 
@@ -217,16 +264,17 @@ Each branch should lead to a different narrative direction.`;
   async improveWriting(
     userId: string,
     text: string,
-    focus: 'grammar' | 'style' | 'both' = 'both',
+    focus: "grammar" | "style" | "both" = "both",
   ): Promise<AIImproveWritingResponse> {
     this.validateInputLength({ text });
     await this.checkCredits(userId, AIOperationType.IMPROVE_WRITING);
 
     try {
       const focusInstructions = {
-        grammar: 'Focus on correcting grammar, spelling, and punctuation errors.',
-        style: 'Focus on improving writing style, flow, and narrative quality.',
-        both: 'Improve both grammar and writing style.',
+        grammar:
+          "Focus on correcting grammar, spelling, and punctuation errors.",
+        style: "Focus on improving writing style, flow, and narrative quality.",
+        both: "Improve both grammar and writing style.",
       };
 
       const systemPrompt = `You are a professional editor helping improve creative writing.
@@ -234,29 +282,49 @@ ${focusInstructions[focus]}
 Return a JSON object with: { "improved": "...", "suggestions": ["...", "..."] }`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: text },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text },
         ],
         max_tokens: 1000,
         temperature: 0.5,
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
       });
 
-      const rawContent = completion.choices[0]?.message?.content || '';
+      const rawContent = completion.choices[0]?.message?.content || "";
       const tokenCount = completion.usage?.total_tokens || 0;
-      const creditsUsed = this.creditsPerOperation[AIOperationType.IMPROVE_WRITING];
+      const creditsUsed =
+        this.creditsPerOperation[AIOperationType.IMPROVE_WRITING];
 
       if (!rawContent.trim()) {
-        await this.logUsage(userId, AIOperationType.IMPROVE_WRITING, tokenCount, 0, false, 'Empty response from AI');
-        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+        await this.logUsage(
+          userId,
+          AIOperationType.IMPROVE_WRITING,
+          tokenCount,
+          0,
+          false,
+          "Empty response from AI",
+        );
+        throw new InternalServerErrorException(
+          "AI returned an empty response. No credits were charged.",
+        );
       }
 
       const response = JSON.parse(rawContent);
 
-      await this.logUsage(userId, AIOperationType.IMPROVE_WRITING, tokenCount, creditsUsed, true);
-      await this.deductCredits(userId, AIOperationType.IMPROVE_WRITING, tokenCount);
+      await this.logUsage(
+        userId,
+        AIOperationType.IMPROVE_WRITING,
+        tokenCount,
+        creditsUsed,
+        true,
+      );
+      await this.deductCredits(
+        userId,
+        AIOperationType.IMPROVE_WRITING,
+        tokenCount,
+      );
 
       return {
         original: text,
@@ -275,7 +343,7 @@ Return a JSON object with: { "improved": "...", "suggestions": ["...", "..."] }`
         false,
         error.message,
       );
-      throw new InternalServerErrorException('Failed to improve writing');
+      throw new InternalServerErrorException("Failed to improve writing");
     }
   }
 
@@ -298,38 +366,59 @@ Return JSON: { "name": "...", "description": "...", "traits": ["...", "..."], "b
 
       let userPrompt = `Create a character for the role: ${role}`;
       if (genre) userPrompt += `\nGenre: ${genre}`;
-      if (traits && traits.length > 0) userPrompt += `\nDesired traits: ${traits.join(', ')}`;
+      if (traits && traits.length > 0)
+        userPrompt += `\nDesired traits: ${traits.join(", ")}`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         max_tokens: 800,
         temperature: 0.8,
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
       });
 
-      const rawContent = completion.choices[0]?.message?.content || '';
+      const rawContent = completion.choices[0]?.message?.content || "";
       const tokenCount = completion.usage?.total_tokens || 0;
-      const creditsUsed = this.creditsPerOperation[AIOperationType.GENERATE_CHARACTER];
+      const creditsUsed =
+        this.creditsPerOperation[AIOperationType.GENERATE_CHARACTER];
 
       if (!rawContent.trim()) {
-        await this.logUsage(userId, AIOperationType.GENERATE_CHARACTER, tokenCount, 0, false, 'Empty response from AI');
-        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+        await this.logUsage(
+          userId,
+          AIOperationType.GENERATE_CHARACTER,
+          tokenCount,
+          0,
+          false,
+          "Empty response from AI",
+        );
+        throw new InternalServerErrorException(
+          "AI returned an empty response. No credits were charged.",
+        );
       }
 
       const response = JSON.parse(rawContent);
 
-      await this.logUsage(userId, AIOperationType.GENERATE_CHARACTER, tokenCount, creditsUsed, true);
-      await this.deductCredits(userId, AIOperationType.GENERATE_CHARACTER, tokenCount);
+      await this.logUsage(
+        userId,
+        AIOperationType.GENERATE_CHARACTER,
+        tokenCount,
+        creditsUsed,
+        true,
+      );
+      await this.deductCredits(
+        userId,
+        AIOperationType.GENERATE_CHARACTER,
+        tokenCount,
+      );
 
       return {
-        name: response.name || 'Unknown Character',
-        description: response.description || '',
+        name: response.name || "Unknown Character",
+        description: response.description || "",
         traits: response.traits || [],
-        backstory: response.backstory || '',
+        backstory: response.backstory || "",
         tokenCount,
         creditsUsed,
       };
@@ -343,7 +432,7 @@ Return JSON: { "name": "...", "description": "...", "traits": ["...", "..."], "b
         false,
         error.message,
       );
-      throw new InternalServerErrorException('Failed to generate character');
+      throw new InternalServerErrorException("Failed to generate character");
     }
   }
 
@@ -362,35 +451,55 @@ Return JSON: { "name": "...", "description": "...", "traits": ["...", "..."], "b
     try {
       const systemPrompt = `You are a dialogue writer for interactive fiction.
 Create natural, character-appropriate dialogue options.
-${tone ? `Tone: ${tone}` : ''}
+${tone ? `Tone: ${tone}` : ""}
 Return JSON: { "dialogueOptions": [{ "character": "...", "dialogue": "...", "tone": "..." }, ...] }`;
 
-      const userPrompt = `Characters: ${characters.join(', ')}\nSituation: ${situation}\n\nGenerate dialogue options:`;
+      const userPrompt = `Characters: ${characters.join(", ")}\nSituation: ${situation}\n\nGenerate dialogue options:`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         max_tokens: 600,
         temperature: 0.8,
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
       });
 
-      const rawContent = completion.choices[0]?.message?.content || '';
+      const rawContent = completion.choices[0]?.message?.content || "";
       const tokenCount = completion.usage?.total_tokens || 0;
-      const creditsUsed = this.creditsPerOperation[AIOperationType.GENERATE_DIALOGUE];
+      const creditsUsed =
+        this.creditsPerOperation[AIOperationType.GENERATE_DIALOGUE];
 
       if (!rawContent.trim()) {
-        await this.logUsage(userId, AIOperationType.GENERATE_DIALOGUE, tokenCount, 0, false, 'Empty response from AI');
-        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+        await this.logUsage(
+          userId,
+          AIOperationType.GENERATE_DIALOGUE,
+          tokenCount,
+          0,
+          false,
+          "Empty response from AI",
+        );
+        throw new InternalServerErrorException(
+          "AI returned an empty response. No credits were charged.",
+        );
       }
 
       const response = JSON.parse(rawContent);
 
-      await this.logUsage(userId, AIOperationType.GENERATE_DIALOGUE, tokenCount, creditsUsed, true);
-      await this.deductCredits(userId, AIOperationType.GENERATE_DIALOGUE, tokenCount);
+      await this.logUsage(
+        userId,
+        AIOperationType.GENERATE_DIALOGUE,
+        tokenCount,
+        creditsUsed,
+        true,
+      );
+      await this.deductCredits(
+        userId,
+        AIOperationType.GENERATE_DIALOGUE,
+        tokenCount,
+      );
 
       return {
         dialogueOptions: response.dialogueOptions || [],
@@ -407,7 +516,7 @@ Return JSON: { "dialogueOptions": [{ "character": "...", "dialogue": "...", "ton
         false,
         error.message,
       );
-      throw new InternalServerErrorException('Failed to generate dialogue');
+      throw new InternalServerErrorException("Failed to generate dialogue");
     }
   }
 
@@ -428,32 +537,52 @@ Maximum summary length: ${maxWords} words.
 Return JSON: { "summary": "...", "keyPoints": ["...", "..."] }`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: storyContent },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: storyContent },
         ],
         max_tokens: 500,
         temperature: 0.3,
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
       });
 
-      const rawContent = completion.choices[0]?.message?.content || '';
+      const rawContent = completion.choices[0]?.message?.content || "";
       const tokenCount = completion.usage?.total_tokens || 0;
-      const creditsUsed = this.creditsPerOperation[AIOperationType.SUMMARIZE_STORY];
+      const creditsUsed =
+        this.creditsPerOperation[AIOperationType.SUMMARIZE_STORY];
 
       if (!rawContent.trim()) {
-        await this.logUsage(userId, AIOperationType.SUMMARIZE_STORY, tokenCount, 0, false, 'Empty response from AI');
-        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+        await this.logUsage(
+          userId,
+          AIOperationType.SUMMARIZE_STORY,
+          tokenCount,
+          0,
+          false,
+          "Empty response from AI",
+        );
+        throw new InternalServerErrorException(
+          "AI returned an empty response. No credits were charged.",
+        );
       }
 
       const response = JSON.parse(rawContent);
 
-      await this.logUsage(userId, AIOperationType.SUMMARIZE_STORY, tokenCount, creditsUsed, true);
-      await this.deductCredits(userId, AIOperationType.SUMMARIZE_STORY, tokenCount);
+      await this.logUsage(
+        userId,
+        AIOperationType.SUMMARIZE_STORY,
+        tokenCount,
+        creditsUsed,
+        true,
+      );
+      await this.deductCredits(
+        userId,
+        AIOperationType.SUMMARIZE_STORY,
+        tokenCount,
+      );
 
       return {
-        summary: response.summary || '',
+        summary: response.summary || "",
         keyPoints: response.keyPoints || [],
         wordCount: response.summary?.split(/\s+/).length || 0,
         tokenCount,
@@ -469,17 +598,20 @@ Return JSON: { "summary": "...", "keyPoints": ["...", "..."] }`;
         false,
         error.message,
       );
-      throw new InternalServerErrorException('Failed to summarize story');
+      throw new InternalServerErrorException("Failed to summarize story");
     }
   }
 
   /**
    * Check if user has sufficient credits and is within rate limits
    */
-  async checkCredits(userId: string, operation: AIOperationType): Promise<AICreditsResponse> {
+  async checkCredits(
+    userId: string,
+    operation: AIOperationType,
+  ): Promise<AICreditsResponse> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     const creditsRequired = this.creditsPerOperation[operation];
@@ -548,34 +680,55 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
 
       let userPrompt = `Generate ${numIdeas} plot ideas for the genre: ${genre}`;
       if (themes && themes.length > 0) {
-        userPrompt += `\nIncorporate these themes: ${themes.join(', ')}`;
+        userPrompt += `\nIncorporate these themes: ${themes.join(", ")}`;
       }
-      userPrompt += '\n\nProvide creative, engaging plot ideas with branching potential.';
+      userPrompt +=
+        "\n\nProvide creative, engaging plot ideas with branching potential.";
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         max_tokens: 800,
         temperature: 0.9,
-        response_format: { type: 'json_object' },
+        response_format: { type: "json_object" },
       });
 
-      const rawContent = completion.choices[0]?.message?.content || '';
+      const rawContent = completion.choices[0]?.message?.content || "";
       const tokenCount = completion.usage?.total_tokens || 0;
-      const creditsUsed = this.creditsPerOperation[AIOperationType.GENERATE_PLOT_IDEAS];
+      const creditsUsed =
+        this.creditsPerOperation[AIOperationType.GENERATE_PLOT_IDEAS];
 
       if (!rawContent.trim()) {
-        await this.logUsage(userId, AIOperationType.GENERATE_PLOT_IDEAS, tokenCount, 0, false, 'Empty response from AI');
-        throw new InternalServerErrorException('AI returned an empty response. No credits were charged.');
+        await this.logUsage(
+          userId,
+          AIOperationType.GENERATE_PLOT_IDEAS,
+          tokenCount,
+          0,
+          false,
+          "Empty response from AI",
+        );
+        throw new InternalServerErrorException(
+          "AI returned an empty response. No credits were charged.",
+        );
       }
 
       const response = JSON.parse(rawContent);
 
-      await this.logUsage(userId, AIOperationType.GENERATE_PLOT_IDEAS, tokenCount, creditsUsed, true);
-      await this.deductCredits(userId, AIOperationType.GENERATE_PLOT_IDEAS, tokenCount);
+      await this.logUsage(
+        userId,
+        AIOperationType.GENERATE_PLOT_IDEAS,
+        tokenCount,
+        creditsUsed,
+        true,
+      );
+      await this.deductCredits(
+        userId,
+        AIOperationType.GENERATE_PLOT_IDEAS,
+        tokenCount,
+      );
 
       return {
         ideas: response.ideas || [],
@@ -592,7 +745,7 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
         false,
         error.message,
       );
-      throw new InternalServerErrorException('Failed to generate plot ideas');
+      throw new InternalServerErrorException("Failed to generate plot ideas");
     }
   }
 
@@ -606,7 +759,7 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
   ): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Premium users don't pay credits
@@ -623,11 +776,11 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
       // Lock user row for update
       const lockedUser = await userRepo.findOne({
         where: { id: userId },
-        lock: { mode: 'pessimistic_write' },
+        lock: { mode: "pessimistic_write" },
       });
 
       if (!lockedUser) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException("User not found");
       }
 
       // Update balance
@@ -640,9 +793,9 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
         type: TransactionType.AI_COMPANION,
         amount: -creditsToDeduct,
         balance: newBalance,
-        description: `AI ${operation.replace(/_/g, ' ')}`,
+        description: `AI ${operation.replace(/_/g, " ")}`,
         referenceId: null,
-        referenceType: 'ai_operation',
+        referenceType: "ai_operation",
         metadata: {
           operation,
           tokensUsed,
@@ -672,9 +825,9 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
         type: TransactionType.AI_COMPANION,
         amount: 0, // Log only, no credit change
         balance: 0, // Will be updated if credits are deducted
-        description: `AI ${operation} ${success ? 'success' : 'failed'}`,
+        description: `AI ${operation} ${success ? "success" : "failed"}`,
         referenceId: null,
-        referenceType: 'ai_usage_log',
+        referenceType: "ai_usage_log",
         metadata: {
           operation,
           tokensUsed,
@@ -686,7 +839,10 @@ Return JSON: { "ideas": [{ "title": "...", "synopsis": "...", "themes": ["...", 
       });
     } catch (error) {
       // Don't throw on logging errors
-      this.logger.warn('Failed to log AI usage', error instanceof Error ? error.message : error);
+      this.logger.warn(
+        "Failed to log AI usage",
+        error instanceof Error ? error.message : error,
+      );
     }
   }
 }

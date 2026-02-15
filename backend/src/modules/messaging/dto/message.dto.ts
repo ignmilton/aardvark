@@ -9,16 +9,20 @@ import {
   MaxLength,
   MinLength,
   IsDateString,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class SendMessageDto {
-  @ApiProperty({ description: 'Recipient user ID' })
+  @ApiProperty({ description: "Recipient user ID" })
   @IsUUID()
   recipientId: string;
 
-  @ApiProperty({ description: 'Message content', minLength: 1, maxLength: 5000 })
+  @ApiProperty({
+    description: "Message content",
+    minLength: 1,
+    maxLength: 5000,
+  })
   @IsString()
   @MinLength(1)
   @MaxLength(5000)
@@ -26,14 +30,14 @@ export class SendMessageDto {
 }
 
 export class ConversationQueryDto {
-  @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @ApiPropertyOptional({ description: "Page number", default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Results per page', default: 20 })
+  @ApiPropertyOptional({ description: "Results per page", default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -41,7 +45,10 @@ export class ConversationQueryDto {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ description: 'Include archived conversations', default: false })
+  @ApiPropertyOptional({
+    description: "Include archived conversations",
+    default: false,
+  })
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
@@ -49,14 +56,14 @@ export class ConversationQueryDto {
 }
 
 export class MessageQueryDto {
-  @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @ApiPropertyOptional({ description: "Page number", default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Results per page', default: 50 })
+  @ApiPropertyOptional({ description: "Results per page", default: 50 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -64,18 +71,18 @@ export class MessageQueryDto {
   @Max(100)
   limit?: number = 50;
 
-  @ApiPropertyOptional({ description: 'Get messages before this date' })
+  @ApiPropertyOptional({ description: "Get messages before this date" })
   @IsOptional()
   @IsDateString()
   before?: string;
 }
 
 export class BlockUserDto {
-  @ApiProperty({ description: 'User ID to block' })
+  @ApiProperty({ description: "User ID to block" })
   @IsUUID()
   userId: string;
 
-  @ApiPropertyOptional({ description: 'Reason for blocking' })
+  @ApiPropertyOptional({ description: "Reason for blocking" })
   @IsOptional()
   @IsString()
   @MaxLength(500)

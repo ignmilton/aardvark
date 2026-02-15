@@ -1,7 +1,17 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { ReadingList, ReadingListFollow, Story, User } from '@/database/entities';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import {
+  ReadingList,
+  ReadingListFollow,
+  Story,
+  User,
+} from "@/database/entities";
 
 @Injectable()
 export class ReadingListsService {
@@ -57,30 +67,27 @@ export class ReadingListsService {
 
     return this.readingListRepository.find({
       where,
-      relations: ['user'],
-      order: { updatedAt: 'DESC' },
+      relations: ["user"],
+      order: { updatedAt: "DESC" },
     });
   }
 
   /**
    * Get a single reading list by ID
    */
-  async getById(
-    listId: string,
-    requesterId?: string,
-  ): Promise<ReadingList> {
+  async getById(listId: string, requesterId?: string): Promise<ReadingList> {
     const readingList = await this.readingListRepository.findOne({
       where: { id: listId },
-      relations: ['user', 'stories', 'stories.author'],
+      relations: ["user", "stories", "stories.author"],
     });
 
     if (!readingList) {
-      throw new NotFoundException('Reading list not found');
+      throw new NotFoundException("Reading list not found");
     }
 
     // Check access permissions
     if (!readingList.isPublic && readingList.userId !== requesterId) {
-      throw new ForbiddenException('This reading list is private');
+      throw new ForbiddenException("This reading list is private");
     }
 
     return readingList;
@@ -104,11 +111,13 @@ export class ReadingListsService {
     });
 
     if (!readingList) {
-      throw new NotFoundException('Reading list not found');
+      throw new NotFoundException("Reading list not found");
     }
 
     if (readingList.userId !== userId) {
-      throw new ForbiddenException('You can only update your own reading lists');
+      throw new ForbiddenException(
+        "You can only update your own reading lists",
+      );
     }
 
     Object.assign(readingList, {
@@ -128,11 +137,13 @@ export class ReadingListsService {
     });
 
     if (!readingList) {
-      throw new NotFoundException('Reading list not found');
+      throw new NotFoundException("Reading list not found");
     }
 
     if (readingList.userId !== userId) {
-      throw new ForbiddenException('You can only delete your own reading lists');
+      throw new ForbiddenException(
+        "You can only delete your own reading lists",
+      );
     }
 
     await this.readingListRepository.remove(readingList);
@@ -148,15 +159,17 @@ export class ReadingListsService {
   ): Promise<ReadingList> {
     const readingList = await this.readingListRepository.findOne({
       where: { id: listId },
-      relations: ['stories'],
+      relations: ["stories"],
     });
 
     if (!readingList) {
-      throw new NotFoundException('Reading list not found');
+      throw new NotFoundException("Reading list not found");
     }
 
     if (readingList.userId !== userId) {
-      throw new ForbiddenException('You can only modify your own reading lists');
+      throw new ForbiddenException(
+        "You can only modify your own reading lists",
+      );
     }
 
     const story = await this.storyRepository.findOne({
@@ -164,13 +177,13 @@ export class ReadingListsService {
     });
 
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     // Check if story already exists in list
-    const existingStory = readingList.stories?.find(s => s.id === storyId);
+    const existingStory = readingList.stories?.find((s) => s.id === storyId);
     if (existingStory) {
-      throw new BadRequestException('Story is already in this reading list');
+      throw new BadRequestException("Story is already in this reading list");
     }
 
     readingList.stories = [...(readingList.stories || []), story];
@@ -189,18 +202,22 @@ export class ReadingListsService {
   ): Promise<ReadingList> {
     const readingList = await this.readingListRepository.findOne({
       where: { id: listId },
-      relations: ['stories'],
+      relations: ["stories"],
     });
 
     if (!readingList) {
-      throw new NotFoundException('Reading list not found');
+      throw new NotFoundException("Reading list not found");
     }
 
     if (readingList.userId !== userId) {
-      throw new ForbiddenException('You can only modify your own reading lists');
+      throw new ForbiddenException(
+        "You can only modify your own reading lists",
+      );
     }
 
-    readingList.stories = (readingList.stories || []).filter(s => s.id !== storyId);
+    readingList.stories = (readingList.stories || []).filter(
+      (s) => s.id !== storyId,
+    );
     readingList.storyCount = readingList.stories.length;
 
     return this.readingListRepository.save(readingList);
@@ -215,15 +232,15 @@ export class ReadingListsService {
     });
 
     if (!readingList) {
-      throw new NotFoundException('Reading list not found');
+      throw new NotFoundException("Reading list not found");
     }
 
     if (!readingList.isPublic) {
-      throw new ForbiddenException('Cannot follow a private reading list');
+      throw new ForbiddenException("Cannot follow a private reading list");
     }
 
     if (readingList.userId === userId) {
-      throw new BadRequestException('Cannot follow your own reading list');
+      throw new BadRequestException("Cannot follow your own reading list");
     }
 
     // Check existing follow
@@ -232,7 +249,7 @@ export class ReadingListsService {
     });
 
     if (existingFollow) {
-      throw new BadRequestException('Already following this reading list');
+      throw new BadRequestException("Already following this reading list");
     }
 
     const follow = this.readingListFollowRepository.create({
@@ -245,7 +262,7 @@ export class ReadingListsService {
     // Update follower count
     await this.readingListRepository.increment(
       { id: listId },
-      'followersCount',
+      "followersCount",
       1,
     );
 
@@ -261,7 +278,7 @@ export class ReadingListsService {
     });
 
     if (!follow) {
-      throw new NotFoundException('Not following this reading list');
+      throw new NotFoundException("Not following this reading list");
     }
 
     await this.readingListFollowRepository.remove(follow);
@@ -269,7 +286,7 @@ export class ReadingListsService {
     // Update follower count
     await this.readingListRepository.decrement(
       { id: listId },
-      'followersCount',
+      "followersCount",
       1,
     );
   }
@@ -280,10 +297,10 @@ export class ReadingListsService {
   async getFollowedLists(userId: string): Promise<ReadingList[]> {
     const follows = await this.readingListFollowRepository.find({
       where: { userId },
-      relations: ['readingList', 'readingList.user'],
+      relations: ["readingList", "readingList.user"],
     });
 
-    return follows.map(f => f.readingList);
+    return follows.map((f) => f.readingList);
   }
 
   /**
@@ -303,8 +320,8 @@ export class ReadingListsService {
   async getPopularLists(limit: number = 10): Promise<ReadingList[]> {
     return this.readingListRepository.find({
       where: { isPublic: true },
-      relations: ['user'],
-      order: { followersCount: 'DESC' },
+      relations: ["user"],
+      order: { followersCount: "DESC" },
       take: limit,
     });
   }

@@ -4,21 +4,21 @@ import {
   ConflictException,
   BadRequestException,
   Logger,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import { nanoid } from 'nanoid';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import * as bcrypt from "bcrypt";
+import { nanoid } from "nanoid";
 import {
   UserRole,
   AccountStatus,
   RegisterUserDto,
   AuthResponse,
-} from '@aardvark/shared';
-import { User } from '@/database/entities';
-import { MailService } from '@/common/mail/mail.service';
+} from "@aardvark/shared";
+import { User } from "@/database/entities";
+import { MailService } from "@/common/mail/mail.service";
 
 /**
  * Authentication service handling user registration, login,
@@ -53,9 +53,9 @@ export class AuthService {
 
     if (existingUser) {
       if (existingUser.username === username) {
-        throw new ConflictException('Username already taken');
+        throw new ConflictException("Username already taken");
       }
-      throw new ConflictException('Email already registered');
+      throw new ConflictException("Email already registered");
     }
 
     // Hash password
@@ -94,23 +94,23 @@ export class AuthService {
     const user = await this.userRepository.findOne({
       where: { email },
       select: [
-        'id',
-        'username',
-        'email',
-        'passwordHash',
-        'displayName',
-        'avatarUrl',
-        'bio',
-        'role',
-        'accountStatus',
-        'subscriptionStatus',
-        'creditsBalance',
-        'preferences',
-        'emailVerified',
-        'loginAttempts',
-        'lockoutUntil',
-        'createdAt',
-        'updatedAt',
+        "id",
+        "username",
+        "email",
+        "passwordHash",
+        "displayName",
+        "avatarUrl",
+        "bio",
+        "role",
+        "accountStatus",
+        "subscriptionStatus",
+        "creditsBalance",
+        "preferences",
+        "emailVerified",
+        "loginAttempts",
+        "lockoutUntil",
+        "createdAt",
+        "updatedAt",
       ],
     });
 
@@ -120,11 +120,11 @@ export class AuthService {
 
     // Check account status
     if (user.accountStatus === AccountStatus.BANNED) {
-      throw new UnauthorizedException('Account has been banned');
+      throw new UnauthorizedException("Account has been banned");
     }
 
     if (user.accountStatus === AccountStatus.SUSPENDED) {
-      throw new UnauthorizedException('Account is suspended');
+      throw new UnauthorizedException("Account is suspended");
     }
 
     // Check if account is locked out
@@ -147,10 +147,14 @@ export class AuthService {
 
       if (attempts >= this.MAX_LOGIN_ATTEMPTS) {
         const lockoutUntil = new Date();
-        lockoutUntil.setMinutes(lockoutUntil.getMinutes() + this.LOCKOUT_DURATION_MINUTES);
+        lockoutUntil.setMinutes(
+          lockoutUntil.getMinutes() + this.LOCKOUT_DURATION_MINUTES,
+        );
         updateData.lockoutUntil = lockoutUntil;
         // SECURITY: Don't log email addresses - log user ID instead
-        this.logger.warn(`Account locked for user ${user.id} after ${attempts} failed attempts`);
+        this.logger.warn(
+          `Account locked for user ${user.id} after ${attempts} failed attempts`,
+        );
       }
 
       await this.userRepository.update(user.id, updateData as any);
@@ -166,7 +170,12 @@ export class AuthService {
     }
 
     // Remove sensitive fields from return
-    const { passwordHash: _, loginAttempts: _la, lockoutUntil: _lu, ...userWithoutSensitive } = user;
+    const {
+      passwordHash: _,
+      loginAttempts: _la,
+      lockoutUntil: _lu,
+      ...userWithoutSensitive
+    } = user;
     return userWithoutSensitive as User;
   }
 
@@ -201,12 +210,12 @@ export class AuthService {
     };
 
     const accessExpiration = this.configService.get(
-      'jwt.accessExpiration',
-      '15m',
+      "jwt.accessExpiration",
+      "15m",
     );
     const refreshExpiration = this.configService.get(
-      'jwt.refreshExpiration',
-      '7d',
+      "jwt.refreshExpiration",
+      "7d",
     );
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -214,7 +223,7 @@ export class AuthService {
         expiresIn: accessExpiration,
       }),
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get('jwt.refreshSecret'),
+        secret: this.configService.get("jwt.refreshSecret"),
         expiresIn: refreshExpiration,
       }),
     ]);
@@ -237,7 +246,7 @@ export class AuthService {
   ): Promise<{ accessToken: string; expiresIn: number }> {
     try {
       const payload = await this.jwtService.verifyAsync(refreshToken, {
-        secret: this.configService.get('jwt.refreshSecret'),
+        secret: this.configService.get("jwt.refreshSecret"),
       });
 
       const user = await this.userRepository.findOne({
@@ -245,18 +254,18 @@ export class AuthService {
       });
 
       if (!user) {
-        throw new UnauthorizedException('User not found');
+        throw new UnauthorizedException("User not found");
       }
 
       // SECURITY: Check account status - banned/suspended users should not refresh tokens
       if (user.accountStatus === AccountStatus.BANNED) {
-        throw new UnauthorizedException('Account has been banned');
+        throw new UnauthorizedException("Account has been banned");
       }
       if (user.accountStatus === AccountStatus.SUSPENDED) {
-        throw new UnauthorizedException('Account has been suspended');
+        throw new UnauthorizedException("Account has been suspended");
       }
       if (user.accountStatus === AccountStatus.DEACTIVATED) {
-        throw new UnauthorizedException('Account has been deactivated');
+        throw new UnauthorizedException("Account has been deactivated");
       }
 
       const newPayload = {
@@ -266,8 +275,8 @@ export class AuthService {
       };
 
       const accessExpiration = this.configService.get(
-        'jwt.accessExpiration',
-        '15m',
+        "jwt.accessExpiration",
+        "15m",
       );
       const accessToken = await this.jwtService.signAsync(newPayload, {
         expiresIn: accessExpiration,
@@ -278,7 +287,7 @@ export class AuthService {
         expiresIn: this.parseExpirationToSeconds(accessExpiration),
       };
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException("Invalid refresh token");
     }
   }
 
@@ -291,7 +300,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
     return user;
@@ -307,11 +316,11 @@ export class AuthService {
   ): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'passwordHash'],
+      select: ["id", "passwordHash"],
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -320,7 +329,7 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException("Current password is incorrect");
     }
 
     const newPasswordHash = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
@@ -352,13 +361,15 @@ export class AuthService {
     });
 
     // Send password reset email
-    const resetUrl = `${this.configService.get('appUrl', 'http://localhost:3000')}/auth/reset-password?token=${resetToken}`;
+    const resetUrl = `${this.configService.get("appUrl", "http://localhost:3000")}/auth/reset-password?token=${resetToken}`;
     const emailSent = await this.mailService.sendPasswordReset(email, resetUrl);
 
     if (emailSent) {
       this.logger.log(`Password reset email sent for user ${user.id}`);
     } else {
-      this.logger.warn(`Failed to send password reset email for user ${user.id}`);
+      this.logger.warn(
+        `Failed to send password reset email for user ${user.id}`,
+      );
     }
   }
 
@@ -368,11 +379,11 @@ export class AuthService {
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { passwordResetToken: token },
-      select: ['id', 'passwordResetToken', 'passwordResetExpires'],
+      select: ["id", "passwordResetToken", "passwordResetExpires"],
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException("Invalid or expired reset token");
     }
 
     if (!user.passwordResetExpires || user.passwordResetExpires < new Date()) {
@@ -381,7 +392,7 @@ export class AuthService {
         passwordResetToken: null,
         passwordResetExpires: null,
       });
-      throw new BadRequestException('Reset token has expired');
+      throw new BadRequestException("Reset token has expired");
     }
 
     const newPasswordHash = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
@@ -401,13 +412,13 @@ export class AuthService {
     const value = parseInt(expiration.slice(0, -1), 10);
 
     switch (unit) {
-      case 's':
+      case "s":
         return value;
-      case 'm':
+      case "m":
         return value * 60;
-      case 'h':
+      case "h":
         return value * 60 * 60;
-      case 'd':
+      case "d":
         return value * 60 * 60 * 24;
       default:
         return 900; // Default 15 minutes

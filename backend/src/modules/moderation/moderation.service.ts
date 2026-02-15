@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, In, IsNull, Not, LessThan, MoreThan } from 'typeorm';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, FindOptionsWhere, In, IsNull, MoreThan } from "typeorm";
 import {
   Report,
   ModerationLog,
@@ -14,11 +18,11 @@ import {
   User,
   BanAppeal,
   UserMute,
-} from '@/database/entities';
-import { AppealStatus } from '@/database/entities/ban-appeal.entity';
-import { MuteScope } from '@/database/entities/user-mute.entity';
-import { AccountStatus } from '@aardvark/shared';
-import { ModerationQueueQuery, ModerationLogQuery } from './dto/moderation.dto';
+} from "@/database/entities";
+import { AppealStatus } from "@/database/entities/ban-appeal.entity";
+import { MuteScope } from "@/database/entities/user-mute.entity";
+import { AccountStatus } from "@aardvark/shared";
+import { ModerationQueueQuery, ModerationLogQuery } from "./dto/moderation.dto";
 
 /**
  * Service handling content moderation, user reports, warnings, and bans.
@@ -66,7 +70,7 @@ export class ModerationService {
     });
 
     if (existingReport) {
-      throw new BadRequestException('You have already reported this content');
+      throw new BadRequestException("You have already reported this content");
     }
 
     const report = this.reportRepository.create({
@@ -98,8 +102,8 @@ export class ModerationService {
       contentType,
       status,
       assignedTo,
-      sortBy = 'createdAt',
-      sortOrder = 'DESC',
+      sortBy = "createdAt",
+      sortOrder = "DESC",
     } = query;
     const limit = Math.min(Math.max(1, rawLimit), 50);
 
@@ -113,7 +117,7 @@ export class ModerationService {
       where.status = status;
     }
 
-    if (assignedTo === 'unassigned') {
+    if (assignedTo === "unassigned") {
       where.assignedModeratorId = IsNull();
     } else if (assignedTo) {
       where.assignedModeratorId = assignedTo;
@@ -121,7 +125,7 @@ export class ModerationService {
 
     const [reports, total] = await this.reportRepository.findAndCount({
       where,
-      relations: ['reporter', 'contentAuthor', 'assignedModerator'],
+      relations: ["reporter", "contentAuthor", "assignedModerator"],
       order: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
@@ -142,15 +146,15 @@ export class ModerationService {
   async assignReport(reportId: string, moderatorId: string): Promise<Report> {
     const report = await this.reportRepository.findOne({
       where: { id: reportId },
-      relations: ['assignedModerator'],
+      relations: ["assignedModerator"],
     });
 
     if (!report) {
-      throw new NotFoundException('Report not found');
+      throw new NotFoundException("Report not found");
     }
 
     if (report.status === ModerationStatus.RESOLVED) {
-      throw new BadRequestException('Cannot assign a resolved report');
+      throw new BadRequestException("Cannot assign a resolved report");
     }
 
     // Verify moderator exists and has appropriate role
@@ -159,7 +163,7 @@ export class ModerationService {
     });
 
     if (!moderator || !moderator.canModerate) {
-      throw new BadRequestException('Invalid moderator');
+      throw new BadRequestException("Invalid moderator");
     }
 
     report.assignedModeratorId = moderatorId;
@@ -179,15 +183,15 @@ export class ModerationService {
   ): Promise<Report> {
     const report = await this.reportRepository.findOne({
       where: { id: reportId },
-      relations: ['reporter', 'contentAuthor'],
+      relations: ["reporter", "contentAuthor"],
     });
 
     if (!report) {
-      throw new NotFoundException('Report not found');
+      throw new NotFoundException("Report not found");
     }
 
     if (report.status === ModerationStatus.RESOLVED) {
-      throw new BadRequestException('Report already resolved');
+      throw new BadRequestException("Report already resolved");
     }
 
     // Update report
@@ -226,7 +230,7 @@ export class ModerationService {
     // Verify user exists
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     const warning = this.userWarningRepository.create({
@@ -260,8 +264,8 @@ export class ModerationService {
   async getUserWarnings(userId: string): Promise<UserWarning[]> {
     return this.userWarningRepository.find({
       where: { userId },
-      relations: ['issuedBy', 'report'],
-      order: { createdAt: 'DESC' },
+      relations: ["issuedBy", "report"],
+      order: { createdAt: "DESC" },
     });
   }
 
@@ -280,7 +284,7 @@ export class ModerationService {
     // Verify user exists
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Check if user already has an active ban
@@ -292,12 +296,14 @@ export class ModerationService {
     });
 
     if (existingBan) {
-      throw new BadRequestException('User already has an active ban');
+      throw new BadRequestException("User already has an active ban");
     }
 
     // Validate expiration for non-permanent bans
     if (!isPermanent && !expiresAt) {
-      throw new BadRequestException('Temporary bans must have an expiration date');
+      throw new BadRequestException(
+        "Temporary bans must have an expiration date",
+      );
     }
 
     const ban = this.userBanRepository.create({
@@ -315,7 +321,9 @@ export class ModerationService {
 
     // Update user account status
     await this.userRepository.update(userId, {
-      accountStatus: isPermanent ? AccountStatus.BANNED : AccountStatus.SUSPENDED,
+      accountStatus: isPermanent
+        ? AccountStatus.BANNED
+        : AccountStatus.SUSPENDED,
     });
 
     // Determine action type
@@ -348,15 +356,15 @@ export class ModerationService {
   async liftBan(banId: string, liftedById: string): Promise<UserBan> {
     const ban = await this.userBanRepository.findOne({
       where: { id: banId },
-      relations: ['user'],
+      relations: ["user"],
     });
 
     if (!ban) {
-      throw new NotFoundException('Ban not found');
+      throw new NotFoundException("Ban not found");
     }
 
     if (!ban.isActive) {
-      throw new BadRequestException('Ban is already inactive');
+      throw new BadRequestException("Ban is already inactive");
     }
 
     ban.isActive = false;
@@ -378,7 +386,7 @@ export class ModerationService {
       ban.userId,
       ban.userId,
       null,
-      'Ban lifted',
+      "Ban lifted",
     );
 
     return savedBan;
@@ -390,8 +398,8 @@ export class ModerationService {
   async getUserBans(userId: string): Promise<UserBan[]> {
     return this.userBanRepository.find({
       where: { userId },
-      relations: ['issuedBy', 'liftedBy'],
-      order: { createdAt: 'DESC' },
+      relations: ["issuedBy", "liftedBy"],
+      order: { createdAt: "DESC" },
     });
   }
 
@@ -407,7 +415,7 @@ export class ModerationService {
         userId,
         isActive: true,
       },
-      relations: ['issuedBy'],
+      relations: ["issuedBy"],
     });
 
     // Check if temporary ban has expired
@@ -466,8 +474,8 @@ export class ModerationService {
 
     const [logs, total] = await this.moderationLogRepository.findAndCount({
       where,
-      relations: ['moderator', 'targetUser', 'report'],
-      order: { createdAt: 'DESC' },
+      relations: ["moderator", "targetUser", "report"],
+      order: { createdAt: "DESC" },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -574,9 +582,11 @@ export class ModerationService {
     // Fixed: The original query used Not(LessThan(new Date())) which had incorrect logic
     // for null expiresAt values. Now we properly handle both cases.
     const totalActiveWarnings = await this.userWarningRepository
-      .createQueryBuilder('warning')
-      .where('warning.acknowledged = :acknowledged', { acknowledged: false })
-      .andWhere('(warning.expiresAt IS NULL OR warning.expiresAt > :now)', { now: new Date() })
+      .createQueryBuilder("warning")
+      .where("warning.acknowledged = :acknowledged", { acknowledged: false })
+      .andWhere("(warning.expiresAt IS NULL OR warning.expiresAt > :now)", {
+        now: new Date(),
+      })
       .getCount();
 
     // Get pending flags
@@ -586,11 +596,11 @@ export class ModerationService {
 
     // Reports by reason
     const reportsByReasonData = await this.reportRepository
-      .createQueryBuilder('report')
-      .select('report.reason', 'reason')
-      .addSelect('COUNT(*)', 'count')
-      .where('report.status = :status', { status: ModerationStatus.PENDING })
-      .groupBy('report.reason')
+      .createQueryBuilder("report")
+      .select("report.reason", "reason")
+      .addSelect("COUNT(*)", "count")
+      .where("report.status = :status", { status: ModerationStatus.PENDING })
+      .groupBy("report.reason")
       .getRawMany();
 
     const reportsByReason: Record<string, number> = {};
@@ -600,11 +610,11 @@ export class ModerationService {
 
     // Actions taken today
     const actionsTakenData = await this.moderationLogRepository
-      .createQueryBuilder('log')
-      .select('log.action', 'action')
-      .addSelect('COUNT(*)', 'count')
-      .where('log.createdAt >= :today', { today })
-      .groupBy('log.action')
+      .createQueryBuilder("log")
+      .select("log.action", "action")
+      .addSelect("COUNT(*)", "count")
+      .where("log.createdAt >= :today", { today })
+      .groupBy("log.action")
       .getRawMany();
 
     const actionsTakenToday: Record<string, number> = {};
@@ -640,7 +650,13 @@ export class ModerationService {
     limit: number;
     totalPages: number;
   }> {
-    const { page = 1, limit: rawLimit = 20, contentType, status, flagType } = query;
+    const {
+      page = 1,
+      limit: rawLimit = 20,
+      contentType,
+      status,
+      flagType,
+    } = query;
     const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const where: FindOptionsWhere<ContentFlag> = {};
@@ -659,8 +675,8 @@ export class ModerationService {
 
     const [flags, total] = await this.contentFlagRepository.findAndCount({
       where,
-      relations: ['author'],
-      order: { createdAt: 'DESC' },
+      relations: ["author"],
+      order: { createdAt: "DESC" },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -688,7 +704,7 @@ export class ModerationService {
     });
 
     if (!flag) {
-      throw new NotFoundException('Content flag not found');
+      throw new NotFoundException("Content flag not found");
     }
 
     flag.status = ModerationStatus.RESOLVED;
@@ -728,7 +744,7 @@ export class ModerationService {
     // Verify user exists
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Check for existing active mute with same scope
@@ -780,11 +796,11 @@ export class ModerationService {
     });
 
     if (!mute) {
-      throw new NotFoundException('Mute not found');
+      throw new NotFoundException("Mute not found");
     }
 
     if (!mute.isActive) {
-      throw new BadRequestException('Mute is already inactive');
+      throw new BadRequestException("Mute is already inactive");
     }
 
     mute.isActive = false;
@@ -812,15 +828,18 @@ export class ModerationService {
   async getUserMutes(userId: string): Promise<UserMute[]> {
     return this.userMuteRepository.find({
       where: { userId, isActive: true },
-      relations: ['issuedBy'],
-      order: { createdAt: 'DESC' },
+      relations: ["issuedBy"],
+      order: { createdAt: "DESC" },
     });
   }
 
   /**
    * Check if user is muted for a specific scope
    */
-  async isUserMuted(userId: string, scope: MuteScope): Promise<{
+  async isUserMuted(
+    userId: string,
+    scope: MuteScope,
+  ): Promise<{
     isMuted: boolean;
     mute: UserMute | null;
   }> {
@@ -864,7 +883,7 @@ export class ModerationService {
     });
 
     if (!ban) {
-      throw new NotFoundException('Ban not found');
+      throw new NotFoundException("Ban not found");
     }
 
     // Check for existing pending appeal
@@ -877,7 +896,9 @@ export class ModerationService {
     });
 
     if (existingAppeal) {
-      throw new BadRequestException('You already have a pending appeal for this ban');
+      throw new BadRequestException(
+        "You already have a pending appeal for this ban",
+      );
     }
 
     const appeal = this.banAppealRepository.create({
@@ -915,8 +936,8 @@ export class ModerationService {
 
     const [appeals, total] = await this.banAppealRepository.findAndCount({
       where,
-      relations: ['user', 'ban', 'ban.issuedBy', 'reviewedBy'],
-      order: { createdAt: 'ASC' },
+      relations: ["user", "ban", "ban.issuedBy", "reviewedBy"],
+      order: { createdAt: "ASC" },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -941,15 +962,18 @@ export class ModerationService {
   ): Promise<BanAppeal> {
     const appeal = await this.banAppealRepository.findOne({
       where: { id: appealId },
-      relations: ['ban'],
+      relations: ["ban"],
     });
 
     if (!appeal) {
-      throw new NotFoundException('Appeal not found');
+      throw new NotFoundException("Appeal not found");
     }
 
-    if (appeal.status !== AppealStatus.PENDING && appeal.status !== AppealStatus.UNDER_REVIEW) {
-      throw new BadRequestException('Appeal has already been reviewed');
+    if (
+      appeal.status !== AppealStatus.PENDING &&
+      appeal.status !== AppealStatus.UNDER_REVIEW
+    ) {
+      throw new BadRequestException("Appeal has already been reviewed");
     }
 
     appeal.status = approved ? AppealStatus.APPROVED : AppealStatus.REJECTED;
@@ -971,7 +995,7 @@ export class ModerationService {
       appeal.userId,
       appeal.userId,
       null,
-      `Appeal ${approved ? 'approved' : 'rejected'}: ${notes || 'No notes'}`,
+      `Appeal ${approved ? "approved" : "rejected"}: ${notes || "No notes"}`,
       { appealId, approved },
     );
 
@@ -984,8 +1008,8 @@ export class ModerationService {
   async getUserAppeals(userId: string): Promise<BanAppeal[]> {
     return this.banAppealRepository.find({
       where: { userId },
-      relations: ['ban', 'reviewedBy'],
-      order: { createdAt: 'DESC' },
+      relations: ["ban", "reviewedBy"],
+      order: { createdAt: "DESC" },
     });
   }
 
@@ -1091,7 +1115,8 @@ export class ModerationService {
     score += reasonScores[report.reason] || 15;
 
     // Recency bonus (newer reports get higher priority)
-    const ageInHours = (Date.now() - new Date(report.createdAt).getTime()) / (1000 * 60 * 60);
+    const ageInHours =
+      (Date.now() - new Date(report.createdAt).getTime()) / (1000 * 60 * 60);
     if (ageInHours < 1) score += 20;
     else if (ageInHours < 6) score += 15;
     else if (ageInHours < 24) score += 10;
@@ -1126,12 +1151,12 @@ export class ModerationService {
   }> {
     const result = await this.getReportQueue({
       ...query,
-      sortBy: 'createdAt',
-      sortOrder: 'DESC',
+      sortBy: "createdAt",
+      sortOrder: "DESC",
     });
 
     // Calculate priority scores and sort
-    const reportsWithPriority = result.reports.map(report => ({
+    const reportsWithPriority = result.reports.map((report) => ({
       ...report,
       priorityScore: this.calculateReportPriority(report),
     }));
@@ -1177,7 +1202,7 @@ export class ModerationService {
           userId,
           issuerId,
           ReportReason.OTHER,
-          'Automatic ban: 3 strikes policy',
+          "Automatic ban: 3 strikes policy",
           false,
           new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
           false,
