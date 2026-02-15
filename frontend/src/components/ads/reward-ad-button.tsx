@@ -76,57 +76,7 @@ export function RewardAdButton({
     return () => clearInterval(interval);
   }, [adState.isPlaying]);
 
-  // Handle ad completion
-  useEffect(() => {
-    if (adState.progress >= 100 && adState.isPlaying) {
-      handleAdComplete();
-    }
-  }, [adState.progress, adState.isPlaying]);
-
-  const handleWatchAd = useCallback(async () => {
-    if (adState.cooldownRemaining > 0) return;
-
-    setAdState((prev) => ({ ...prev, isLoading: true, error: null }));
-    setShowAdDialog(true);
-
-    try {
-      // Request ad session token from server (prevents client-side manipulation)
-      const tokenResponse = await fetch('/api/credits/ad-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const tokenData = await tokenResponse.json();
-
-      if (!tokenData.success) {
-        throw new Error(tokenData.error || 'Cannot start ad session');
-      }
-
-      // Store session token for verification on completion
-      sessionStorage.setItem('adSessionToken', tokenData.data.sessionToken);
-
-      // Load real ad content via Google Publisher Tag if available
-      if (typeof window !== 'undefined' && (window as any).googletag) {
-        (window as any).googletag.cmd.push(() => {
-          (window as any).googletag.display('reward-ad-slot');
-        });
-      }
-
-      setAdState((prev) => ({
-        ...prev,
-        isLoading: false,
-        isPlaying: true,
-        progress: 0,
-      }));
-    } catch (error) {
-      setAdState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to load ad',
-      }));
-    }
-  }, [adState.cooldownRemaining]);
-
-  const handleAdComplete = async () => {
+  const handleAdComplete = useCallback(async () => {
     setAdState((prev) => ({ ...prev, isPlaying: false }));
 
     try {
@@ -175,7 +125,57 @@ export function RewardAdButton({
         error: error instanceof Error ? error.message : 'Failed to claim reward',
       }));
     }
-  };
+  }, [onCreditsEarned]);
+
+  // Handle ad completion
+  useEffect(() => {
+    if (adState.progress >= 100 && adState.isPlaying) {
+      handleAdComplete();
+    }
+  }, [adState.progress, adState.isPlaying, handleAdComplete]);
+
+  const handleWatchAd = useCallback(async () => {
+    if (adState.cooldownRemaining > 0) return;
+
+    setAdState((prev) => ({ ...prev, isLoading: true, error: null }));
+    setShowAdDialog(true);
+
+    try {
+      // Request ad session token from server (prevents client-side manipulation)
+      const tokenResponse = await fetch('/api/credits/ad-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const tokenData = await tokenResponse.json();
+
+      if (!tokenData.success) {
+        throw new Error(tokenData.error || 'Cannot start ad session');
+      }
+
+      // Store session token for verification on completion
+      sessionStorage.setItem('adSessionToken', tokenData.data.sessionToken);
+
+      // Load real ad content via Google Publisher Tag if available
+      if (typeof window !== 'undefined' && (window as any).googletag) {
+        (window as any).googletag.cmd.push(() => {
+          (window as any).googletag.display('reward-ad-slot');
+        });
+      }
+
+      setAdState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isPlaying: true,
+        progress: 0,
+      }));
+    } catch (error) {
+      setAdState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to load ad',
+      }));
+    }
+  }, [adState.cooldownRemaining]);
 
   const handleSkip = () => {
     setAdState((prev) => ({

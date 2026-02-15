@@ -5,30 +5,30 @@ import {
   IsObject,
   MaxLength,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 
 class PreferencesDto {
-  @ApiPropertyOptional({ enum: ['light', 'dark', 'system'] })
+  @ApiPropertyOptional({ enum: ["light", "dark", "system"] })
   @IsOptional()
   @IsString()
-  theme?: 'light' | 'dark' | 'system';
+  theme?: "light" | "dark" | "system";
 
-  @ApiPropertyOptional({ enum: ['small', 'medium', 'large', 'xlarge'] })
+  @ApiPropertyOptional({ enum: ["small", "medium", "large", "xlarge"] })
   @IsOptional()
   @IsString()
-  fontSize?: 'small' | 'medium' | 'large' | 'xlarge';
+  fontSize?: "small" | "medium" | "large" | "xlarge";
 
-  @ApiPropertyOptional({ enum: ['serif', 'sans-serif', 'monospace'] })
+  @ApiPropertyOptional({ enum: ["serif", "sans-serif", "monospace"] })
   @IsOptional()
   @IsString()
-  fontFamily?: 'serif' | 'sans-serif' | 'monospace';
+  fontFamily?: "serif" | "sans-serif" | "monospace";
 
-  @ApiPropertyOptional({ enum: ['compact', 'normal', 'relaxed'] })
+  @ApiPropertyOptional({ enum: ["compact", "normal", "relaxed"] })
   @IsOptional()
   @IsString()
-  lineSpacing?: 'compact' | 'normal' | 'relaxed';
+  lineSpacing?: "compact" | "normal" | "relaxed";
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -62,10 +62,10 @@ class PreferencesDto {
   @IsOptional()
   showFollowers?: boolean;
 
-  @ApiPropertyOptional({ enum: ['everyone', 'followers', 'none'] })
+  @ApiPropertyOptional({ enum: ["everyone", "followers", "none"] })
   @IsOptional()
   @IsString()
-  allowMessages?: 'everyone' | 'followers' | 'none';
+  allowMessages?: "everyone" | "followers" | "none";
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -77,29 +77,29 @@ class PreferencesDto {
 }
 
 export class UpdateUserDto {
-  @ApiPropertyOptional({ description: 'Display name', maxLength: 100 })
+  @ApiPropertyOptional({ description: "Display name", maxLength: 100 })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   displayName?: string;
 
-  @ApiPropertyOptional({ description: 'User bio', maxLength: 500 })
+  @ApiPropertyOptional({ description: "User bio", maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   bio?: string;
 
-  @ApiPropertyOptional({ description: 'Website URL' })
+  @ApiPropertyOptional({ description: "Website URL" })
   @IsOptional()
   @IsUrl()
   websiteUrl?: string;
 
-  @ApiPropertyOptional({ description: 'Social media links' })
+  @ApiPropertyOptional({ description: "Social media links" })
   @IsOptional()
   @IsObject()
   socialLinks?: Record<string, string>;
 
-  @ApiPropertyOptional({ description: 'User preferences' })
+  @ApiPropertyOptional({ description: "User preferences" })
   @IsOptional()
   @ValidateNested()
   @Type(() => PreferencesDto)

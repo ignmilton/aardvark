@@ -7,9 +7,8 @@ import {
   Request,
   HttpStatus,
   HttpException,
-  Header,
   Res,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
@@ -17,10 +16,10 @@ import {
   ApiQuery,
   ApiParam,
   ApiResponse,
-} from '@nestjs/swagger';
-import { Response } from 'express';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
-import { AnalyticsService } from './analytics.service';
+} from "@nestjs/swagger";
+import { Response } from "express";
+import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AnalyticsService } from "./analytics.service";
 import {
   AnalyticsQueryDto,
   ExportAnalyticsDto,
@@ -28,7 +27,7 @@ import {
   TopStoriesDto,
   AnalyticsPeriod,
   ExportFormat,
-} from './dto';
+} from "./dto";
 import {
   AuthorDashboard,
   StoryAnalytics,
@@ -38,17 +37,17 @@ import {
   BranchPopularity,
   CompletionFunnel,
   EngagementTrends,
-} from './analytics.types';
+} from "./analytics.types";
 
 /**
  * Controller for analytics endpoints.
  * Provides comprehensive analytics for authors to track their story performance,
  * reader engagement, and earnings.
  */
-@ApiTags('analytics')
-@Controller('analytics')
+@ApiTags("analytics")
+@Controller("analytics")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
+@ApiBearerAuth("JWT-auth")
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
@@ -56,15 +55,15 @@ export class AnalyticsController {
    * Get author dashboard summary
    * Returns overall statistics including total reads, earnings, top stories, and recent activity
    */
-  @Get('dashboard')
+  @Get("dashboard")
   @ApiOperation({
-    summary: 'Get author dashboard summary',
+    summary: "Get author dashboard summary",
     description:
-      'Returns comprehensive dashboard statistics including total reads, unique readers, earnings trends, top stories, and recent activity',
+      "Returns comprehensive dashboard statistics including total reads, unique readers, earnings trends, top stories, and recent activity",
   })
   @ApiResponse({
     status: 200,
-    description: 'Dashboard data retrieved successfully',
+    description: "Dashboard data retrieved successfully",
     type: Object,
   })
   async getDashboard(
@@ -76,32 +75,32 @@ export class AnalyticsController {
   /**
    * Get detailed analytics for a specific story
    */
-  @Get('stories/:storyId')
+  @Get("stories/:storyId")
   @ApiOperation({
-    summary: 'Get story-specific analytics',
+    summary: "Get story-specific analytics",
     description:
-      'Returns detailed analytics for a specific story including views, ratings distribution, branch heatmap, and engagement trends',
+      "Returns detailed analytics for a specific story including views, ratings distribution, branch heatmap, and engagement trends",
   })
   @ApiParam({
-    name: 'storyId',
-    description: 'Story UUID',
+    name: "storyId",
+    description: "Story UUID",
     type: String,
   })
   @ApiResponse({
     status: 200,
-    description: 'Story analytics retrieved successfully',
+    description: "Story analytics retrieved successfully",
     type: Object,
   })
   @ApiResponse({
     status: 404,
-    description: 'Story not found',
+    description: "Story not found",
   })
   @ApiResponse({
     status: 403,
-    description: 'You do not have access to this story',
+    description: "You do not have access to this story",
   })
   async getStoryAnalytics(
-    @Param('storyId') storyId: string,
+    @Param("storyId") storyId: string,
     @Request() req: { user: { userId: string } },
   ): Promise<StoryAnalytics> {
     return this.analyticsService.getStoryAnalytics(storyId, req.user.userId);
@@ -110,29 +109,29 @@ export class AnalyticsController {
   /**
    * Get top performing stories
    */
-  @Get('top-stories')
+  @Get("top-stories")
   @ApiOperation({
-    summary: 'Get top performing stories',
+    summary: "Get top performing stories",
     description:
-      'Returns a list of top performing stories ordered by view count, with optional time period filtering',
+      "Returns a list of top performing stories ordered by view count, with optional time period filtering",
   })
   @ApiQuery({
-    name: 'limit',
+    name: "limit",
     required: false,
     type: Number,
-    description: 'Maximum number of stories to return (1-100)',
+    description: "Maximum number of stories to return (1-100)",
     example: 10,
   })
   @ApiQuery({
-    name: 'period',
+    name: "period",
     required: false,
     enum: AnalyticsPeriod,
-    description: 'Time period to filter by',
+    description: "Time period to filter by",
     example: AnalyticsPeriod.MONTH,
   })
   @ApiResponse({
     status: 200,
-    description: 'Top stories retrieved successfully',
+    description: "Top stories retrieved successfully",
     type: [Object],
   })
   async getTopStories(
@@ -149,22 +148,22 @@ export class AnalyticsController {
   /**
    * Get reader engagement statistics
    */
-  @Get('readers')
+  @Get("readers")
   @ApiOperation({
-    summary: 'Get reader engagement statistics',
+    summary: "Get reader engagement statistics",
     description:
-      'Returns reader statistics including total readers, active readers, new vs returning readers, and engagement trends',
+      "Returns reader statistics including total readers, active readers, new vs returning readers, and engagement trends",
   })
   @ApiQuery({
-    name: 'period',
+    name: "period",
     required: false,
     enum: AnalyticsPeriod,
-    description: 'Time period to analyze',
+    description: "Time period to analyze",
     example: AnalyticsPeriod.MONTH,
   })
   @ApiResponse({
     status: 200,
-    description: 'Reader statistics retrieved successfully',
+    description: "Reader statistics retrieved successfully",
     type: Object,
   })
   async getReaderStats(
@@ -177,22 +176,22 @@ export class AnalyticsController {
   /**
    * Get earnings breakdown
    */
-  @Get('earnings')
+  @Get("earnings")
   @ApiOperation({
-    summary: 'Get earnings breakdown',
+    summary: "Get earnings breakdown",
     description:
-      'Returns detailed earnings breakdown by story, transaction type, and time period',
+      "Returns detailed earnings breakdown by story, transaction type, and time period",
   })
   @ApiQuery({
-    name: 'period',
+    name: "period",
     required: false,
     enum: AnalyticsPeriod,
-    description: 'Time period to analyze',
+    description: "Time period to analyze",
     example: AnalyticsPeriod.MONTH,
   })
   @ApiResponse({
     status: 200,
-    description: 'Earnings breakdown retrieved successfully',
+    description: "Earnings breakdown retrieved successfully",
     type: Object,
   })
   async getEarningsBreakdown(
@@ -208,110 +207,104 @@ export class AnalyticsController {
   /**
    * Get branch popularity for a story
    */
-  @Get('stories/:storyId/branches')
+  @Get("stories/:storyId/branches")
   @ApiOperation({
-    summary: 'Get branch popularity',
+    summary: "Get branch popularity",
     description:
-      'Returns statistics showing which story branches are most popular and how readers choose different paths',
+      "Returns statistics showing which story branches are most popular and how readers choose different paths",
   })
   @ApiParam({
-    name: 'storyId',
-    description: 'Story UUID',
+    name: "storyId",
+    description: "Story UUID",
     type: String,
   })
   @ApiResponse({
     status: 200,
-    description: 'Branch popularity data retrieved successfully',
+    description: "Branch popularity data retrieved successfully",
     type: [Object],
   })
   @ApiResponse({
     status: 404,
-    description: 'Story not found',
+    description: "Story not found",
   })
   @ApiResponse({
     status: 403,
-    description: 'You do not have access to this story',
+    description: "You do not have access to this story",
   })
   async getBranchPopularity(
-    @Param('storyId') storyId: string,
+    @Param("storyId") storyId: string,
     @Request() req: { user: { userId: string } },
   ): Promise<BranchPopularity[]> {
-    return this.analyticsService.getBranchPopularity(
-      storyId,
-      req.user.userId,
-    );
+    return this.analyticsService.getBranchPopularity(storyId, req.user.userId);
   }
 
   /**
    * Get completion funnel showing reader drop-off
    */
-  @Get('stories/:storyId/funnel')
+  @Get("stories/:storyId/funnel")
   @ApiOperation({
-    summary: 'Get completion funnel',
+    summary: "Get completion funnel",
     description:
-      'Returns a funnel visualization showing where readers drop off in the story, helping identify problematic segments',
+      "Returns a funnel visualization showing where readers drop off in the story, helping identify problematic segments",
   })
   @ApiParam({
-    name: 'storyId',
-    description: 'Story UUID',
+    name: "storyId",
+    description: "Story UUID",
     type: String,
   })
   @ApiResponse({
     status: 200,
-    description: 'Completion funnel data retrieved successfully',
+    description: "Completion funnel data retrieved successfully",
     type: Object,
   })
   @ApiResponse({
     status: 404,
-    description: 'Story not found',
+    description: "Story not found",
   })
   @ApiResponse({
     status: 403,
-    description: 'You do not have access to this story',
+    description: "You do not have access to this story",
   })
   async getCompletionFunnel(
-    @Param('storyId') storyId: string,
+    @Param("storyId") storyId: string,
     @Request() req: { user: { userId: string } },
   ): Promise<CompletionFunnel> {
-    return this.analyticsService.getCompletionFunnel(
-      storyId,
-      req.user.userId,
-    );
+    return this.analyticsService.getCompletionFunnel(storyId, req.user.userId);
   }
 
   /**
    * Get engagement trends over time
    */
-  @Get('trends')
+  @Get("trends")
   @ApiOperation({
-    summary: 'Get engagement trends',
+    summary: "Get engagement trends",
     description:
-      'Returns time-series data showing engagement trends including reads, comments, ratings, and earnings over time',
+      "Returns time-series data showing engagement trends including reads, comments, ratings, and earnings over time",
   })
   @ApiQuery({
-    name: 'startDate',
+    name: "startDate",
     required: false,
     type: String,
-    description: 'Start date (ISO 8601 format)',
-    example: '2024-01-01',
+    description: "Start date (ISO 8601 format)",
+    example: "2024-01-01",
   })
   @ApiQuery({
-    name: 'endDate',
+    name: "endDate",
     required: false,
     type: String,
-    description: 'End date (ISO 8601 format)',
-    example: '2024-12-31',
+    description: "End date (ISO 8601 format)",
+    example: "2024-12-31",
   })
   @ApiQuery({
-    name: 'days',
+    name: "days",
     required: false,
     type: Number,
-    description: 'Number of days to include (alternative to date range)',
+    description: "Number of days to include (alternative to date range)",
     example: 30,
   })
   @ApiResponse({
     status: 200,
-    description: 'Engagement trends retrieved successfully',
+    description: "Engagement trends retrieved successfully",
     type: Object,
   })
   async getEngagementTrends(
@@ -344,81 +337,81 @@ export class AnalyticsController {
   /**
    * Export analytics data
    */
-  @Get('export')
+  @Get("export")
   @ApiOperation({
-    summary: 'Export analytics data',
+    summary: "Export analytics data",
     description:
-      'Export analytics data in CSV or JSON format for external analysis',
+      "Export analytics data in CSV or JSON format for external analysis",
   })
   @ApiQuery({
-    name: 'format',
+    name: "format",
     required: true,
     enum: ExportFormat,
-    description: 'Export format (csv or json)',
-    example: 'json',
+    description: "Export format (csv or json)",
+    example: "json",
   })
   @ApiQuery({
-    name: 'type',
+    name: "type",
     required: false,
-    enum: ['dashboard', 'stories', 'earnings', 'readers'],
-    description: 'Type of analytics to export',
-    example: 'dashboard',
+    enum: ["dashboard", "stories", "earnings", "readers"],
+    description: "Type of analytics to export",
+    example: "dashboard",
   })
   @ApiQuery({
-    name: 'includeStories',
+    name: "includeStories",
     required: false,
     type: Boolean,
-    description: 'Include story data in export',
+    description: "Include story data in export",
     example: true,
   })
   @ApiQuery({
-    name: 'includeEarnings',
+    name: "includeEarnings",
     required: false,
     type: Boolean,
-    description: 'Include earnings data in export',
+    description: "Include earnings data in export",
     example: true,
   })
   @ApiQuery({
-    name: 'includeReaders',
+    name: "includeReaders",
     required: false,
     type: Boolean,
-    description: 'Include reader data in export',
+    description: "Include reader data in export",
     example: true,
   })
   @ApiResponse({
     status: 200,
-    description: 'Analytics data exported successfully',
+    description: "Analytics data exported successfully",
   })
   async exportAnalytics(
     @Query() query: ExportAnalyticsDto & { type?: string },
     @Request() req: { user: { userId: string } },
     @Res() res: Response,
   ): Promise<void> {
-    const type = query.type || 'dashboard';
+    const type = query.type || "dashboard";
 
     // Validate type
-    if (!['dashboard', 'stories', 'earnings', 'readers'].includes(type)) {
+    if (!["dashboard", "stories", "earnings", "readers"].includes(type)) {
       throw new HttpException(
-        'Invalid export type. Must be one of: dashboard, stories, earnings, readers',
+        "Invalid export type. Must be one of: dashboard, stories, earnings, readers",
         HttpStatus.BAD_REQUEST,
       );
     }
 
     const result = await this.analyticsService.exportAnalytics(
       req.user.userId,
-      type as 'dashboard' | 'stories' | 'earnings' | 'readers',
+      type as "dashboard" | "stories" | "earnings" | "readers",
       query.format,
     );
 
     // Set response headers
-    res.setHeader('Content-Type', result.contentType);
+    res.setHeader("Content-Type", result.contentType);
     res.setHeader(
-      'Content-Disposition',
+      "Content-Disposition",
       `attachment; filename="${result.filename}"`,
     );
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
 
     // Send the data
     res.send(result.data);

@@ -1,1 +1,1 @@
-export * from './forum.dto';
+export * from "./forum.dto";

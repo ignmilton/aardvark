@@ -10,7 +10,7 @@ import {
   JoinTable,
   Index,
   JoinColumn,
-} from 'typeorm';
+} from "typeorm";
 import {
   StoryCategory,
   CollaborationMode,
@@ -18,58 +18,58 @@ import {
   ContentWarning,
   StoryLength,
   StoryComplexity,
-} from '@aardvark/shared';
-import { User } from './user.entity';
-import { StorySegment } from './story-segment.entity';
-import { ReaderProgress } from './reader-progress.entity';
-import { Comment } from './comment.entity';
-import { Rating } from './rating.entity';
-import { Tag } from './tag.entity';
+} from "@aardvark/shared";
+import { User } from "./user.entity";
+import { StorySegment } from "./story-segment.entity";
+import { ReaderProgress } from "./reader-progress.entity";
+import { Comment } from "./comment.entity";
+import { Rating } from "./rating.entity";
+import { Tag } from "./tag.entity";
 
 /**
  * Story entity representing an interactive fiction story.
  * Stories contain multiple segments connected by choices,
  * creating branching narratives.
  */
-@Entity('stories')
+@Entity("stories")
 export class Story {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   authorId: string;
 
-  @ManyToOne(() => User, (user) => user.stories, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'authorId' })
+  @ManyToOne(() => User, (user) => user.stories, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "authorId" })
   author: User;
 
   @Index()
   @Column({ length: 200 })
   title: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   description: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   synopsis: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   coverImageUrl: string | null;
 
   @Index()
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: StoryCategory,
     default: StoryCategory.OTHER,
   })
   category: StoryCategory;
 
-  @Column('text', { array: true, default: [] })
+  @Column("text", { array: true, default: [] })
   tags: string[];
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: ContentWarning,
     array: true,
     default: [],
@@ -77,7 +77,7 @@ export class Story {
   contentWarnings: ContentWarning[];
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: CollaborationMode,
     default: CollaborationMode.PRIVATE,
   })
@@ -85,7 +85,7 @@ export class Story {
 
   @Index()
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: StoryStatus,
     default: StoryStatus.DRAFT,
   })
@@ -101,27 +101,27 @@ export class Story {
   @Column({ default: false })
   nsfwFlag: boolean;
 
-  @Column({ length: 10, default: 'en' })
+  @Column({ length: 10, default: "en" })
   language: string;
 
   @Column({ default: 0 })
   estimatedReadTime: number;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: StoryLength,
     default: StoryLength.SHORT,
   })
   length: StoryLength;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: StoryComplexity,
     default: StoryComplexity.LINEAR,
   })
   complexity: StoryComplexity;
 
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   rootSegmentId: string | null;
 
   @Column({ default: 1 })
@@ -135,58 +135,58 @@ export class Story {
   uniqueReaders: number;
 
   @Index()
-  @Column({ type: 'decimal', precision: 2, scale: 1, default: 0 })
+  @Column({ type: "decimal", precision: 2, scale: 1, default: 0 })
   averageRating: number;
 
   @Column({ default: 0 })
   ratingsCount: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   completionRate: number;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   featuredAt: Date | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   publishedAt: Date | null;
 
   // Moderation fields
   @Index()
   @Column({
-    type: 'enum',
-    enum: ['pending', 'approved', 'rejected', 'requires_changes'],
-    default: 'pending',
+    type: "enum",
+    enum: ["pending", "approved", "rejected", "requires_changes"],
+    default: "pending",
   })
-  moderationStatus: 'pending' | 'approved' | 'rejected' | 'requires_changes';
+  moderationStatus: "pending" | "approved" | "rejected" | "requires_changes";
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   moderationNotes: string | null;
 
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   moderatedById: string | null;
 
   @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'moderatedById' })
+  @JoinColumn({ name: "moderatedById" })
   moderatedBy: User | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   moderatedAt: Date | null;
 
   // Translation linking
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   originalStoryId: string | null;
 
   @ManyToOne(() => Story, (story) => story.translations, { nullable: true })
-  @JoinColumn({ name: 'originalStoryId' })
+  @JoinColumn({ name: "originalStoryId" })
   originalStory: Story | null;
 
   @OneToMany(() => Story, (story) => story.originalStory)
   translations: Story[];
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 
   // Relations
@@ -202,12 +202,11 @@ export class Story {
   @OneToMany(() => Rating, (rating) => rating.story)
   ratings: Rating[];
 
-
   @ManyToMany(() => Tag, (tag) => tag.stories)
   @JoinTable({
-    name: 'story_tags',
-    joinColumn: { name: 'storyId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'tagId', referencedColumnName: 'id' },
+    name: "story_tags",
+    joinColumn: { name: "storyId", referencedColumnName: "id" },
+    inverseJoinColumn: { name: "tagId", referencedColumnName: "id" },
   })
   storyTags: Tag[];
 

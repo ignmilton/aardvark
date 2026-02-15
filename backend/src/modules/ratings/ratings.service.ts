@@ -4,14 +4,20 @@ import {
   ForbiddenException,
   ConflictException,
   Logger,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual, DataSource } from 'typeorm';
-import { Rating, Story, ReaderProgress, Transaction, User } from '@/database/entities';
-import { CreateRatingDto, UpdateRatingDto, RatingQueryDto } from './dto';
-import { TransactionType, DEFAULT_CREDIT_CONFIG } from '@aardvark/shared';
-import * as sanitizeHtml from 'sanitize-html';
-import { marked } from 'marked';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, MoreThanOrEqual, DataSource } from "typeorm";
+import {
+  Rating,
+  Story,
+  ReaderProgress,
+  Transaction,
+  User,
+} from "@/database/entities";
+import { CreateRatingDto, UpdateRatingDto, RatingQueryDto } from "./dto";
+import { TransactionType, DEFAULT_CREDIT_CONFIG } from "@aardvark/shared";
+import * as sanitizeHtml from "sanitize-html";
+import { marked } from "marked";
 
 @Injectable()
 export class RatingsService {
@@ -40,7 +46,7 @@ export class RatingsService {
       where: { id: createDto.storyId },
     });
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     // Check if user already rated this story
@@ -48,7 +54,9 @@ export class RatingsService {
       where: { userId, storyId: createDto.storyId },
     });
     if (existing) {
-      throw new ConflictException('You have already rated this story. Use update instead.');
+      throw new ConflictException(
+        "You have already rated this story. Use update instead.",
+      );
     }
 
     // Check if user has read the story (verified reader)
@@ -86,7 +94,7 @@ export class RatingsService {
     // Load user relation for response
     return this.ratingRepository.findOne({
       where: { id: savedRating.id },
-      relations: ['user'],
+      relations: ["user"],
     }) as Promise<Rating>;
   }
 
@@ -94,42 +102,50 @@ export class RatingsService {
    * Get ratings with pagination
    */
   async findAll(query: RatingQueryDto) {
-    const { storyId, userId, withReview, minRating, page = 1, limit = 20, sortBy = 'recent' } = query;
+    const {
+      storyId,
+      userId,
+      withReview,
+      minRating,
+      page = 1,
+      limit = 20,
+      sortBy = "recent",
+    } = query;
 
     const queryBuilder = this.ratingRepository
-      .createQueryBuilder('rating')
-      .leftJoinAndSelect('rating.user', 'user');
+      .createQueryBuilder("rating")
+      .leftJoinAndSelect("rating.user", "user");
 
     if (storyId) {
-      queryBuilder.andWhere('rating.storyId = :storyId', { storyId });
+      queryBuilder.andWhere("rating.storyId = :storyId", { storyId });
     }
 
     if (userId) {
-      queryBuilder.andWhere('rating.userId = :userId', { userId });
+      queryBuilder.andWhere("rating.userId = :userId", { userId });
     }
 
     if (withReview) {
-      queryBuilder.andWhere('rating.reviewText IS NOT NULL');
+      queryBuilder.andWhere("rating.reviewText IS NOT NULL");
     }
 
     if (minRating !== undefined) {
-      queryBuilder.andWhere('rating.rating >= :minRating', { minRating });
+      queryBuilder.andWhere("rating.rating >= :minRating", { minRating });
     }
 
     // Sorting
     switch (sortBy) {
-      case 'helpful':
-        queryBuilder.orderBy('rating.helpfulCount', 'DESC');
+      case "helpful":
+        queryBuilder.orderBy("rating.helpfulCount", "DESC");
         break;
-      case 'rating_high':
-        queryBuilder.orderBy('rating.rating', 'DESC');
+      case "rating_high":
+        queryBuilder.orderBy("rating.rating", "DESC");
         break;
-      case 'rating_low':
-        queryBuilder.orderBy('rating.rating', 'ASC');
+      case "rating_low":
+        queryBuilder.orderBy("rating.rating", "ASC");
         break;
-      case 'recent':
+      case "recent":
       default:
-        queryBuilder.orderBy('rating.createdAt', 'DESC');
+        queryBuilder.orderBy("rating.createdAt", "DESC");
     }
 
     const skip = (page - 1) * limit;
@@ -164,11 +180,11 @@ export class RatingsService {
   async findById(id: string): Promise<Rating> {
     const rating = await this.ratingRepository.findOne({
       where: { id },
-      relations: ['user', 'story'],
+      relations: ["user", "story"],
     });
 
     if (!rating) {
-      throw new NotFoundException('Rating not found');
+      throw new NotFoundException("Rating not found");
     }
 
     return this.sanitizeRating(rating) as Rating;
@@ -183,11 +199,11 @@ export class RatingsService {
     total: number;
   }> {
     const ratings = await this.ratingRepository
-      .createQueryBuilder('rating')
-      .select('rating.rating', 'rating')
-      .addSelect('COUNT(*)', 'count')
-      .where('rating.storyId = :storyId', { storyId })
-      .groupBy('rating.rating')
+      .createQueryBuilder("rating")
+      .select("rating.rating", "rating")
+      .addSelect("COUNT(*)", "count")
+      .where("rating.storyId = :storyId", { storyId })
+      .groupBy("rating.rating")
       .getRawMany();
 
     const total = ratings.reduce((sum, r) => sum + parseInt(r.count), 0);
@@ -217,18 +233,22 @@ export class RatingsService {
   /**
    * Update a rating
    */
-  async update(id: string, updateDto: UpdateRatingDto, userId: string): Promise<Rating> {
+  async update(
+    id: string,
+    updateDto: UpdateRatingDto,
+    userId: string,
+  ): Promise<Rating> {
     const rating = await this.ratingRepository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: ["user"],
     });
 
     if (!rating) {
-      throw new NotFoundException('Rating not found');
+      throw new NotFoundException("Rating not found");
     }
 
     if (rating.userId !== userId) {
-      throw new ForbiddenException('You can only edit your own ratings');
+      throw new ForbiddenException("You can only edit your own ratings");
     }
 
     if (updateDto.rating !== undefined) {
@@ -241,7 +261,9 @@ export class RatingsService {
 
     if (updateDto.reviewText !== undefined) {
       rating.reviewText = updateDto.reviewText || null;
-      rating.reviewHtml = updateDto.reviewText ? this.processContent(updateDto.reviewText) : null;
+      rating.reviewHtml = updateDto.reviewText
+        ? this.processContent(updateDto.reviewText)
+        : null;
     }
 
     rating.isEdited = true;
@@ -263,11 +285,11 @@ export class RatingsService {
     });
 
     if (!rating) {
-      throw new NotFoundException('Rating not found');
+      throw new NotFoundException("Rating not found");
     }
 
     if (rating.userId !== userId) {
-      throw new ForbiddenException('You can only delete your own ratings');
+      throw new ForbiddenException("You can only delete your own ratings");
     }
 
     const storyId = rating.storyId;
@@ -280,9 +302,9 @@ export class RatingsService {
   /**
    * Mark a review as helpful
    */
-  async markHelpful(ratingId: string, userId: string): Promise<void> {
+  async markHelpful(ratingId: string, _userId: string): Promise<void> {
     // In a full implementation, track which users marked which reviews helpful
-    await this.ratingRepository.increment({ id: ratingId }, 'helpfulCount', 1);
+    await this.ratingRepository.increment({ id: ratingId }, "helpfulCount", 1);
   }
 
   /**
@@ -291,8 +313,8 @@ export class RatingsService {
   async getFeaturedReviews(storyId: string, limit = 3): Promise<Rating[]> {
     return this.ratingRepository.find({
       where: { storyId, isFeatured: true, reviewText: undefined }, // reviewText not null
-      relations: ['user'],
-      order: { helpfulCount: 'DESC' },
+      relations: ["user"],
+      order: { helpfulCount: "DESC" },
       take: limit,
     });
   }
@@ -336,12 +358,13 @@ export class RatingsService {
 
         const user = await userRepo.findOne({
           where: { id: userId },
-          lock: { mode: 'pessimistic_write' },
+          lock: { mode: "pessimistic_write" },
         });
 
         if (!user) return;
 
-        const newBalance = user.creditsBalance + DEFAULT_CREDIT_CONFIG.reviewRewardCredits;
+        const newBalance =
+          user.creditsBalance + DEFAULT_CREDIT_CONFIG.reviewRewardCredits;
         await userRepo.update(userId, { creditsBalance: newBalance });
 
         const transaction = txRepo.create({
@@ -351,11 +374,13 @@ export class RatingsService {
           balance: newBalance,
           description: `Review reward for "${storyTitle}"`,
           referenceId: ratingId,
-          referenceType: 'rating',
+          referenceType: "rating",
         });
 
         await txRepo.save(transaction);
-        this.logger.log(`Awarded ${DEFAULT_CREDIT_CONFIG.reviewRewardCredits} credit(s) to user ${userId} for review`);
+        this.logger.log(
+          `Awarded ${DEFAULT_CREDIT_CONFIG.reviewRewardCredits} credit(s) to user ${userId} for review`,
+        );
       });
     } catch (error) {
       // Don't fail the rating creation if credit award fails
@@ -365,10 +390,10 @@ export class RatingsService {
 
   private async updateStoryRatingStats(storyId: string): Promise<void> {
     const result = await this.ratingRepository
-      .createQueryBuilder('rating')
-      .select('AVG(rating.rating)', 'average')
-      .addSelect('COUNT(*)', 'count')
-      .where('rating.storyId = :storyId', { storyId })
+      .createQueryBuilder("rating")
+      .select("AVG(rating.rating)", "average")
+      .addSelect("COUNT(*)", "count")
+      .where("rating.storyId = :storyId", { storyId })
       .getRawOne();
 
     const averageRating = parseFloat(result.average) || 0;
@@ -384,7 +409,18 @@ export class RatingsService {
     const rawHtml = marked.parse(markdown, { async: false }) as string;
 
     return sanitizeHtml(rawHtml, {
-      allowedTags: ['p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li', 'blockquote'],
+      allowedTags: [
+        "p",
+        "br",
+        "strong",
+        "em",
+        "u",
+        "s",
+        "ul",
+        "ol",
+        "li",
+        "blockquote",
+      ],
       allowedAttributes: {},
     });
   }

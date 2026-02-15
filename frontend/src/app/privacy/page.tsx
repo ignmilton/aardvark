@@ -110,7 +110,7 @@ export default function PrivacyPage() {
             function properly without cookies.
           </p>
 
-          <h2>9. Children's Privacy</h2>
+          <h2>9. Children&apos;s Privacy</h2>
           <p>
             The Platform is not intended for users under 13 years of age. We do not knowingly
             collect personal information from children under 13. If we learn we have collected
@@ -126,7 +126,7 @@ export default function PrivacyPage() {
           <h2>11. Changes to This Policy</h2>
           <p>
             We may update this Privacy Policy from time to time. We will notify you of any changes
-            by posting the new policy on this page and updating the "Last updated" date.
+            by posting the new policy on this page and updating the &quot;Last updated&quot; date.
           </p>
 
           <h2>12. Contact Us</h2>

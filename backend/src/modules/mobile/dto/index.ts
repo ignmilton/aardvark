@@ -1,1 +1,1 @@
-export * from './mobile.dto';
+export * from "./mobile.dto";

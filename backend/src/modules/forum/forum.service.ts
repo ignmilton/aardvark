@@ -3,29 +3,26 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import {
   ForumThread,
   ForumPost,
   ForumVote,
   UserReputation,
   ForumCategory,
-} from '@/database/entities';
-import { User } from '@/database/entities';
-import { UserRole } from '@aardvark/shared';
-import * as sanitizeHtml from 'sanitize-html';
+} from "@/database/entities";
+import { UserRole } from "@aardvark/shared";
+import * as sanitizeHtml from "sanitize-html";
 import {
   CreateThreadDto,
   UpdateThreadDto,
   CreatePostDto,
   UpdatePostDto,
-  VotePostDto,
   ThreadQueryDto,
   PostQueryDto,
-} from './dto';
+} from "./dto";
 
 @Injectable()
 export class ForumService {
@@ -54,16 +51,19 @@ export class ForumService {
 
         const threads = await this.threadRepository.find({
           where: { category, isDeleted: false },
-          select: ['replyCount'],
+          select: ["replyCount"],
         });
 
-        const postCount = threads.reduce((sum, thread) => sum + thread.replyCount, 0);
+        const postCount = threads.reduce(
+          (sum, thread) => sum + thread.replyCount,
+          0,
+        );
 
         // Get latest thread
         const latestThread = await this.threadRepository.findOne({
           where: { category, isDeleted: false },
-          order: { createdAt: 'DESC' },
-          relations: ['author'],
+          order: { createdAt: "DESC" },
+          relations: ["author"],
           select: {
             id: true,
             title: true,
@@ -81,12 +81,14 @@ export class ForumService {
           category,
           threadCount,
           postCount,
-          latestThread: latestThread ? {
-            id: latestThread.id,
-            title: latestThread.title,
-            createdAt: latestThread.createdAt,
-            author: latestThread.author,
-          } : null,
+          latestThread: latestThread
+            ? {
+                id: latestThread.id,
+                title: latestThread.title,
+                createdAt: latestThread.createdAt,
+                author: latestThread.author,
+              }
+            : null,
         };
       }),
     );
@@ -103,7 +105,7 @@ export class ForumService {
       authorId,
       search,
       pinnedOnly,
-      sortBy = 'recent',
+      sortBy = "recent",
       page = 1,
       limit: rawLimit = 20,
     } = query;
@@ -111,47 +113,47 @@ export class ForumService {
     const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const queryBuilder = this.threadRepository
-      .createQueryBuilder('thread')
-      .leftJoinAndSelect('thread.author', 'author')
-      .leftJoinAndSelect('thread.lastReplyUser', 'lastReplyUser')
-      .where('thread.isDeleted = :isDeleted', { isDeleted: false });
+      .createQueryBuilder("thread")
+      .leftJoinAndSelect("thread.author", "author")
+      .leftJoinAndSelect("thread.lastReplyUser", "lastReplyUser")
+      .where("thread.isDeleted = :isDeleted", { isDeleted: false });
 
     if (category) {
-      queryBuilder.andWhere('thread.category = :category', { category });
+      queryBuilder.andWhere("thread.category = :category", { category });
     }
 
     if (authorId) {
-      queryBuilder.andWhere('thread.authorId = :authorId', { authorId });
+      queryBuilder.andWhere("thread.authorId = :authorId", { authorId });
     }
 
     if (search) {
       queryBuilder.andWhere(
-        '(thread.title ILIKE :search OR thread.content ILIKE :search)',
+        "(thread.title ILIKE :search OR thread.content ILIKE :search)",
         { search: `%${search}%` },
       );
     }
 
     if (pinnedOnly) {
-      queryBuilder.andWhere('thread.isPinned = :isPinned', { isPinned: true });
+      queryBuilder.andWhere("thread.isPinned = :isPinned", { isPinned: true });
     }
 
     // Sorting
     switch (sortBy) {
-      case 'oldest':
-        queryBuilder.orderBy('thread.createdAt', 'ASC');
+      case "oldest":
+        queryBuilder.orderBy("thread.createdAt", "ASC");
         break;
-      case 'replies':
-        queryBuilder.orderBy('thread.replyCount', 'DESC');
+      case "replies":
+        queryBuilder.orderBy("thread.replyCount", "DESC");
         break;
-      case 'views':
-        queryBuilder.orderBy('thread.viewCount', 'DESC');
+      case "views":
+        queryBuilder.orderBy("thread.viewCount", "DESC");
         break;
-      case 'recent':
+      case "recent":
       default:
         // Pinned threads first, then by last reply or creation date
         queryBuilder
-          .orderBy('thread.isPinned', 'DESC')
-          .addOrderBy('COALESCE(thread.lastReplyAt, thread.createdAt)', 'DESC');
+          .orderBy("thread.isPinned", "DESC")
+          .addOrderBy("COALESCE(thread.lastReplyAt, thread.createdAt)", "DESC");
     }
 
     const skip = (page - 1) * limit;
@@ -177,15 +179,15 @@ export class ForumService {
   async getThread(threadId: string) {
     const thread = await this.threadRepository.findOne({
       where: { id: threadId, isDeleted: false },
-      relations: ['author', 'lastReplyUser'],
+      relations: ["author", "lastReplyUser"],
     });
 
     if (!thread) {
-      throw new NotFoundException('Thread not found');
+      throw new NotFoundException("Thread not found");
     }
 
     // Increment view count
-    await this.threadRepository.increment({ id: threadId }, 'viewCount', 1);
+    await this.threadRepository.increment({ id: threadId }, "viewCount", 1);
 
     return this.sanitizeThread(thread);
   }
@@ -209,7 +211,7 @@ export class ForumService {
     // Load relations for response
     return this.threadRepository.findOne({
       where: { id: savedThread.id },
-      relations: ['author'],
+      relations: ["author"],
     });
   }
 
@@ -219,19 +221,19 @@ export class ForumService {
   async updateThread(userId: string, threadId: string, dto: UpdateThreadDto) {
     const thread = await this.threadRepository.findOne({
       where: { id: threadId, isDeleted: false },
-      relations: ['author'],
+      relations: ["author"],
     });
 
     if (!thread) {
-      throw new NotFoundException('Thread not found');
+      throw new NotFoundException("Thread not found");
     }
 
     if (thread.authorId !== userId) {
-      throw new ForbiddenException('You can only edit your own threads');
+      throw new ForbiddenException("You can only edit your own threads");
     }
 
     if (thread.isLocked) {
-      throw new BadRequestException('Cannot edit a locked thread');
+      throw new BadRequestException("Cannot edit a locked thread");
     }
 
     if (dto.title !== undefined) {
@@ -256,7 +258,7 @@ export class ForumService {
     });
 
     if (!thread) {
-      throw new NotFoundException('Thread not found');
+      throw new NotFoundException("Thread not found");
     }
 
     const canDelete =
@@ -265,7 +267,7 @@ export class ForumService {
       userRole === UserRole.ADMIN;
 
     if (!canDelete) {
-      throw new ForbiddenException('You can only delete your own threads');
+      throw new ForbiddenException("You can only delete your own threads");
     }
 
     // Soft delete
@@ -281,13 +283,13 @@ export class ForumService {
   /**
    * Lock a thread (moderators only)
    */
-  async lockThread(threadId: string, moderatorId: string) {
+  async lockThread(threadId: string, _moderatorId: string) {
     const thread = await this.threadRepository.findOne({
       where: { id: threadId, isDeleted: false },
     });
 
     if (!thread) {
-      throw new NotFoundException('Thread not found');
+      throw new NotFoundException("Thread not found");
     }
 
     thread.isLocked = true;
@@ -303,7 +305,7 @@ export class ForumService {
     });
 
     if (!thread) {
-      throw new NotFoundException('Thread not found');
+      throw new NotFoundException("Thread not found");
     }
 
     thread.isPinned = isPinned;
@@ -314,7 +316,7 @@ export class ForumService {
    * Get posts for a thread
    */
   async getPosts(threadId: string, query: PostQueryDto) {
-    const { page = 1, limit: rawLimit = 20, sortBy = 'oldest' } = query;
+    const { page = 1, limit: rawLimit = 20, sortBy = "oldest" } = query;
     // Cap limit to prevent resource exhaustion
     const limit = Math.min(Math.max(1, rawLimit), 50);
 
@@ -324,28 +326,28 @@ export class ForumService {
     });
 
     if (!thread) {
-      throw new NotFoundException('Thread not found');
+      throw new NotFoundException("Thread not found");
     }
 
     const queryBuilder = this.postRepository
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.author', 'author')
-      .leftJoinAndSelect('post.replyTo', 'replyTo')
-      .leftJoinAndSelect('replyTo.author', 'replyToAuthor')
-      .where('post.threadId = :threadId', { threadId })
-      .andWhere('post.isDeleted = :isDeleted', { isDeleted: false });
+      .createQueryBuilder("post")
+      .leftJoinAndSelect("post.author", "author")
+      .leftJoinAndSelect("post.replyTo", "replyTo")
+      .leftJoinAndSelect("replyTo.author", "replyToAuthor")
+      .where("post.threadId = :threadId", { threadId })
+      .andWhere("post.isDeleted = :isDeleted", { isDeleted: false });
 
     // Sorting
     switch (sortBy) {
-      case 'newest':
-        queryBuilder.orderBy('post.createdAt', 'DESC');
+      case "newest":
+        queryBuilder.orderBy("post.createdAt", "DESC");
         break;
-      case 'votes':
-        queryBuilder.orderBy('post.upvotes - post.downvotes', 'DESC');
+      case "votes":
+        queryBuilder.orderBy("post.upvotes - post.downvotes", "DESC");
         break;
-      case 'oldest':
+      case "oldest":
       default:
-        queryBuilder.orderBy('post.createdAt', 'ASC');
+        queryBuilder.orderBy("post.createdAt", "ASC");
     }
 
     const skip = (page - 1) * limit;
@@ -374,11 +376,11 @@ export class ForumService {
     });
 
     if (!thread) {
-      throw new NotFoundException('Thread not found');
+      throw new NotFoundException("Thread not found");
     }
 
     if (thread.isLocked) {
-      throw new BadRequestException('Cannot post in a locked thread');
+      throw new BadRequestException("Cannot post in a locked thread");
     }
 
     // If replying to a post, verify it exists
@@ -387,7 +389,7 @@ export class ForumService {
         where: { id: dto.replyToId, threadId, isDeleted: false },
       });
       if (!replyToPost) {
-        throw new NotFoundException('Post to reply to not found');
+        throw new NotFoundException("Post to reply to not found");
       }
     }
 
@@ -404,7 +406,7 @@ export class ForumService {
     await this.threadRepository.update(
       { id: threadId },
       {
-        replyCount: () => 'replyCount + 1',
+        replyCount: () => "replyCount + 1",
         lastReplyAt: new Date(),
         lastReplyUserId: userId,
       },
@@ -416,7 +418,7 @@ export class ForumService {
     // Load relations for response
     return this.postRepository.findOne({
       where: { id: savedPost.id },
-      relations: ['author', 'replyTo', 'replyTo.author'],
+      relations: ["author", "replyTo", "replyTo.author"],
     });
   }
 
@@ -426,19 +428,19 @@ export class ForumService {
   async updatePost(userId: string, postId: string, dto: UpdatePostDto) {
     const post = await this.postRepository.findOne({
       where: { id: postId, isDeleted: false },
-      relations: ['author', 'thread'],
+      relations: ["author", "thread"],
     });
 
     if (!post) {
-      throw new NotFoundException('Post not found');
+      throw new NotFoundException("Post not found");
     }
 
     if (post.authorId !== userId) {
-      throw new ForbiddenException('You can only edit your own posts');
+      throw new ForbiddenException("You can only edit your own posts");
     }
 
     if (post.thread.isLocked) {
-      throw new BadRequestException('Cannot edit posts in a locked thread');
+      throw new BadRequestException("Cannot edit posts in a locked thread");
     }
 
     post.content = this.sanitizeContent(dto.content);
@@ -453,11 +455,11 @@ export class ForumService {
   async deletePost(userId: string, postId: string, userRole: UserRole) {
     const post = await this.postRepository.findOne({
       where: { id: postId, isDeleted: false },
-      relations: ['thread'],
+      relations: ["thread"],
     });
 
     if (!post) {
-      throw new NotFoundException('Post not found');
+      throw new NotFoundException("Post not found");
     }
 
     const canDelete =
@@ -466,16 +468,20 @@ export class ForumService {
       userRole === UserRole.ADMIN;
 
     if (!canDelete) {
-      throw new ForbiddenException('You can only delete your own posts');
+      throw new ForbiddenException("You can only delete your own posts");
     }
 
     // Soft delete
     post.isDeleted = true;
-    post.content = '[deleted]';
+    post.content = "[deleted]";
     await this.postRepository.save(post);
 
     // Update thread reply count
-    await this.threadRepository.decrement({ id: post.threadId }, 'replyCount', 1);
+    await this.threadRepository.decrement(
+      { id: post.threadId },
+      "replyCount",
+      1,
+    );
 
     // Update user reputation
     if (post.authorId === userId) {
@@ -492,7 +498,7 @@ export class ForumService {
     });
 
     if (!post) {
-      throw new NotFoundException('Post not found');
+      throw new NotFoundException("Post not found");
     }
 
     // Check if user already voted
@@ -507,11 +513,15 @@ export class ForumService {
 
         // Update post vote counts
         if (value === 1) {
-          await this.postRepository.decrement({ id: postId }, 'upvotes', 1);
-          await this.updateReputationStats(post.authorId, { upvotesReceived: -1 });
+          await this.postRepository.decrement({ id: postId }, "upvotes", 1);
+          await this.updateReputationStats(post.authorId, {
+            upvotesReceived: -1,
+          });
         } else {
-          await this.postRepository.decrement({ id: postId }, 'downvotes', 1);
-          await this.updateReputationStats(post.authorId, { downvotesReceived: -1 });
+          await this.postRepository.decrement({ id: postId }, "downvotes", 1);
+          await this.updateReputationStats(post.authorId, {
+            downvotesReceived: -1,
+          });
         }
       } else {
         // Change vote
@@ -521,19 +531,27 @@ export class ForumService {
 
         // Update post vote counts
         if (oldValue === 1) {
-          await this.postRepository.decrement({ id: postId }, 'upvotes', 1);
-          await this.updateReputationStats(post.authorId, { upvotesReceived: -1 });
+          await this.postRepository.decrement({ id: postId }, "upvotes", 1);
+          await this.updateReputationStats(post.authorId, {
+            upvotesReceived: -1,
+          });
         } else {
-          await this.postRepository.decrement({ id: postId }, 'downvotes', 1);
-          await this.updateReputationStats(post.authorId, { downvotesReceived: -1 });
+          await this.postRepository.decrement({ id: postId }, "downvotes", 1);
+          await this.updateReputationStats(post.authorId, {
+            downvotesReceived: -1,
+          });
         }
 
         if (value === 1) {
-          await this.postRepository.increment({ id: postId }, 'upvotes', 1);
-          await this.updateReputationStats(post.authorId, { upvotesReceived: 1 });
+          await this.postRepository.increment({ id: postId }, "upvotes", 1);
+          await this.updateReputationStats(post.authorId, {
+            upvotesReceived: 1,
+          });
         } else {
-          await this.postRepository.increment({ id: postId }, 'downvotes', 1);
-          await this.updateReputationStats(post.authorId, { downvotesReceived: 1 });
+          await this.postRepository.increment({ id: postId }, "downvotes", 1);
+          await this.updateReputationStats(post.authorId, {
+            downvotesReceived: 1,
+          });
         }
       }
     } else {
@@ -547,18 +565,20 @@ export class ForumService {
 
       // Update post vote counts
       if (value === 1) {
-        await this.postRepository.increment({ id: postId }, 'upvotes', 1);
+        await this.postRepository.increment({ id: postId }, "upvotes", 1);
         await this.updateReputationStats(post.authorId, { upvotesReceived: 1 });
       } else {
-        await this.postRepository.increment({ id: postId }, 'downvotes', 1);
-        await this.updateReputationStats(post.authorId, { downvotesReceived: 1 });
+        await this.postRepository.increment({ id: postId }, "downvotes", 1);
+        await this.updateReputationStats(post.authorId, {
+          downvotesReceived: 1,
+        });
       }
     }
 
     // Return updated post
     return this.postRepository.findOne({
       where: { id: postId },
-      relations: ['author'],
+      relations: ["author"],
     });
   }
 
@@ -568,7 +588,7 @@ export class ForumService {
   async getUserReputation(userId: string) {
     let reputation = await this.reputationRepository.findOne({
       where: { userId },
-      relations: ['user'],
+      relations: ["user"],
     });
 
     if (!reputation) {
@@ -638,19 +658,34 @@ export class ForumService {
     }
 
     if (changes.threadsCreated !== undefined) {
-      reputation.threadsCreated = Math.max(0, reputation.threadsCreated + changes.threadsCreated);
+      reputation.threadsCreated = Math.max(
+        0,
+        reputation.threadsCreated + changes.threadsCreated,
+      );
     }
     if (changes.postsCreated !== undefined) {
-      reputation.postsCreated = Math.max(0, reputation.postsCreated + changes.postsCreated);
+      reputation.postsCreated = Math.max(
+        0,
+        reputation.postsCreated + changes.postsCreated,
+      );
     }
     if (changes.upvotesReceived !== undefined) {
-      reputation.upvotesReceived = Math.max(0, reputation.upvotesReceived + changes.upvotesReceived);
+      reputation.upvotesReceived = Math.max(
+        0,
+        reputation.upvotesReceived + changes.upvotesReceived,
+      );
     }
     if (changes.downvotesReceived !== undefined) {
-      reputation.downvotesReceived = Math.max(0, reputation.downvotesReceived + changes.downvotesReceived);
+      reputation.downvotesReceived = Math.max(
+        0,
+        reputation.downvotesReceived + changes.downvotesReceived,
+      );
     }
     if (changes.helpfulAnswers !== undefined) {
-      reputation.helpfulAnswers = Math.max(0, reputation.helpfulAnswers + changes.helpfulAnswers);
+      reputation.helpfulAnswers = Math.max(
+        0,
+        reputation.helpfulAnswers + changes.helpfulAnswers,
+      );
     }
 
     // Recalculate score
@@ -706,12 +741,16 @@ export class ForumService {
     if (result.replyTo) {
       result.replyTo = {
         id: result.replyTo.id,
-        content: result.replyTo.isDeleted ? '[deleted]' : result.replyTo.content.substring(0, 100),
-        author: result.replyTo.author ? {
-          id: result.replyTo.author.id,
-          username: result.replyTo.author.username,
-          displayName: result.replyTo.author.displayName,
-        } : null,
+        content: result.replyTo.isDeleted
+          ? "[deleted]"
+          : result.replyTo.content.substring(0, 100),
+        author: result.replyTo.author
+          ? {
+              id: result.replyTo.author.id,
+              username: result.replyTo.author.username,
+              displayName: result.replyTo.author.displayName,
+            }
+          : null,
       };
     }
 
@@ -725,29 +764,46 @@ export class ForumService {
   private sanitizeContent(html: string): string {
     return sanitizeHtml(html, {
       allowedTags: [
-        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'del',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'ul', 'ol', 'li',
-        'blockquote', 'pre', 'code',
-        'a',
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "ul",
+        "ol",
+        "li",
+        "blockquote",
+        "pre",
+        "code",
+        "a",
       ],
       allowedAttributes: {
-        a: ['href', 'target', 'rel', 'title'],
-        pre: ['class'],
-        code: ['class'],
+        a: ["href", "target", "rel", "title"],
+        pre: ["class"],
+        code: ["class"],
       },
-      allowedSchemes: ['http', 'https', 'mailto'],
+      allowedSchemes: ["http", "https", "mailto"],
       transformTags: {
         a: (tagName, attribs) => ({
           tagName,
           attribs: {
             ...attribs,
-            target: '_blank',
-            rel: 'noopener noreferrer',
+            target: "_blank",
+            rel: "noopener noreferrer",
           },
         }),
       },
-      disallowedTagsMode: 'discard',
+      disallowedTagsMode: "discard",
     });
   }
 }

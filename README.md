@@ -92,10 +92,8 @@ A scalable interactive fiction platform for creating, reading, and collaborative
 
 4. **Start infrastructure services**
    ```bash
-   docker compose -f docker/docker-compose.yml up -d
+   npm run docker:dev
    ```
-   > **Note:** The `npm run docker:dev` script uses the legacy `docker-compose` command.
-   > If you only have the Docker Compose plugin, run `docker compose` directly as shown above.
 
 5. **Run database migrations**
    ```bash
@@ -104,14 +102,8 @@ A scalable interactive fiction platform for creating, reading, and collaborative
 
 6. **Start development servers**
    ```bash
-   # Start frontend and backend together:
-   npm run dev:frontend
-   # In a separate terminal:
-   npm run start:dev --workspace=backend
+   npm run dev
    ```
-   > **Note:** `npm run dev` does not currently work because the backend workspace is missing
-   > a `dev` script. Use the commands above instead, or add `"dev": "nest start --watch"` to
-   > `backend/package.json` scripts.
 
    Once running:
    - Frontend: http://localhost:3000
@@ -238,8 +230,9 @@ API documentation is available via Swagger UI at `/api/docs` when running in dev
 
 ```bash
 # Development
-npm run dev:frontend              # Start frontend dev server (Next.js)
-npm run start:dev --workspace=backend  # Start backend dev server (NestJS watch mode)
+npm run dev                       # Start frontend + backend concurrently
+npm run dev:frontend              # Start frontend only (Next.js)
+npm run dev:backend               # Start backend only (NestJS watch mode)
 
 # Building
 npm run build                     # Build all workspaces (shared, backend, frontend)
@@ -247,33 +240,24 @@ npm run build:frontend            # Build frontend only
 npm run build:backend             # Build backend only
 
 # Testing
+npm run test                      # Run all tests across workspaces
 npm run test --workspace=backend  # Run backend unit tests (107 tests across 6 suites)
 npm run test --workspace=frontend # Run frontend unit tests (12 tests)
 npm run test:e2e                  # Run Playwright E2E tests
+
+# Linting
+npm run lint                      # Lint all workspaces
+npm run lint --workspace=backend  # Lint backend (ESLint + Prettier)
+npm run lint --workspace=frontend # Lint frontend (ESLint + Next.js rules)
 
 # Database
 npm run db:migrate                # Run TypeORM migrations
 npm run db:seed                   # Seed database with test data
 
 # Docker
-docker compose -f docker/docker-compose.yml up -d    # Start dev infrastructure
-docker compose -f docker/docker-compose.yml down      # Stop all containers
+npm run docker:dev                # Start dev infrastructure
+npm run docker:down               # Stop all containers
 ```
-
-## Known Issues
-
-- **`npm run dev` is broken**: The root `dev` script calls `npm run dev --workspace=backend`,
-  but the backend workspace has no `dev` script (it uses `start:dev`). Run the frontend and
-  backend dev servers separately as shown above.
-- **Linting is not configured**: Neither the backend nor frontend have ESLint configuration files.
-  `npm run lint` will fail in both workspaces.
-- **Shared workspace has no tests**: `npm run test --workspace=shared` fails because there are
-  no test files. The jest config in shared should use `--passWithNoTests`.
-- **npm audit**: There are 21 known vulnerabilities (1 low, 1 moderate, 19 high) in
-  dependencies. Most are in transitive dependencies (`@aws-sdk`, `qs`, `markdown-it`).
-  Run `npm audit` for details.
-- **Docker scripts use legacy command**: `npm run docker:dev` and `npm run docker:down` use
-  `docker-compose` (standalone). Modern Docker installations use `docker compose` (plugin).
 
 ## Environment Variables
 
@@ -367,9 +351,7 @@ The project uses GitHub Actions for CI/CD:
 - [ ] Set up database backups
 - [ ] Configure Stripe webhooks for your domain
 - [ ] Set up email service (SendGrid/SES)
-- [ ] Add ESLint configuration to backend and frontend
-- [ ] Fix `npm run dev` script (add `dev` alias in backend)
-- [ ] Address npm audit vulnerabilities
+- [ ] Address remaining npm audit vulnerability (`@isaacs/brace-expansion` in `@nestjs/cli`)
 
 ## Contributing
 
@@ -381,7 +363,7 @@ The project uses GitHub Actions for CI/CD:
 
 ### Code Style
 
-- Prettier for code formatting (ESLint not yet configured)
+- ESLint + Prettier for code formatting
 - TypeScript strict mode enabled
 - Conventional commits recommended
 

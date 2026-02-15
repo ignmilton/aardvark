@@ -1,7 +1,7 @@
-import { SetMetadata } from '@nestjs/common';
-import { UserRole } from '@aardvark/shared';
+import { SetMetadata } from "@nestjs/common";
+import { UserRole } from "@aardvark/shared";
 
-export const ROLES_KEY = 'roles';
+export const ROLES_KEY = "roles";
 
 /**
  * Decorator to specify required roles for a route.

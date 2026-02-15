@@ -7,26 +7,26 @@ import {
   ManyToOne,
   Index,
   JoinColumn,
-} from 'typeorm';
-import { SubscriptionTier, SubscriptionInterval } from '@aardvark/shared';
-import { User } from './user.entity';
+} from "typeorm";
+import { SubscriptionTier, SubscriptionInterval } from "@aardvark/shared";
+import { User } from "./user.entity";
 
 /**
  * Subscription plan entity - defines available subscription options
  */
-@Entity('subscription_plans')
+@Entity("subscription_plans")
 export class SubscriptionPlan {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: SubscriptionTier,
   })
   tier: SubscriptionTier;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: SubscriptionInterval,
   })
   interval: SubscriptionInterval;
@@ -34,52 +34,52 @@ export class SubscriptionPlan {
   @Column()
   name: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   description: string;
 
   @Column()
   priceInCents: number;
 
-  @Column({ default: 'usd' })
+  @Column({ default: "usd" })
   currency: string;
 
   @Column()
   stripePriceId: string;
 
-  @Column('text', { array: true, default: [] })
+  @Column("text", { array: true, default: [] })
   features: string[];
 
   @Column({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 }
 
 /**
  * User subscription entity - tracks active subscriptions
  */
-@Entity('subscriptions')
+@Entity("subscriptions")
 export class Subscription {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   userId: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "userId" })
   user: User;
 
-  @Column('uuid')
+  @Column("uuid")
   planId: string;
 
   @ManyToOne(() => SubscriptionPlan)
-  @JoinColumn({ name: 'planId' })
+  @JoinColumn({ name: "planId" })
   plan: SubscriptionPlan;
 
   @Index()
@@ -91,33 +91,33 @@ export class Subscription {
 
   @Index()
   @Column({
-    type: 'varchar',
+    type: "varchar",
     length: 20,
-    default: 'active',
+    default: "active",
   })
-  status: 'active' | 'canceled' | 'past_due' | 'trialing' | 'unpaid';
+  status: "active" | "canceled" | "past_due" | "trialing" | "unpaid";
 
-  @Column({ type: 'timestamptz' })
+  @Column({ type: "timestamptz" })
   currentPeriodStart: Date;
 
-  @Column({ type: 'timestamptz' })
+  @Column({ type: "timestamptz" })
   currentPeriodEnd: Date;
 
   @Column({ default: false })
   cancelAtPeriodEnd: boolean;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   canceledAt: Date | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   trialStart: Date | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: "timestamptz", nullable: true })
   trialEnd: Date | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 }

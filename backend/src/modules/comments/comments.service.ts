@@ -3,14 +3,14 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
-import { Comment, Story, User, CommentLike } from '@/database/entities';
-import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from './dto';
-import { UserRole } from '@aardvark/shared';
-import * as sanitizeHtml from 'sanitize-html';
-import { marked } from 'marked';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Comment, Story, User, CommentLike } from "@/database/entities";
+import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./dto";
+import { UserRole } from "@aardvark/shared";
+import * as sanitizeHtml from "sanitize-html";
+import { marked } from "marked";
 
 @Injectable()
 export class CommentsService {
@@ -32,7 +32,7 @@ export class CommentsService {
       where: { id: createDto.storyId },
     });
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     // If replying to a comment, verify parent exists
@@ -41,10 +41,10 @@ export class CommentsService {
         where: { id: createDto.parentCommentId, storyId: createDto.storyId },
       });
       if (!parentComment) {
-        throw new NotFoundException('Parent comment not found');
+        throw new NotFoundException("Parent comment not found");
       }
       if (parentComment.isDeleted) {
-        throw new BadRequestException('Cannot reply to a deleted comment');
+        throw new BadRequestException("Cannot reply to a deleted comment");
       }
     }
 
@@ -66,18 +66,22 @@ export class CommentsService {
     if (createDto.parentCommentId) {
       await this.commentRepository.increment(
         { id: createDto.parentCommentId },
-        'repliesCount',
+        "repliesCount",
         1,
       );
     }
 
     // Increment story comment count
-    await this.storyRepository.increment({ id: createDto.storyId }, 'commentCount', 1);
+    await this.storyRepository.increment(
+      { id: createDto.storyId },
+      "commentCount",
+      1,
+    );
 
     // Load user relation for response
     return this.commentRepository.findOne({
       where: { id: savedComment.id },
-      relations: ['user'],
+      relations: ["user"],
     }) as Promise<Comment>;
   }
 
@@ -85,40 +89,50 @@ export class CommentsService {
    * Get comments with pagination
    */
   async findAll(query: CommentQueryDto) {
-    const { storyId, segmentId, parentCommentId, rootOnly, page = 1, limit: rawLimit = 20, sortBy = 'recent' } = query;
+    const {
+      storyId,
+      segmentId,
+      parentCommentId,
+      rootOnly,
+      page = 1,
+      limit: rawLimit = 20,
+      sortBy = "recent",
+    } = query;
     // Cap limit to prevent resource exhaustion
     const limit = Math.min(Math.max(1, rawLimit), 100);
 
     const queryBuilder = this.commentRepository
-      .createQueryBuilder('comment')
-      .leftJoinAndSelect('comment.user', 'user')
-      .where('comment.isDeleted = :isDeleted', { isDeleted: false });
+      .createQueryBuilder("comment")
+      .leftJoinAndSelect("comment.user", "user")
+      .where("comment.isDeleted = :isDeleted", { isDeleted: false });
 
     if (storyId) {
-      queryBuilder.andWhere('comment.storyId = :storyId', { storyId });
+      queryBuilder.andWhere("comment.storyId = :storyId", { storyId });
     }
 
     if (segmentId) {
-      queryBuilder.andWhere('comment.segmentId = :segmentId', { segmentId });
+      queryBuilder.andWhere("comment.segmentId = :segmentId", { segmentId });
     }
 
     if (parentCommentId) {
-      queryBuilder.andWhere('comment.parentCommentId = :parentCommentId', { parentCommentId });
+      queryBuilder.andWhere("comment.parentCommentId = :parentCommentId", {
+        parentCommentId,
+      });
     } else if (rootOnly) {
-      queryBuilder.andWhere('comment.parentCommentId IS NULL');
+      queryBuilder.andWhere("comment.parentCommentId IS NULL");
     }
 
     // Sorting
     switch (sortBy) {
-      case 'oldest':
-        queryBuilder.orderBy('comment.createdAt', 'ASC');
+      case "oldest":
+        queryBuilder.orderBy("comment.createdAt", "ASC");
         break;
-      case 'likes':
-        queryBuilder.orderBy('comment.likesCount', 'DESC');
+      case "likes":
+        queryBuilder.orderBy("comment.likesCount", "DESC");
         break;
-      case 'recent':
+      case "recent":
       default:
-        queryBuilder.orderBy('comment.createdAt', 'DESC');
+        queryBuilder.orderBy("comment.createdAt", "DESC");
     }
 
     const skip = (page - 1) * limit;
@@ -144,11 +158,11 @@ export class CommentsService {
   async findById(id: string): Promise<Comment> {
     const comment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['user', 'replies', 'replies.user'],
+      relations: ["user", "replies", "replies.user"],
     });
 
     if (!comment) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundException("Comment not found");
     }
 
     return this.sanitizeComment(comment) as Comment;
@@ -157,25 +171,30 @@ export class CommentsService {
   /**
    * Get comments for a story with threaded structure
    */
-  async getThreadedComments(storyId: string, segmentId?: string, page = 1, rawLimit = 20) {
+  async getThreadedComments(
+    storyId: string,
+    segmentId?: string,
+    page = 1,
+    rawLimit = 20,
+  ) {
     // Cap limit to prevent resource exhaustion
     const limit = Math.min(Math.max(1, rawLimit), 50);
     const queryBuilder = this.commentRepository
-      .createQueryBuilder('comment')
-      .leftJoinAndSelect('comment.user', 'user')
-      .where('comment.storyId = :storyId', { storyId })
-      .andWhere('comment.isDeleted = :isDeleted', { isDeleted: false })
-      .andWhere('comment.parentCommentId IS NULL');
+      .createQueryBuilder("comment")
+      .leftJoinAndSelect("comment.user", "user")
+      .where("comment.storyId = :storyId", { storyId })
+      .andWhere("comment.isDeleted = :isDeleted", { isDeleted: false })
+      .andWhere("comment.parentCommentId IS NULL");
 
     if (segmentId) {
-      queryBuilder.andWhere('comment.segmentId = :segmentId', { segmentId });
+      queryBuilder.andWhere("comment.segmentId = :segmentId", { segmentId });
     } else {
-      queryBuilder.andWhere('comment.segmentId IS NULL');
+      queryBuilder.andWhere("comment.segmentId IS NULL");
     }
 
     const skip = (page - 1) * limit;
     const [rootComments, total] = await queryBuilder
-      .orderBy('comment.createdAt', 'DESC')
+      .orderBy("comment.createdAt", "DESC")
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -185,8 +204,8 @@ export class CommentsService {
       rootComments.map(async (comment) => {
         const replies = await this.commentRepository.find({
           where: { parentCommentId: comment.id, isDeleted: false },
-          relations: ['user'],
-          order: { createdAt: 'ASC' },
+          relations: ["user"],
+          order: { createdAt: "ASC" },
           take: 3,
         });
         return {
@@ -211,22 +230,26 @@ export class CommentsService {
   /**
    * Update a comment
    */
-  async update(id: string, updateDto: UpdateCommentDto, userId: string): Promise<Comment> {
+  async update(
+    id: string,
+    updateDto: UpdateCommentDto,
+    userId: string,
+  ): Promise<Comment> {
     const comment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['user'],
+      relations: ["user"],
     });
 
     if (!comment) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundException("Comment not found");
     }
 
     if (comment.userId !== userId) {
-      throw new ForbiddenException('You can only edit your own comments');
+      throw new ForbiddenException("You can only edit your own comments");
     }
 
     if (comment.isDeleted) {
-      throw new BadRequestException('Cannot edit a deleted comment');
+      throw new BadRequestException("Cannot edit a deleted comment");
     }
 
     comment.content = updateDto.content;
@@ -245,23 +268,24 @@ export class CommentsService {
     });
 
     if (!comment) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundException("Comment not found");
     }
 
     // Only owner or moderators can delete
-    const canDelete = comment.userId === userId ||
+    const canDelete =
+      comment.userId === userId ||
       userRole === UserRole.MODERATOR ||
       userRole === UserRole.ADMIN;
 
     if (!canDelete) {
-      throw new ForbiddenException('You can only delete your own comments');
+      throw new ForbiddenException("You can only delete your own comments");
     }
 
     // Soft delete
     comment.isDeleted = true;
     comment.deletedAt = new Date();
-    comment.content = '[deleted]';
-    comment.contentHtml = '<p>[deleted]</p>';
+    comment.content = "[deleted]";
+    comment.contentHtml = "<p>[deleted]</p>";
 
     await this.commentRepository.save(comment);
 
@@ -269,13 +293,17 @@ export class CommentsService {
     if (comment.parentCommentId) {
       await this.commentRepository.decrement(
         { id: comment.parentCommentId },
-        'repliesCount',
+        "repliesCount",
         1,
       );
     }
 
     // Decrement story comment count
-    await this.storyRepository.decrement({ id: comment.storyId }, 'commentCount', 1);
+    await this.storyRepository.decrement(
+      { id: comment.storyId },
+      "commentCount",
+      1,
+    );
   }
 
   /**
@@ -287,13 +315,13 @@ export class CommentsService {
     });
 
     if (existing) {
-      throw new BadRequestException('You have already liked this comment');
+      throw new BadRequestException("You have already liked this comment");
     }
 
     await this.commentLikeRepository.save(
       this.commentLikeRepository.create({ commentId, userId }),
     );
-    await this.commentRepository.increment({ id: commentId }, 'likesCount', 1);
+    await this.commentRepository.increment({ id: commentId }, "likesCount", 1);
   }
 
   /**
@@ -305,11 +333,11 @@ export class CommentsService {
     });
 
     if (!existing) {
-      throw new BadRequestException('You have not liked this comment');
+      throw new BadRequestException("You have not liked this comment");
     }
 
     await this.commentLikeRepository.remove(existing);
-    await this.commentRepository.decrement({ id: commentId }, 'likesCount', 1);
+    await this.commentRepository.decrement({ id: commentId }, "likesCount", 1);
   }
 
   /**
@@ -341,24 +369,40 @@ export class CommentsService {
 
     // Sanitize HTML
     return sanitizeHtml(rawHtml, {
-      allowedTags: ['p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre'],
+      allowedTags: [
+        "p",
+        "br",
+        "strong",
+        "em",
+        "u",
+        "s",
+        "a",
+        "ul",
+        "ol",
+        "li",
+        "blockquote",
+        "code",
+        "pre",
+      ],
       allowedAttributes: {
-        a: ['href', 'target', 'rel'],
+        a: ["href", "target", "rel"],
       },
       transformTags: {
         a: (tagName, attribs) => ({
           tagName,
           attribs: {
             ...attribs,
-            target: '_blank',
-            rel: 'noopener noreferrer',
+            target: "_blank",
+            rel: "noopener noreferrer",
           },
         }),
       },
     });
   }
 
-  private sanitizeComment(comment: Comment): Partial<Comment> & { user?: Partial<User> } {
+  private sanitizeComment(
+    comment: Comment,
+  ): Partial<Comment> & { user?: Partial<User> } {
     const result: any = { ...comment };
 
     // Remove sensitive user data

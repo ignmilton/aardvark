@@ -1,36 +1,49 @@
-import { IsString, IsUUID, IsEnum, IsOptional, IsNumber, IsArray, IsBoolean, Min, Max, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsUUID,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  IsBoolean,
+  Min,
+  Max,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   ModerationContentType,
   ReportReason,
   ModerationAction,
   ModerationStatus,
-} from '@/database/entities/moderation.entity';
-import { MuteScope } from '@/database/entities/user-mute.entity';
-import { AppealStatus } from '@/database/entities/ban-appeal.entity';
+} from "@/database/entities/moderation.entity";
+import { MuteScope } from "@/database/entities/user-mute.entity";
+import { AppealStatus } from "@/database/entities/ban-appeal.entity";
 
 /**
  * DTO for creating a new report
  */
 export class CreateReportDto {
-  @ApiProperty({ enum: ModerationContentType, description: 'Type of content being reported' })
+  @ApiProperty({
+    enum: ModerationContentType,
+    description: "Type of content being reported",
+  })
   @IsEnum(ModerationContentType)
   contentType: ModerationContentType;
 
-  @ApiProperty({ description: 'ID of the content being reported' })
+  @ApiProperty({ description: "ID of the content being reported" })
   @IsUUID()
   contentId: string;
 
-  @ApiProperty({ enum: ReportReason, description: 'Reason for the report' })
+  @ApiProperty({ enum: ReportReason, description: "Reason for the report" })
   @IsEnum(ReportReason)
   reason: ReportReason;
 
-  @ApiProperty({ description: 'Detailed description of the issue' })
+  @ApiProperty({ description: "Detailed description of the issue" })
   @IsString()
   details: string;
 
-  @ApiPropertyOptional({ type: [String], description: 'URLs or text evidence' })
+  @ApiPropertyOptional({ type: [String], description: "URLs or text evidence" })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -41,25 +54,28 @@ export class CreateReportDto {
  * DTO for resolving a moderation report
  */
 export class ResolveModerationDto {
-  @ApiProperty({ enum: ModerationAction, description: 'Action to take on the report' })
+  @ApiProperty({
+    enum: ModerationAction,
+    description: "Action to take on the report",
+  })
   @IsEnum(ModerationAction)
   action: ModerationAction;
 
-  @ApiProperty({ description: 'Reason for the action' })
+  @ApiProperty({ description: "Reason for the action" })
   @IsString()
   reason: string;
 
-  @ApiPropertyOptional({ description: 'Additional details or notes' })
+  @ApiPropertyOptional({ description: "Additional details or notes" })
   @IsOptional()
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'Edited content if action is EDIT' })
+  @ApiPropertyOptional({ description: "Edited content if action is EDIT" })
   @IsOptional()
   @IsString()
   editedContent?: string;
 
-  @ApiPropertyOptional({ description: 'Ban duration in days for TEMP_BAN' })
+  @ApiPropertyOptional({ description: "Ban duration in days for TEMP_BAN" })
   @IsOptional()
   @IsNumber()
   @Min(1)
@@ -71,24 +87,24 @@ export class ResolveModerationDto {
  * DTO for issuing a warning to a user
  */
 export class IssueWarningDto {
-  @ApiProperty({ description: 'ID of the user to warn' })
+  @ApiProperty({ description: "ID of the user to warn" })
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ enum: ReportReason, description: 'Reason for the warning' })
+  @ApiProperty({ enum: ReportReason, description: "Reason for the warning" })
   @IsEnum(ReportReason)
   reason: ReportReason;
 
-  @ApiProperty({ description: 'Warning message' })
+  @ApiProperty({ description: "Warning message" })
   @IsString()
   message: string;
 
-  @ApiPropertyOptional({ description: 'Related report ID' })
+  @ApiPropertyOptional({ description: "Related report ID" })
   @IsOptional()
   @IsUUID()
   reportId?: string;
 
-  @ApiPropertyOptional({ description: 'Days until warning expires' })
+  @ApiPropertyOptional({ description: "Days until warning expires" })
   @IsOptional()
   @IsNumber()
   @Min(1)
@@ -100,34 +116,36 @@ export class IssueWarningDto {
  * DTO for issuing a ban to a user
  */
 export class IssueBanDto {
-  @ApiProperty({ description: 'ID of the user to ban' })
+  @ApiProperty({ description: "ID of the user to ban" })
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ enum: ReportReason, description: 'Reason for the ban' })
+  @ApiProperty({ enum: ReportReason, description: "Reason for the ban" })
   @IsEnum(ReportReason)
   reason: ReportReason;
 
-  @ApiProperty({ description: 'Detailed explanation of the ban' })
+  @ApiProperty({ description: "Detailed explanation of the ban" })
   @IsString()
   details: string;
 
-  @ApiProperty({ description: 'Is this a permanent ban' })
+  @ApiProperty({ description: "Is this a permanent ban" })
   @IsBoolean()
   isPermanent: boolean;
 
-  @ApiPropertyOptional({ description: 'Days until ban expires (required if not permanent)' })
+  @ApiPropertyOptional({
+    description: "Days until ban expires (required if not permanent)",
+  })
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(3650)
   durationDays?: number;
 
-  @ApiProperty({ description: 'Is this a shadowban' })
+  @ApiProperty({ description: "Is this a shadowban" })
   @IsBoolean()
   isShadowban: boolean;
 
-  @ApiPropertyOptional({ description: 'Related report ID' })
+  @ApiPropertyOptional({ description: "Related report ID" })
   @IsOptional()
   @IsUUID()
   reportId?: string;
@@ -137,7 +155,7 @@ export class IssueBanDto {
  * DTO for lifting a ban
  */
 export class LiftBanDto {
-  @ApiProperty({ description: 'Reason for lifting the ban' })
+  @ApiProperty({ description: "Reason for lifting the ban" })
   @IsString()
   reason: string;
 }
@@ -146,7 +164,9 @@ export class LiftBanDto {
  * DTO for assigning a report to a moderator
  */
 export class AssignReportDto {
-  @ApiPropertyOptional({ description: 'Moderator ID to assign (defaults to self if not provided)' })
+  @ApiPropertyOptional({
+    description: "Moderator ID to assign (defaults to self if not provided)",
+  })
   @IsOptional()
   @IsUUID()
   moderatorId?: string;
@@ -156,7 +176,7 @@ export class AssignReportDto {
  * DTO for escalating a report
  */
 export class EscalateReportDto {
-  @ApiProperty({ description: 'Reason for escalation' })
+  @ApiProperty({ description: "Reason for escalation" })
   @IsString()
   reason: string;
 }
@@ -165,14 +185,14 @@ export class EscalateReportDto {
  * Query DTO for moderation queue
  */
 export class ModerationQueueQuery {
-  @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @ApiPropertyOptional({ description: "Page number", default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Items per page', default: 20 })
+  @ApiPropertyOptional({ description: "Items per page", default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -180,44 +200,55 @@ export class ModerationQueueQuery {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ enum: ModerationContentType, description: 'Filter by content type' })
+  @ApiPropertyOptional({
+    enum: ModerationContentType,
+    description: "Filter by content type",
+  })
   @IsOptional()
   @IsEnum(ModerationContentType)
   contentType?: ModerationContentType;
 
-  @ApiPropertyOptional({ enum: ModerationStatus, description: 'Filter by status' })
+  @ApiPropertyOptional({
+    enum: ModerationStatus,
+    description: "Filter by status",
+  })
   @IsOptional()
   @IsEnum(ModerationStatus)
   status?: ModerationStatus;
 
-  @ApiPropertyOptional({ description: 'Filter by assigned moderator ID or "unassigned"' })
+  @ApiPropertyOptional({
+    description: 'Filter by assigned moderator ID or "unassigned"',
+  })
   @IsOptional()
   @IsString()
   assignedTo?: string;
 
-  @ApiPropertyOptional({ enum: ['createdAt', 'updatedAt', 'priority'], description: 'Sort by field' })
+  @ApiPropertyOptional({
+    enum: ["createdAt", "updatedAt", "priority"],
+    description: "Sort by field",
+  })
   @IsOptional()
   @IsString()
-  sortBy?: 'createdAt' | 'updatedAt' | 'priority' = 'createdAt';
+  sortBy?: "createdAt" | "updatedAt" | "priority" = "createdAt";
 
-  @ApiPropertyOptional({ enum: ['ASC', 'DESC'], description: 'Sort order' })
+  @ApiPropertyOptional({ enum: ["ASC", "DESC"], description: "Sort order" })
   @IsOptional()
   @IsString()
-  sortOrder?: 'ASC' | 'DESC' = 'DESC';
+  sortOrder?: "ASC" | "DESC" = "DESC";
 }
 
 /**
  * Query DTO for content flags
  */
 export class ContentFlagQuery {
-  @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @ApiPropertyOptional({ description: "Page number", default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Items per page', default: 20 })
+  @ApiPropertyOptional({ description: "Items per page", default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -225,17 +256,23 @@ export class ContentFlagQuery {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ enum: ModerationContentType, description: 'Filter by content type' })
+  @ApiPropertyOptional({
+    enum: ModerationContentType,
+    description: "Filter by content type",
+  })
   @IsOptional()
   @IsEnum(ModerationContentType)
   contentType?: ModerationContentType;
 
-  @ApiPropertyOptional({ enum: ModerationStatus, description: 'Filter by status' })
+  @ApiPropertyOptional({
+    enum: ModerationStatus,
+    description: "Filter by status",
+  })
   @IsOptional()
   @IsEnum(ModerationStatus)
   status?: ModerationStatus;
 
-  @ApiPropertyOptional({ description: 'Filter by flag type' })
+  @ApiPropertyOptional({ description: "Filter by flag type" })
   @IsOptional()
   @IsString()
   flagType?: string;
@@ -245,14 +282,14 @@ export class ContentFlagQuery {
  * Query DTO for moderation logs
  */
 export class ModerationLogQuery {
-  @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @ApiPropertyOptional({ description: "Page number", default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Items per page', default: 20 })
+  @ApiPropertyOptional({ description: "Items per page", default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -260,22 +297,28 @@ export class ModerationLogQuery {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ description: 'Filter by moderator ID' })
+  @ApiPropertyOptional({ description: "Filter by moderator ID" })
   @IsOptional()
   @IsUUID()
   moderatorId?: string;
 
-  @ApiPropertyOptional({ enum: ModerationContentType, description: 'Filter by content type' })
+  @ApiPropertyOptional({
+    enum: ModerationContentType,
+    description: "Filter by content type",
+  })
   @IsOptional()
   @IsEnum(ModerationContentType)
   contentType?: ModerationContentType;
 
-  @ApiPropertyOptional({ enum: ModerationAction, description: 'Filter by action' })
+  @ApiPropertyOptional({
+    enum: ModerationAction,
+    description: "Filter by action",
+  })
   @IsOptional()
   @IsEnum(ModerationAction)
   action?: ModerationAction;
 
-  @ApiPropertyOptional({ description: 'Filter by target user ID' })
+  @ApiPropertyOptional({ description: "Filter by target user ID" })
   @IsOptional()
   @IsUUID()
   targetUserId?: string;
@@ -285,11 +328,14 @@ export class ModerationLogQuery {
  * DTO for resolving auto-flag
  */
 export class ResolveAutoFlagDto {
-  @ApiProperty({ enum: ModerationAction, description: 'Action to take on the flagged content' })
+  @ApiProperty({
+    enum: ModerationAction,
+    description: "Action to take on the flagged content",
+  })
   @IsEnum(ModerationAction)
   action: ModerationAction;
 
-  @ApiPropertyOptional({ description: 'Notes about the resolution' })
+  @ApiPropertyOptional({ description: "Notes about the resolution" })
   @IsOptional()
   @IsString()
   notes?: string;
@@ -299,10 +345,14 @@ export class ResolveAutoFlagDto {
  * Query DTO for moderation statistics
  */
 export class ModerationStatsQuery {
-  @ApiPropertyOptional({ enum: ['day', 'week', 'month'], description: 'Time period', default: 'day' })
+  @ApiPropertyOptional({
+    enum: ["day", "week", "month"],
+    description: "Time period",
+    default: "day",
+  })
   @IsOptional()
   @IsString()
-  period?: 'day' | 'week' | 'month' = 'day';
+  period?: "day" | "week" | "month" = "day";
 }
 
 // ============================================================================
@@ -313,23 +363,23 @@ export class ModerationStatsQuery {
  * DTO for issuing a mute to a user
  */
 export class IssueMuteDto {
-  @ApiProperty({ description: 'ID of the user to mute' })
+  @ApiProperty({ description: "ID of the user to mute" })
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ enum: MuteScope, description: 'Scope of the mute' })
+  @ApiProperty({ enum: MuteScope, description: "Scope of the mute" })
   @IsEnum(MuteScope)
   scope: MuteScope;
 
-  @ApiProperty({ enum: ReportReason, description: 'Reason for the mute' })
+  @ApiProperty({ enum: ReportReason, description: "Reason for the mute" })
   @IsEnum(ReportReason)
   reason: ReportReason;
 
-  @ApiProperty({ description: 'Detailed explanation of the mute' })
+  @ApiProperty({ description: "Detailed explanation of the mute" })
   @IsString()
   details: string;
 
-  @ApiProperty({ description: 'Duration in days' })
+  @ApiProperty({ description: "Duration in days" })
   @IsNumber()
   @Min(1)
   @Max(365)
@@ -344,15 +394,15 @@ export class IssueMuteDto {
  * DTO for creating a ban appeal
  */
 export class CreateAppealDto {
-  @ApiProperty({ description: 'ID of the ban being appealed' })
+  @ApiProperty({ description: "ID of the ban being appealed" })
   @IsUUID()
   banId: string;
 
-  @ApiProperty({ description: 'Reason for appeal' })
+  @ApiProperty({ description: "Reason for appeal" })
   @IsString()
   reason: string;
 
-  @ApiPropertyOptional({ description: 'Additional context or evidence' })
+  @ApiPropertyOptional({ description: "Additional context or evidence" })
   @IsOptional()
   @IsString()
   additionalContext?: string;
@@ -362,11 +412,11 @@ export class CreateAppealDto {
  * DTO for reviewing an appeal
  */
 export class ReviewAppealDto {
-  @ApiProperty({ description: 'Whether to approve the appeal' })
+  @ApiProperty({ description: "Whether to approve the appeal" })
   @IsBoolean()
   approved: boolean;
 
-  @ApiPropertyOptional({ description: 'Review notes' })
+  @ApiPropertyOptional({ description: "Review notes" })
   @IsOptional()
   @IsString()
   notes?: string;
@@ -376,14 +426,14 @@ export class ReviewAppealDto {
  * Query DTO for appeals queue
  */
 export class AppealsQueueQuery {
-  @ApiPropertyOptional({ description: 'Page number', default: 1 })
+  @ApiPropertyOptional({ description: "Page number", default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Items per page', default: 20 })
+  @ApiPropertyOptional({ description: "Items per page", default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -391,7 +441,7 @@ export class AppealsQueueQuery {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ enum: AppealStatus, description: 'Filter by status' })
+  @ApiPropertyOptional({ enum: AppealStatus, description: "Filter by status" })
   @IsOptional()
   @IsEnum(AppealStatus)
   status?: AppealStatus;
@@ -405,16 +455,16 @@ export class AppealsQueueQuery {
  * DTO for bulk resolving reports
  */
 export class BulkResolveDto {
-  @ApiProperty({ description: 'Report IDs to resolve' })
+  @ApiProperty({ description: "Report IDs to resolve" })
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   reportIds: string[];
 
-  @ApiProperty({ enum: ModerationAction, description: 'Action to take' })
+  @ApiProperty({ enum: ModerationAction, description: "Action to take" })
   @IsEnum(ModerationAction)
   action: ModerationAction;
 
-  @ApiPropertyOptional({ description: 'Notes for all resolutions' })
+  @ApiPropertyOptional({ description: "Notes for all resolutions" })
   @IsOptional()
   @IsString()
   notes?: string;
@@ -424,12 +474,12 @@ export class BulkResolveDto {
  * DTO for bulk assigning reports
  */
 export class BulkAssignDto {
-  @ApiProperty({ description: 'Report IDs to assign' })
+  @ApiProperty({ description: "Report IDs to assign" })
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   reportIds: string[];
 
-  @ApiPropertyOptional({ description: 'Moderator ID (defaults to self)' })
+  @ApiPropertyOptional({ description: "Moderator ID (defaults to self)" })
   @IsOptional()
   @IsUUID()
   moderatorId?: string;
@@ -439,16 +489,16 @@ export class BulkAssignDto {
  * DTO for bulk issuing warnings
  */
 export class BulkWarnDto {
-  @ApiProperty({ description: 'User IDs to warn' })
+  @ApiProperty({ description: "User IDs to warn" })
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   userIds: string[];
 
-  @ApiProperty({ enum: ReportReason, description: 'Reason for warning' })
+  @ApiProperty({ enum: ReportReason, description: "Reason for warning" })
   @IsEnum(ReportReason)
   reason: ReportReason;
 
-  @ApiProperty({ description: 'Warning message' })
+  @ApiProperty({ description: "Warning message" })
   @IsString()
   message: string;
 }

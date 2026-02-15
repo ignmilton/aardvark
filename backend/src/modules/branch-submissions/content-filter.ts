@@ -12,7 +12,7 @@ export interface ContentFilterResult {
 // Patterns indicating potential script injection
 const SCRIPT_PATTERNS = [
   /<script\b/i,
-  /on\w+\s*=\s*["']/i,          // event handlers like onclick="..."
+  /on\w+\s*=\s*["']/i, // event handlers like onclick="..."
   /javascript\s*:/i,
   /data\s*:\s*text\/html/i,
   /<iframe\b/i,
@@ -40,28 +40,32 @@ export function filterContent(htmlContent: string): ContentFilterResult {
   const reasons: string[] = [];
 
   // Strip HTML for text analysis
-  const textContent = htmlContent.replace(/<[^>]*>/g, '').trim();
+  const textContent = htmlContent.replace(/<[^>]*>/g, "").trim();
 
   // Check for script injection patterns in raw HTML
   for (const pattern of SCRIPT_PATTERNS) {
     if (pattern.test(htmlContent)) {
-      reasons.push('Content contains potentially malicious scripts or event handlers');
+      reasons.push(
+        "Content contains potentially malicious scripts or event handlers",
+      );
       break;
     }
   }
 
   // Check minimum length
   if (textContent.length < MIN_CONTENT_LENGTH) {
-    reasons.push(`Content too short (${textContent.length} characters, minimum ${MIN_CONTENT_LENGTH})`);
+    reasons.push(
+      `Content too short (${textContent.length} characters, minimum ${MIN_CONTENT_LENGTH})`,
+    );
   }
 
   // Check excessive uppercase (only for content with enough alpha chars)
-  const alphaChars = textContent.replace(/[^a-zA-Z]/g, '');
+  const alphaChars = textContent.replace(/[^a-zA-Z]/g, "");
   if (alphaChars.length > 20) {
-    const uppercaseCount = alphaChars.replace(/[^A-Z]/g, '').length;
+    const uppercaseCount = alphaChars.replace(/[^A-Z]/g, "").length;
     const ratio = uppercaseCount / alphaChars.length;
     if (ratio > MAX_UPPERCASE_RATIO) {
-      reasons.push('Content contains excessive uppercase characters');
+      reasons.push("Content contains excessive uppercase characters");
     }
   }
 
@@ -71,7 +75,7 @@ export function filterContent(htmlContent: string): ContentFilterResult {
     const uniqueWords = new Set(words);
     const uniqueRatio = uniqueWords.size / words.length;
     if (uniqueRatio < MIN_UNIQUE_WORD_RATIO) {
-      reasons.push('Content appears to be repetitive or spam');
+      reasons.push("Content appears to be repetitive or spam");
     }
   }
 

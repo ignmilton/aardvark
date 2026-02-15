@@ -1,1 +1,1 @@
-export * from './featured.dto';
+export * from "./featured.dto";

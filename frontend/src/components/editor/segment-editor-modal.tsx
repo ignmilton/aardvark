@@ -49,6 +49,7 @@ export function SegmentEditorModal({
     isOpen,
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect -- resetting form state when modal opens/closes based on props */
   useEffect(() => {
     if (!isOpen) {
       setShowDraftRecovery(false);
@@ -74,6 +75,7 @@ export function SegmentEditorModal({
       setShowDraftRecovery(true);
     }
   }, [initialData, isOpen, hasDraft]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const restoreDraft = useCallback(() => {
     const draft = loadDraft();

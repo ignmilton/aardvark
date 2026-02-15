@@ -3,16 +3,21 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ReaderProgress, Story, StorySegment, Choice } from '@/database/entities';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import {
+  ReaderProgress,
+  Story,
+  StorySegment,
+  Choice,
+} from "@/database/entities";
 import {
   StartReadingDto,
   MakeChoiceDto,
   AddBookmarkDto,
   UpdateBookmarkDto,
-} from './dto';
+} from "./dto";
 
 @Injectable()
 export class ProgressService {
@@ -30,17 +35,20 @@ export class ProgressService {
   /**
    * Start reading a story or get existing progress
    */
-  async startReading(userId: string, dto: StartReadingDto): Promise<ReaderProgress> {
+  async startReading(
+    userId: string,
+    dto: StartReadingDto,
+  ): Promise<ReaderProgress> {
     // Check if story exists
     const story = await this.storyRepository.findOne({
       where: { id: dto.storyId },
     });
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     if (!story.rootSegmentId) {
-      throw new BadRequestException('Story has no content yet');
+      throw new BadRequestException("Story has no content yet");
     }
 
     // Check for existing progress
@@ -69,10 +77,14 @@ export class ProgressService {
     });
 
     // Increment story view count
-    await this.storyRepository.increment({ id: dto.storyId }, 'viewCount', 1);
+    await this.storyRepository.increment({ id: dto.storyId }, "viewCount", 1);
 
     // Increment segment read count
-    await this.segmentRepository.increment({ id: story.rootSegmentId }, 'readCount', 1);
+    await this.segmentRepository.increment(
+      { id: story.rootSegmentId },
+      "readCount",
+      1,
+    );
 
     return this.progressRepository.save(progress);
   }
@@ -80,17 +92,23 @@ export class ProgressService {
   /**
    * Get progress for a specific story
    */
-  async getProgress(userId: string, storyId: string): Promise<ReaderProgress | null> {
+  async getProgress(
+    userId: string,
+    storyId: string,
+  ): Promise<ReaderProgress | null> {
     return this.progressRepository.findOne({
       where: { userId, storyId },
-      relations: ['story'],
+      relations: ["story"],
     });
   }
 
   /**
    * Get all reading progress for a user
    */
-  async getUserProgress(userId: string, isCompleted?: boolean): Promise<ReaderProgress[]> {
+  async getUserProgress(
+    userId: string,
+    isCompleted?: boolean,
+  ): Promise<ReaderProgress[]> {
     const query: any = { userId };
     if (isCompleted !== undefined) {
       query.isCompleted = isCompleted;
@@ -98,8 +116,8 @@ export class ProgressService {
 
     return this.progressRepository.find({
       where: query,
-      relations: ['story'],
-      order: { lastReadAt: 'DESC' },
+      relations: ["story"],
+      order: { lastReadAt: "DESC" },
     });
   }
 
@@ -116,25 +134,29 @@ export class ProgressService {
     });
 
     if (!progress) {
-      throw new NotFoundException('No reading progress found for this story');
+      throw new NotFoundException("No reading progress found for this story");
     }
 
     if (progress.isCompleted) {
-      throw new BadRequestException('Story already completed. Start a new reading to continue.');
+      throw new BadRequestException(
+        "Story already completed. Start a new reading to continue.",
+      );
     }
 
     // Verify choice exists and belongs to current segment
     const choice = await this.choiceRepository.findOne({
       where: { id: dto.choiceId },
-      relations: ['nextSegment'],
+      relations: ["nextSegment"],
     });
 
     if (!choice) {
-      throw new NotFoundException('Choice not found');
+      throw new NotFoundException("Choice not found");
     }
 
     if (choice.segmentId !== progress.currentSegmentId) {
-      throw new BadRequestException('This choice is not available from your current position');
+      throw new BadRequestException(
+        "This choice is not available from your current position",
+      );
     }
 
     // Get next segment
@@ -143,7 +165,7 @@ export class ProgressService {
     });
 
     if (!nextSegment) {
-      throw new NotFoundException('Destination segment not found');
+      throw new NotFoundException("Destination segment not found");
     }
 
     // Update read time
@@ -174,11 +196,19 @@ export class ProgressService {
     if (!progress.visitedSegmentIds.includes(choice.nextSegmentId)) {
       progress.visitedSegmentIds.push(choice.nextSegmentId);
       // Increment segment read count
-      await this.segmentRepository.increment({ id: choice.nextSegmentId }, 'readCount', 1);
+      await this.segmentRepository.increment(
+        { id: choice.nextSegmentId },
+        "readCount",
+        1,
+      );
     }
 
     // Increment choice counter
-    await this.choiceRepository.increment({ id: dto.choiceId }, 'timesChosen', 1);
+    await this.choiceRepository.increment(
+      { id: dto.choiceId },
+      "timesChosen",
+      1,
+    );
 
     // Check if this is an ending
     if (nextSegment.isEnding) {
@@ -203,12 +233,14 @@ export class ProgressService {
     });
 
     if (!progress) {
-      throw new NotFoundException('No reading progress found');
+      throw new NotFoundException("No reading progress found");
     }
 
     // Only allow navigation to visited segments
     if (!progress.visitedSegmentIds.includes(segmentId)) {
-      throw new BadRequestException('You can only navigate to previously visited segments');
+      throw new BadRequestException(
+        "You can only navigate to previously visited segments",
+      );
     }
 
     progress.currentSegmentId = segmentId;
@@ -227,13 +259,16 @@ export class ProgressService {
   /**
    * Reset progress to start over
    */
-  async resetProgress(userId: string, storyId: string): Promise<ReaderProgress> {
+  async resetProgress(
+    userId: string,
+    storyId: string,
+  ): Promise<ReaderProgress> {
     const progress = await this.progressRepository.findOne({
       where: { userId, storyId },
     });
 
     if (!progress) {
-      throw new NotFoundException('No reading progress found');
+      throw new NotFoundException("No reading progress found");
     }
 
     const story = await this.storyRepository.findOne({
@@ -241,7 +276,7 @@ export class ProgressService {
     });
 
     if (!story?.rootSegmentId) {
-      throw new BadRequestException('Story has no content');
+      throw new BadRequestException("Story has no content");
     }
 
     // Reset to initial state
@@ -269,7 +304,7 @@ export class ProgressService {
     });
 
     if (!progress) {
-      throw new NotFoundException('No reading progress found');
+      throw new NotFoundException("No reading progress found");
     }
 
     await this.progressRepository.remove(progress);
@@ -288,7 +323,7 @@ export class ProgressService {
     });
 
     if (!progress) {
-      throw new NotFoundException('No reading progress found');
+      throw new NotFoundException("No reading progress found");
     }
 
     // Verify segment belongs to this story
@@ -297,18 +332,20 @@ export class ProgressService {
     });
 
     if (!segment) {
-      throw new NotFoundException('Segment not found in this story');
+      throw new NotFoundException("Segment not found in this story");
     }
 
     // Check for duplicate bookmark
-    const existing = progress.bookmarks.find((b) => b.segmentId === dto.segmentId);
+    const existing = progress.bookmarks.find(
+      (b) => b.segmentId === dto.segmentId,
+    );
     if (existing) {
-      throw new ConflictException('Bookmark already exists for this segment');
+      throw new ConflictException("Bookmark already exists for this segment");
     }
 
     progress.bookmarks.push({
       segmentId: dto.segmentId,
-      note: dto.note || '',
+      note: dto.note || "",
       createdAt: new Date(),
     });
 
@@ -329,12 +366,14 @@ export class ProgressService {
     });
 
     if (!progress) {
-      throw new NotFoundException('No reading progress found');
+      throw new NotFoundException("No reading progress found");
     }
 
-    const bookmarkIndex = progress.bookmarks.findIndex((b) => b.segmentId === segmentId);
+    const bookmarkIndex = progress.bookmarks.findIndex(
+      (b) => b.segmentId === segmentId,
+    );
     if (bookmarkIndex === -1) {
-      throw new NotFoundException('Bookmark not found');
+      throw new NotFoundException("Bookmark not found");
     }
 
     if (dto.note !== undefined) {
@@ -357,12 +396,14 @@ export class ProgressService {
     });
 
     if (!progress) {
-      throw new NotFoundException('No reading progress found');
+      throw new NotFoundException("No reading progress found");
     }
 
-    const bookmarkIndex = progress.bookmarks.findIndex((b) => b.segmentId === segmentId);
+    const bookmarkIndex = progress.bookmarks.findIndex(
+      (b) => b.segmentId === segmentId,
+    );
     if (bookmarkIndex === -1) {
-      throw new NotFoundException('Bookmark not found');
+      throw new NotFoundException("Bookmark not found");
     }
 
     progress.bookmarks.splice(bookmarkIndex, 1);
@@ -389,8 +430,14 @@ export class ProgressService {
       totalStoriesStarted: allProgress.length,
       storiesCompleted: allProgress.filter((p) => p.isCompleted).length,
       totalReadTime: allProgress.reduce((sum, p) => sum + p.totalReadTime, 0),
-      totalSegmentsRead: allProgress.reduce((sum, p) => sum + p.visitedSegmentIds.length, 0),
-      totalChoicesMade: allProgress.reduce((sum, p) => sum + p.choiceHistory.length, 0),
+      totalSegmentsRead: allProgress.reduce(
+        (sum, p) => sum + p.visitedSegmentIds.length,
+        0,
+      ),
+      totalChoicesMade: allProgress.reduce(
+        (sum, p) => sum + p.choiceHistory.length,
+        0,
+      ),
       currentlyReading: allProgress.filter((p) => !p.isCompleted).length,
     };
   }
@@ -409,22 +456,23 @@ export class ProgressService {
     const newState = { ...currentState };
 
     // Handle $set operator - directly set values
-    if (effects['$set'] && typeof effects['$set'] === 'object') {
-      Object.assign(newState, effects['$set']);
+    if (effects["$set"] && typeof effects["$set"] === "object") {
+      Object.assign(newState, effects["$set"]);
     }
 
     // Handle $inc operator - increment numeric values
-    if (effects['$inc'] && typeof effects['$inc'] === 'object') {
-      const increments = effects['$inc'] as Record<string, number>;
+    if (effects["$inc"] && typeof effects["$inc"] === "object") {
+      const increments = effects["$inc"] as Record<string, number>;
       for (const [key, value] of Object.entries(increments)) {
-        const currentValue = typeof newState[key] === 'number' ? newState[key] as number : 0;
+        const currentValue =
+          typeof newState[key] === "number" ? (newState[key] as number) : 0;
         newState[key] = currentValue + value;
       }
     }
 
     // Handle direct assignments (for simple cases without operators)
     for (const [key, value] of Object.entries(effects)) {
-      if (!key.startsWith('$')) {
+      if (!key.startsWith("$")) {
         newState[key] = value;
       }
     }
@@ -451,25 +499,41 @@ export class ProgressService {
       const actual = currentState[key];
 
       // Handle comparison operators
-      if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
+      if (
+        expected &&
+        typeof expected === "object" &&
+        !Array.isArray(expected)
+      ) {
         const ops = expected as Record<string, unknown>;
 
-        if ('$gte' in ops && (typeof actual !== 'number' || actual < (ops['$gte'] as number))) {
+        if (
+          "$gte" in ops &&
+          (typeof actual !== "number" || actual < (ops["$gte"] as number))
+        ) {
           return false;
         }
-        if ('$lte' in ops && (typeof actual !== 'number' || actual > (ops['$lte'] as number))) {
+        if (
+          "$lte" in ops &&
+          (typeof actual !== "number" || actual > (ops["$lte"] as number))
+        ) {
           return false;
         }
-        if ('$gt' in ops && (typeof actual !== 'number' || actual <= (ops['$gt'] as number))) {
+        if (
+          "$gt" in ops &&
+          (typeof actual !== "number" || actual <= (ops["$gt"] as number))
+        ) {
           return false;
         }
-        if ('$lt' in ops && (typeof actual !== 'number' || actual >= (ops['$lt'] as number))) {
+        if (
+          "$lt" in ops &&
+          (typeof actual !== "number" || actual >= (ops["$lt"] as number))
+        ) {
           return false;
         }
-        if ('$ne' in ops && actual === ops['$ne']) {
+        if ("$ne" in ops && actual === ops["$ne"]) {
           return false;
         }
-        if ('$eq' in ops && actual !== ops['$eq']) {
+        if ("$eq" in ops && actual !== ops["$eq"]) {
           return false;
         }
       } else {
@@ -493,7 +557,7 @@ export class ProgressService {
   ): Promise<Choice[]> {
     const choices = await this.choiceRepository.find({
       where: { segmentId, isHidden: false },
-      order: { order: 'ASC' },
+      order: { order: "ASC" },
     });
 
     // Filter choices based on conditions

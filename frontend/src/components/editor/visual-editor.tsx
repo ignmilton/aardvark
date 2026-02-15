@@ -130,6 +130,27 @@ export function VisualEditor({
   const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
   const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
 
+  // Handlers
+  const handleEditSegment = useCallback((id: string) => {
+    const segment = initialSegments.find((s) => s.id === id);
+    if (segment) {
+      setEditingSegment(segment);
+      setIsModalOpen(true);
+    }
+  }, [initialSegments]);
+
+  const handleDeleteSegment = useCallback(async (id: string) => {
+    if (!confirm('Are you sure you want to delete this segment?')) return;
+
+    try {
+      await onSegmentDelete(id);
+      setNodes((nds) => nds.filter((n) => n.id !== id));
+      setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    } catch (error) {
+      console.error('Failed to delete segment:', error);
+    }
+  }, [onSegmentDelete, setNodes, setEdges]);
+
   // Update nodes when segments change
   useEffect(() => {
     setNodes(
@@ -151,7 +172,7 @@ export function VisualEditor({
         },
       }))
     );
-  }, [initialSegments, initialChoices, setNodes]);
+  }, [initialSegments, initialChoices, setNodes, handleEditSegment, handleDeleteSegment]);
 
   // Update edges when choices change
   useEffect(() => {
@@ -239,27 +260,6 @@ export function VisualEditor({
     [onChoiceDelete]
   );
 
-  // Handlers
-  function handleEditSegment(id: string) {
-    const segment = initialSegments.find((s) => s.id === id);
-    if (segment) {
-      setEditingSegment(segment);
-      setIsModalOpen(true);
-    }
-  }
-
-  async function handleDeleteSegment(id: string) {
-    if (!confirm('Are you sure you want to delete this segment?')) return;
-
-    try {
-      await onSegmentDelete(id);
-      setNodes((nds) => nds.filter((n) => n.id !== id));
-      setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
-    } catch (error) {
-      console.error('Failed to delete segment:', error);
-    }
-  }
-
   const handleAddSegment = useCallback(() => {
     setEditingSegment(null);
     setIsModalOpen(true);
@@ -308,7 +308,7 @@ export function VisualEditor({
         console.error('Failed to save segment:', error);
       }
     },
-    [onSegmentCreate, onSegmentUpdate, reactFlowInstance, setNodes]
+    [onSegmentCreate, onSegmentUpdate, reactFlowInstance, setNodes, handleEditSegment, handleDeleteSegment]
   );
 
   const handleSave = useCallback(async () => {

@@ -194,7 +194,7 @@ export default function PremiumPage() {
           <div className="max-w-md mx-auto mb-8 p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-center">
             <Crown className="h-8 w-8 mx-auto mb-2 text-amber-500" />
             <p className="font-semibold text-amber-700 dark:text-amber-400">
-              You're a Premium Member!
+              You&apos;re a Premium Member!
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               Thank you for supporting Aardvark

@@ -1,7 +1,7 @@
-import { Module, Global } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-redis-yet';
+import { Module, Global } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { CacheModule as NestCacheModule } from "@nestjs/cache-manager";
+import { redisStore } from "cache-manager-redis-yet";
 
 /**
  * Global cache module with Redis support.
@@ -13,8 +13,8 @@ import { redisStore } from 'cache-manager-redis-yet';
     NestCacheModule.registerAsync({
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
-        const redisHost = configService.get<string>('REDIS_HOST');
-        const redisPort = configService.get<number>('REDIS_PORT', 6379);
+        const redisHost = configService.get<string>("REDIS_HOST");
+        const redisPort = configService.get<number>("REDIS_PORT", 6379);
 
         // Use Redis if configured, otherwise use in-memory cache
         if (redisHost) {
@@ -24,7 +24,7 @@ import { redisStore } from 'cache-manager-redis-yet';
                 host: redisHost,
                 port: redisPort,
               },
-              password: configService.get<string>('REDIS_PASSWORD'),
+              password: configService.get<string>("REDIS_PASSWORD"),
               ttl: 60 * 1000, // Default TTL: 60 seconds
             }),
           };

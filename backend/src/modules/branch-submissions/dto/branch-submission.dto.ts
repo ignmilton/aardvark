@@ -11,8 +11,8 @@ import {
   Max,
   MaxLength,
   MinLength,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 
 /**
  * State effect DTO for segment data
@@ -25,8 +25,15 @@ export class StateEffectDto {
   variableName: string;
 
   @IsString()
-  @IsEnum(['set', 'add', 'subtract', 'multiply', 'append', 'remove', 'toggle'])
-  operation: 'set' | 'add' | 'subtract' | 'multiply' | 'append' | 'remove' | 'toggle';
+  @IsEnum(["set", "add", "subtract", "multiply", "append", "remove", "toggle"])
+  operation:
+    | "set"
+    | "add"
+    | "subtract"
+    | "multiply"
+    | "append"
+    | "remove"
+    | "toggle";
 
   @IsOptional()
   value: boolean | number | string;
@@ -37,8 +44,8 @@ export class StateEffectDto {
  */
 export class ChoiceConditionDto {
   @IsString()
-  @IsEnum(['state', 'visited', 'not_visited', 'custom'])
-  type: 'state' | 'visited' | 'not_visited' | 'custom';
+  @IsEnum(["state", "visited", "not_visited", "custom"])
+  type: "state" | "visited" | "not_visited" | "custom";
 
   @IsOptional()
   stateRequirement?: {
@@ -79,8 +86,8 @@ export class SegmentDataDto {
   isEnding?: boolean;
 
   @IsOptional()
-  @IsEnum(['good', 'bad', 'neutral', 'secret'])
-  endingType?: 'good' | 'bad' | 'neutral' | 'secret' | null;
+  @IsEnum(["good", "bad", "neutral", "secret"])
+  endingType?: "good" | "bad" | "neutral" | "secret" | null;
 
   @IsOptional()
   @IsArray()
@@ -140,8 +147,8 @@ export class CreateBranchSubmissionDto {
  * DTO for reviewing a branch submission
  */
 export class ReviewBranchSubmissionDto {
-  @IsEnum(['approved', 'rejected', 'revision_requested'])
-  status: 'approved' | 'rejected' | 'revision_requested';
+  @IsEnum(["approved", "rejected", "revision_requested"])
+  status: "approved" | "rejected" | "revision_requested";
 
   @IsOptional()
   @IsString()
@@ -184,8 +191,8 @@ export class QueryBranchSubmissionsDto {
   submittedByUserId?: string;
 
   @IsOptional()
-  @IsEnum(['pending', 'approved', 'rejected', 'revision_requested'])
-  status?: 'pending' | 'approved' | 'rejected' | 'revision_requested';
+  @IsEnum(["pending", "approved", "rejected", "revision_requested"])
+  status?: "pending" | "approved" | "rejected" | "revision_requested";
 
   @IsOptional()
   @Type(() => Number)

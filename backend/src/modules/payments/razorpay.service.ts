@@ -1,43 +1,39 @@
-import {
-  Injectable,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import * as crypto from 'crypto';
+import { Injectable, BadRequestException, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import * as crypto from "crypto";
 import {
   UPIPaymentOrder,
   AuthorPayoutAccount,
   Payout,
   CreditBundle,
   User,
-} from '@/database/entities';
-import { MIN_UPI_PAYOUT_AMOUNT_PAISE } from '@aardvark/shared';
+} from "@/database/entities";
+import { MIN_UPI_PAYOUT_AMOUNT_PAISE } from "@aardvark/shared";
 
 /**
  * Razorpay API response types
  */
 interface RazorpayOrder {
   id: string;
-  entity: 'order';
+  entity: "order";
   amount: number;
   amount_paid: number;
   amount_due: number;
   currency: string;
   receipt: string;
-  status: 'created' | 'attempted' | 'paid';
+  status: "created" | "attempted" | "paid";
   notes: Record<string, string>;
   created_at: number;
 }
 
 interface RazorpayPayment {
   id: string;
-  entity: 'payment';
+  entity: "payment";
   amount: number;
   currency: string;
-  status: 'created' | 'authorized' | 'captured' | 'refunded' | 'failed';
+  status: "created" | "authorized" | "captured" | "refunded" | "failed";
   method: string;
   vpa: string | null;
   order_id: string;
@@ -48,7 +44,7 @@ interface RazorpayPayment {
 
 interface RazorpayContact {
   id: string;
-  entity: 'contact';
+  entity: "contact";
   name: string;
   email: string;
   type: string;
@@ -57,9 +53,9 @@ interface RazorpayContact {
 
 interface RazorpayFundAccount {
   id: string;
-  entity: 'fund_account';
+  entity: "fund_account";
   contact_id: string;
-  account_type: 'vpa';
+  account_type: "vpa";
   vpa: {
     address: string;
   };
@@ -68,11 +64,18 @@ interface RazorpayFundAccount {
 
 interface RazorpayPayout {
   id: string;
-  entity: 'payout';
+  entity: "payout";
   fund_account_id: string;
   amount: number;
   currency: string;
-  status: 'queued' | 'pending' | 'processing' | 'processed' | 'reversed' | 'cancelled' | 'failed';
+  status:
+    | "queued"
+    | "pending"
+    | "processing"
+    | "processed"
+    | "reversed"
+    | "cancelled"
+    | "failed";
   purpose: string;
   utr: string | null;
   mode: string;
@@ -94,7 +97,7 @@ export class RazorpayService {
   private readonly keyId: string;
   private readonly keySecret: string;
   private readonly webhookSecret: string;
-  private readonly baseUrl = 'https://api.razorpay.com/v1';
+  private readonly baseUrl = "https://api.razorpay.com/v1";
 
   constructor(
     private readonly configService: ConfigService,
@@ -109,12 +112,16 @@ export class RazorpayService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
-    const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
-    const webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET');
+    const keyId = this.configService.get<string>("RAZORPAY_KEY_ID");
+    const keySecret = this.configService.get<string>("RAZORPAY_KEY_SECRET");
+    const webhookSecret = this.configService.get<string>(
+      "RAZORPAY_WEBHOOK_SECRET",
+    );
 
     if (!keyId || !keySecret || !webhookSecret) {
-      throw new Error('Razorpay credentials not configured. Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET environment variables.');
+      throw new Error(
+        "Razorpay credentials not configured. Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET environment variables.",
+      );
     }
 
     this.keyId = keyId;
@@ -126,7 +133,10 @@ export class RazorpayService {
    * Get authorization header for Razorpay API
    */
   private getAuthHeader(): string {
-    return 'Basic ' + Buffer.from(`${this.keyId}:${this.keySecret}`).toString('base64');
+    return (
+      "Basic " +
+      Buffer.from(`${this.keyId}:${this.keySecret}`).toString("base64")
+    );
   }
 
   /**
@@ -134,7 +144,7 @@ export class RazorpayService {
    */
   private async makeRequest<T>(
     endpoint: string,
-    method: 'GET' | 'POST' | 'PATCH' = 'GET',
+    method: "GET" | "POST" | "PATCH" = "GET",
     body?: Record<string, unknown>,
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
@@ -142,8 +152,8 @@ export class RazorpayService {
     const options: RequestInit = {
       method,
       headers: {
-        'Authorization': this.getAuthHeader(),
-        'Content-Type': 'application/json',
+        Authorization: this.getAuthHeader(),
+        "Content-Type": "application/json",
       },
     };
 
@@ -156,8 +166,8 @@ export class RazorpayService {
 
     if (!response.ok) {
       // SECURITY: Only log error code and description, not full response which may contain sensitive data
-      const errorCode = data.error?.code || 'UNKNOWN';
-      const errorDesc = data.error?.description || 'Unknown error';
+      const errorCode = data.error?.code || "UNKNOWN";
+      const errorDesc = data.error?.description || "Unknown error";
       this.logger.error(`Razorpay API error: ${errorCode} - ${errorDesc}`);
       throw new BadRequestException(errorDesc);
     }
@@ -177,35 +187,39 @@ export class RazorpayService {
     bundleId: string,
   ): Promise<{ order: UPIPaymentOrder; razorpayKeyId: string }> {
     const bundle = await this.bundleRepository.findOne({
-      where: { id: bundleId, isActive: true, currency: 'inr' },
+      where: { id: bundleId, isActive: true, currency: "inr" },
     });
 
     if (!bundle) {
-      throw new BadRequestException('INR bundle not found');
+      throw new BadRequestException("INR bundle not found");
     }
 
     const receipt = `rcpt_${Date.now()}_${userId.slice(0, 8)}`;
 
     // Create order with Razorpay
-    const razorpayOrder = await this.makeRequest<RazorpayOrder>('/orders', 'POST', {
-      amount: bundle.priceInCents, // Already in paise for INR bundles
-      currency: 'INR',
-      receipt,
-      notes: {
-        userId,
-        bundleId,
-        purpose: 'credit_purchase',
+    const razorpayOrder = await this.makeRequest<RazorpayOrder>(
+      "/orders",
+      "POST",
+      {
+        amount: bundle.priceInCents, // Already in paise for INR bundles
+        currency: "INR",
+        receipt,
+        notes: {
+          userId,
+          bundleId,
+          purpose: "credit_purchase",
+        },
       },
-    });
+    );
 
     // Save order to database
     const order = this.orderRepository.create({
       razorpayOrderId: razorpayOrder.id,
       userId,
       amountInPaise: bundle.priceInCents,
-      currency: 'INR',
-      status: 'created',
-      purpose: 'credit_purchase',
+      currency: "INR",
+      status: "created",
+      purpose: "credit_purchase",
       referenceId: bundleId,
       receipt,
       notes: { bundleId },
@@ -228,14 +242,14 @@ export class RazorpayService {
     razorpaySignature: string,
   ): Promise<UPIPaymentOrder> {
     // Verify signature
-    const body = razorpayOrderId + '|' + razorpayPaymentId;
+    const body = razorpayOrderId + "|" + razorpayPaymentId;
     const expectedSignature = crypto
-      .createHmac('sha256', this.keySecret)
+      .createHmac("sha256", this.keySecret)
       .update(body)
-      .digest('hex');
+      .digest("hex");
 
     if (expectedSignature !== razorpaySignature) {
-      throw new BadRequestException('Invalid payment signature');
+      throw new BadRequestException("Invalid payment signature");
     }
 
     // Get payment details from Razorpay
@@ -249,11 +263,11 @@ export class RazorpayService {
     });
 
     if (!order) {
-      throw new BadRequestException('Order not found');
+      throw new BadRequestException("Order not found");
     }
 
     order.razorpayPaymentId = razorpayPaymentId;
-    order.status = payment.status === 'captured' ? 'captured' : payment.status;
+    order.status = payment.status === "captured" ? "captured" : payment.status;
     order.vpa = payment.vpa;
     order.method = payment.method;
     order.paidAt = new Date();
@@ -271,11 +285,18 @@ export class RazorpayService {
   /**
    * Capture a payment (if not auto-captured)
    */
-  async capturePayment(paymentId: string, amount: number): Promise<RazorpayPayment> {
-    return this.makeRequest<RazorpayPayment>(`/payments/${paymentId}/capture`, 'POST', {
-      amount,
-      currency: 'INR',
-    });
+  async capturePayment(
+    paymentId: string,
+    amount: number,
+  ): Promise<RazorpayPayment> {
+    return this.makeRequest<RazorpayPayment>(
+      `/payments/${paymentId}/capture`,
+      "POST",
+      {
+        amount,
+        currency: "INR",
+      },
+    );
   }
 
   // ============================================================================
@@ -290,14 +311,14 @@ export class RazorpayService {
     name: string,
     email: string,
   ): Promise<RazorpayContact> {
-    return this.makeRequest<RazorpayContact>('/contacts', 'POST', {
+    return this.makeRequest<RazorpayContact>("/contacts", "POST", {
       name,
       email,
-      type: 'vendor',
+      type: "vendor",
       reference_id: authorId,
       notes: {
         authorId,
-        platform: 'aardvark',
+        platform: "aardvark",
       },
     });
   }
@@ -309,9 +330,9 @@ export class RazorpayService {
     contactId: string,
     upiVpa: string,
   ): Promise<RazorpayFundAccount> {
-    return this.makeRequest<RazorpayFundAccount>('/fund_accounts', 'POST', {
+    return this.makeRequest<RazorpayFundAccount>("/fund_accounts", "POST", {
       contact_id: contactId,
-      account_type: 'vpa',
+      account_type: "vpa",
       vpa: {
         address: upiVpa,
       },
@@ -329,12 +350,12 @@ export class RazorpayService {
     // Validate UPI VPA format (basic validation)
     const upiRegex = /^[\w.-]+@[\w]+$/;
     if (!upiRegex.test(upiVpa)) {
-      throw new BadRequestException('Invalid UPI VPA format');
+      throw new BadRequestException("Invalid UPI VPA format");
     }
 
     const user = await this.userRepository.findOne({ where: { id: authorId } });
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException("User not found");
     }
 
     // Check for existing account
@@ -343,7 +364,11 @@ export class RazorpayService {
     });
 
     // Create Razorpay contact
-    const contact = await this.createContact(authorId, accountHolderName, user.email);
+    const contact = await this.createContact(
+      authorId,
+      accountHolderName,
+      user.email,
+    );
 
     // Create UPI fund account
     const fundAccount = await this.createFundAccount(contact.id, upiVpa);
@@ -361,15 +386,15 @@ export class RazorpayService {
       // Create new account
       account = this.payoutAccountRepository.create({
         authorId,
-        country: 'IN',
-        currency: 'inr',
+        country: "IN",
+        currency: "inr",
         upiVpa,
         upiAccountHolderName: accountHolderName,
         razorpayContactId: contact.id,
         razorpayFundAccountId: fundAccount.id,
         upiVerified: true,
         payoutsEnabled: true,
-        accountStatus: 'active',
+        accountStatus: "active",
         updatedAt: new Date(),
       });
     }
@@ -383,7 +408,7 @@ export class RazorpayService {
   async createPayout(
     authorId: string,
     amountInPaise: number,
-    narration: string = 'Aardvark author earnings payout',
+    narration: string = "Aardvark author earnings payout",
   ): Promise<Payout> {
     if (amountInPaise < MIN_UPI_PAYOUT_AMOUNT_PAISE) {
       throw new BadRequestException(
@@ -396,32 +421,38 @@ export class RazorpayService {
     });
 
     if (!account || !account.razorpayFundAccountId || !account.upiVpa) {
-      throw new BadRequestException('Author UPI payout account not configured');
+      throw new BadRequestException("Author UPI payout account not configured");
     }
 
     if (!account.payoutsEnabled) {
-      throw new BadRequestException('Payouts are not enabled for this account');
+      throw new BadRequestException("Payouts are not enabled for this account");
     }
 
     // Create payout via Razorpay X
-    const razorpayPayout = await this.makeRequest<RazorpayPayout>('/payouts', 'POST', {
-      account_number: this.configService.get<string>('RAZORPAY_ACCOUNT_NUMBER'),
-      fund_account_id: account.razorpayFundAccountId,
-      amount: amountInPaise,
-      currency: 'INR',
-      mode: 'UPI',
-      purpose: 'payout',
-      queue_if_low_balance: true,
-      reference_id: `payout_${authorId}_${Date.now()}`,
-      narration,
-    });
+    const razorpayPayout = await this.makeRequest<RazorpayPayout>(
+      "/payouts",
+      "POST",
+      {
+        account_number: this.configService.get<string>(
+          "RAZORPAY_ACCOUNT_NUMBER",
+        ),
+        fund_account_id: account.razorpayFundAccountId,
+        amount: amountInPaise,
+        currency: "INR",
+        mode: "UPI",
+        purpose: "payout",
+        queue_if_low_balance: true,
+        reference_id: `payout_${authorId}_${Date.now()}`,
+        narration,
+      },
+    );
 
     // Create payout record
     const payout = this.payoutRepository.create({
       authorId,
       amount: amountInPaise,
-      currency: 'INR',
-      paymentMethod: 'upi',
+      currency: "INR",
+      paymentMethod: "upi",
       status: this.mapRazorpayPayoutStatus(razorpayPayout.status),
       razorpayPayoutId: razorpayPayout.id,
       upiVpa: account.upiVpa,
@@ -435,16 +466,16 @@ export class RazorpayService {
    * Map Razorpay payout status to our status
    */
   private mapRazorpayPayoutStatus(
-    status: RazorpayPayout['status'],
-  ): Payout['status'] {
-    const statusMap: Record<RazorpayPayout['status'], Payout['status']> = {
-      queued: 'pending',
-      pending: 'pending',
-      processing: 'processing',
-      processed: 'completed',
-      reversed: 'reversed',
-      cancelled: 'failed',
-      failed: 'failed',
+    status: RazorpayPayout["status"],
+  ): Payout["status"] {
+    const statusMap: Record<RazorpayPayout["status"], Payout["status"]> = {
+      queued: "pending",
+      pending: "pending",
+      processing: "processing",
+      processed: "completed",
+      reversed: "reversed",
+      cancelled: "failed",
+      failed: "failed",
     };
     return statusMap[status];
   }
@@ -473,9 +504,9 @@ export class RazorpayService {
     payout.status = this.mapRazorpayPayoutStatus(razorpayPayout.status);
     payout.utr = razorpayPayout.utr;
 
-    if (razorpayPayout.status === 'processed') {
+    if (razorpayPayout.status === "processed") {
       payout.completedAt = new Date();
-    } else if (razorpayPayout.status === 'failed') {
+    } else if (razorpayPayout.status === "failed") {
       payout.failureReason = razorpayPayout.failure_reason;
     }
 
@@ -493,9 +524,9 @@ export class RazorpayService {
    */
   verifyWebhookSignature(body: string, signature: string): boolean {
     const expectedSignature = crypto
-      .createHmac('sha256', this.webhookSecret)
+      .createHmac("sha256", this.webhookSecret)
       .update(body)
-      .digest('hex');
+      .digest("hex");
 
     return expectedSignature === signature;
   }
@@ -512,15 +543,17 @@ export class RazorpayService {
     const payloadData = payload as Record<string, any>;
 
     switch (event) {
-      case 'payment.captured': {
+      case "payment.captured": {
         // Payment successful - credits should be added
-        const paymentEntity = payloadData.payment?.entity as RazorpayPayment | undefined;
+        const paymentEntity = payloadData.payment?.entity as
+          | RazorpayPayment
+          | undefined;
         if (paymentEntity) {
           const order = await this.orderRepository.findOne({
             where: { razorpayOrderId: paymentEntity.order_id },
           });
           if (order) {
-            order.status = 'captured';
+            order.status = "captured";
             order.razorpayPaymentId = paymentEntity.id;
             order.method = paymentEntity.method;
             order.vpa = paymentEntity.vpa;
@@ -531,14 +564,16 @@ export class RazorpayService {
         break;
       }
 
-      case 'payment.failed': {
-        const failedPayment = payloadData.payment?.entity as RazorpayPayment | undefined;
+      case "payment.failed": {
+        const failedPayment = payloadData.payment?.entity as
+          | RazorpayPayment
+          | undefined;
         if (failedPayment) {
           const order = await this.orderRepository.findOne({
             where: { razorpayOrderId: failedPayment.order_id },
           });
           if (order) {
-            order.status = 'failed';
+            order.status = "failed";
             order.razorpayPaymentId = failedPayment.id;
             await this.orderRepository.save(order);
           }
@@ -546,10 +581,12 @@ export class RazorpayService {
         break;
       }
 
-      case 'payout.processed':
-      case 'payout.failed':
-      case 'payout.reversed': {
-        const payoutEntity = payloadData.payout?.entity as RazorpayPayout | undefined;
+      case "payout.processed":
+      case "payout.failed":
+      case "payout.reversed": {
+        const payoutEntity = payloadData.payout?.entity as
+          | RazorpayPayout
+          | undefined;
         if (payoutEntity) {
           await this.updatePayoutStatus(payoutEntity.id);
         }
@@ -566,7 +603,9 @@ export class RazorpayService {
   /**
    * Get author's payout account details
    */
-  async getAuthorPayoutAccount(authorId: string): Promise<AuthorPayoutAccount | null> {
+  async getAuthorPayoutAccount(
+    authorId: string,
+  ): Promise<AuthorPayoutAccount | null> {
     return this.payoutAccountRepository.findOne({
       where: { authorId },
     });
@@ -578,7 +617,7 @@ export class RazorpayService {
   async getPayoutHistory(authorId: string): Promise<Payout[]> {
     return this.payoutRepository.find({
       where: { authorId },
-      order: { requestedAt: 'DESC' },
+      order: { requestedAt: "DESC" },
       take: 50,
     });
   }

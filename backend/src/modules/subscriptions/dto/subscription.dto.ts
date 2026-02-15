@@ -1,9 +1,4 @@
-import {
-  IsUUID,
-  IsOptional,
-  IsString,
-  IsBoolean,
-} from 'class-validator';
+import { IsUUID, IsOptional, IsString, IsBoolean } from "class-validator";
 
 /**
  * DTO for creating a subscription

@@ -3,16 +3,21 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
-import { Collection, CollectionStory, CollectionFollower, Story } from '@/database/entities';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import {
+  Collection,
+  CollectionStory,
+  CollectionFollower,
+  Story,
+} from "@/database/entities";
 import {
   CreateCollectionDto,
   UpdateCollectionDto,
   AddStoryToCollectionDto,
   CollectionQueryDto,
-} from './dto';
+} from "./dto";
 
 @Injectable()
 export class CollectionsService {
@@ -60,29 +65,35 @@ export class CollectionsService {
    * Find all public collections with pagination and filtering
    */
   async findAll(query: CollectionQueryDto) {
-    const { page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = query;
 
     const qb = this.collectionRepo
-      .createQueryBuilder('collection')
-      .leftJoinAndSelect('collection.owner', 'owner')
-      .where('collection.isPublic = :isPublic', { isPublic: true });
+      .createQueryBuilder("collection")
+      .leftJoinAndSelect("collection.owner", "owner")
+      .where("collection.isPublic = :isPublic", { isPublic: true });
 
     if (search) {
       qb.andWhere(
-        '(collection.name ILIKE :search OR collection.description ILIKE :search)',
+        "(collection.name ILIKE :search OR collection.description ILIKE :search)",
         { search: `%${search}%` },
       );
     }
 
     // SECURITY: Whitelist allowed sort columns to prevent SQL injection
     const allowedSortColumns: Record<string, string> = {
-      createdAt: 'collection.createdAt',
-      updatedAt: 'collection.updatedAt',
-      name: 'collection.name',
-      followerCount: 'collection.followerCount',
+      createdAt: "collection.createdAt",
+      updatedAt: "collection.updatedAt",
+      name: "collection.name",
+      followerCount: "collection.followerCount",
     };
-    const sortColumn = allowedSortColumns[sortBy] || 'collection.createdAt';
-    const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const sortColumn = allowedSortColumns[sortBy] || "collection.createdAt";
+    const sortDirection = sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC";
     qb.orderBy(sortColumn, sortDirection);
 
     const [collections, total] = await qb
@@ -107,16 +118,16 @@ export class CollectionsService {
   async findOne(id: string, requesterId?: string): Promise<Collection> {
     const collection = await this.collectionRepo.findOne({
       where: { id },
-      relations: ['owner', 'collectionStories', 'collectionStories.story'],
+      relations: ["owner", "collectionStories", "collectionStories.story"],
     });
 
     if (!collection) {
-      throw new NotFoundException('Collection not found');
+      throw new NotFoundException("Collection not found");
     }
 
     // Check visibility
     if (!collection.isPublic && collection.ownerId !== requesterId) {
-      throw new ForbiddenException('This collection is private');
+      throw new ForbiddenException("This collection is private");
     }
 
     return collection;
@@ -128,15 +139,15 @@ export class CollectionsService {
   async findBySlug(slug: string, requesterId?: string): Promise<Collection> {
     const collection = await this.collectionRepo.findOne({
       where: { slug },
-      relations: ['owner', 'collectionStories', 'collectionStories.story'],
+      relations: ["owner", "collectionStories", "collectionStories.story"],
     });
 
     if (!collection) {
-      throw new NotFoundException('Collection not found');
+      throw new NotFoundException("Collection not found");
     }
 
     if (!collection.isPublic && collection.ownerId !== requesterId) {
-      throw new ForbiddenException('This collection is private');
+      throw new ForbiddenException("This collection is private");
     }
 
     return collection;
@@ -147,16 +158,16 @@ export class CollectionsService {
    */
   async findByUser(userId: string, requesterId?: string) {
     const qb = this.collectionRepo
-      .createQueryBuilder('collection')
-      .leftJoinAndSelect('collection.owner', 'owner')
-      .where('collection.ownerId = :userId', { userId });
+      .createQueryBuilder("collection")
+      .leftJoinAndSelect("collection.owner", "owner")
+      .where("collection.ownerId = :userId", { userId });
 
     // If not the owner, only show public collections
     if (userId !== requesterId) {
-      qb.andWhere('collection.isPublic = :isPublic', { isPublic: true });
+      qb.andWhere("collection.isPublic = :isPublic", { isPublic: true });
     }
 
-    return qb.orderBy('collection.createdAt', 'DESC').getMany();
+    return qb.orderBy("collection.createdAt", "DESC").getMany();
   }
 
   /**
@@ -165,30 +176,38 @@ export class CollectionsService {
   async findMine(userId: string) {
     return this.collectionRepo.find({
       where: { ownerId: userId },
-      relations: ['collectionStories'],
-      order: { createdAt: 'DESC' },
+      relations: ["collectionStories"],
+      order: { createdAt: "DESC" },
     });
   }
 
   /**
    * Update a collection
    */
-  async update(id: string, userId: string, dto: UpdateCollectionDto): Promise<Collection> {
+  async update(
+    id: string,
+    userId: string,
+    dto: UpdateCollectionDto,
+  ): Promise<Collection> {
     const collection = await this.collectionRepo.findOne({ where: { id } });
 
     if (!collection) {
-      throw new NotFoundException('Collection not found');
+      throw new NotFoundException("Collection not found");
     }
 
     if (collection.ownerId !== userId) {
-      throw new ForbiddenException('You can only update your own collections');
+      throw new ForbiddenException("You can only update your own collections");
     }
 
     // If name is being updated, update slug too
     if (dto.name && dto.name !== collection.name) {
       const newSlug = this.generateSlug(dto.name);
-      const existing = await this.collectionRepo.findOne({ where: { slug: newSlug } });
-      collection.slug = existing ? `${newSlug}-${Date.now().toString(36)}` : newSlug;
+      const existing = await this.collectionRepo.findOne({
+        where: { slug: newSlug },
+      });
+      collection.slug = existing
+        ? `${newSlug}-${Date.now().toString(36)}`
+        : newSlug;
     }
 
     Object.assign(collection, dto);
@@ -202,11 +221,11 @@ export class CollectionsService {
     const collection = await this.collectionRepo.findOne({ where: { id } });
 
     if (!collection) {
-      throw new NotFoundException('Collection not found');
+      throw new NotFoundException("Collection not found");
     }
 
     if (collection.ownerId !== userId) {
-      throw new ForbiddenException('You can only delete your own collections');
+      throw new ForbiddenException("You can only delete your own collections");
     }
 
     await this.collectionRepo.remove(collection);
@@ -215,24 +234,30 @@ export class CollectionsService {
   /**
    * Add a story to a collection
    */
-  async addStory(collectionId: string, userId: string, dto: AddStoryToCollectionDto) {
+  async addStory(
+    collectionId: string,
+    userId: string,
+    dto: AddStoryToCollectionDto,
+  ) {
     const collection = await this.collectionRepo.findOne({
       where: { id: collectionId },
-      relations: ['collectionStories'],
+      relations: ["collectionStories"],
     });
 
     if (!collection) {
-      throw new NotFoundException('Collection not found');
+      throw new NotFoundException("Collection not found");
     }
 
     if (collection.ownerId !== userId) {
-      throw new ForbiddenException('You can only add stories to your own collections');
+      throw new ForbiddenException(
+        "You can only add stories to your own collections",
+      );
     }
 
     // Check if story exists
     const story = await this.storyRepo.findOne({ where: { id: dto.storyId } });
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     // Check if story is already in collection
@@ -241,7 +266,7 @@ export class CollectionsService {
     });
 
     if (existing) {
-      throw new ConflictException('Story is already in this collection');
+      throw new ConflictException("Story is already in this collection");
     }
 
     // Get max order
@@ -265,15 +290,23 @@ export class CollectionsService {
   /**
    * Remove a story from a collection
    */
-  async removeStory(collectionId: string, storyId: string, userId: string): Promise<void> {
-    const collection = await this.collectionRepo.findOne({ where: { id: collectionId } });
+  async removeStory(
+    collectionId: string,
+    storyId: string,
+    userId: string,
+  ): Promise<void> {
+    const collection = await this.collectionRepo.findOne({
+      where: { id: collectionId },
+    });
 
     if (!collection) {
-      throw new NotFoundException('Collection not found');
+      throw new NotFoundException("Collection not found");
     }
 
     if (collection.ownerId !== userId) {
-      throw new ForbiddenException('You can only remove stories from your own collections');
+      throw new ForbiddenException(
+        "You can only remove stories from your own collections",
+      );
     }
 
     const collectionStory = await this.collectionStoryRepo.findOne({
@@ -281,7 +314,7 @@ export class CollectionsService {
     });
 
     if (!collectionStory) {
-      throw new NotFoundException('Story not found in collection');
+      throw new NotFoundException("Story not found in collection");
     }
 
     await this.collectionStoryRepo.remove(collectionStory);
@@ -290,18 +323,22 @@ export class CollectionsService {
   /**
    * Reorder stories in a collection
    */
-  async reorderStories(collectionId: string, userId: string, storyIds: string[]) {
+  async reorderStories(
+    collectionId: string,
+    userId: string,
+    storyIds: string[],
+  ) {
     const collection = await this.collectionRepo.findOne({
       where: { id: collectionId },
-      relations: ['collectionStories'],
+      relations: ["collectionStories"],
     });
 
     if (!collection) {
-      throw new NotFoundException('Collection not found');
+      throw new NotFoundException("Collection not found");
     }
 
     if (collection.ownerId !== userId) {
-      throw new ForbiddenException('You can only reorder your own collections');
+      throw new ForbiddenException("You can only reorder your own collections");
     }
 
     // Update order for each story
@@ -319,18 +356,20 @@ export class CollectionsService {
    * Follow a collection
    */
   async follow(collectionId: string, userId: string) {
-    const collection = await this.collectionRepo.findOne({ where: { id: collectionId } });
+    const collection = await this.collectionRepo.findOne({
+      where: { id: collectionId },
+    });
 
     if (!collection) {
-      throw new NotFoundException('Collection not found');
+      throw new NotFoundException("Collection not found");
     }
 
     if (!collection.isPublic) {
-      throw new ForbiddenException('Cannot follow a private collection');
+      throw new ForbiddenException("Cannot follow a private collection");
     }
 
     if (collection.ownerId === userId) {
-      throw new ConflictException('Cannot follow your own collection');
+      throw new ConflictException("Cannot follow your own collection");
     }
 
     // Check if already following
@@ -339,16 +378,20 @@ export class CollectionsService {
     });
 
     if (existing) {
-      throw new ConflictException('Already following this collection');
+      throw new ConflictException("Already following this collection");
     }
 
     const follower = this.followerRepo.create({ collectionId, userId });
     await this.followerRepo.save(follower);
 
     // Increment follower count
-    await this.collectionRepo.increment({ id: collectionId }, 'followerCount', 1);
+    await this.collectionRepo.increment(
+      { id: collectionId },
+      "followerCount",
+      1,
+    );
 
-    return { success: true, message: 'Now following collection' };
+    return { success: true, message: "Now following collection" };
   }
 
   /**
@@ -360,13 +403,17 @@ export class CollectionsService {
     });
 
     if (!follower) {
-      throw new NotFoundException('Not following this collection');
+      throw new NotFoundException("Not following this collection");
     }
 
     await this.followerRepo.remove(follower);
 
     // Decrement follower count
-    await this.collectionRepo.decrement({ id: collectionId }, 'followerCount', 1);
+    await this.collectionRepo.decrement(
+      { id: collectionId },
+      "followerCount",
+      1,
+    );
   }
 
   /**
@@ -385,8 +432,8 @@ export class CollectionsService {
   async getFollowedCollections(userId: string) {
     const followers = await this.followerRepo.find({
       where: { userId },
-      relations: ['collection', 'collection.owner'],
-      order: { followedAt: 'DESC' },
+      relations: ["collection", "collection.owner"],
+      order: { followedAt: "DESC" },
     });
 
     return followers.map((f) => f.collection);
@@ -399,9 +446,9 @@ export class CollectionsService {
     return name
       .toLowerCase()
       .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
       .slice(0, 100);
   }
 }

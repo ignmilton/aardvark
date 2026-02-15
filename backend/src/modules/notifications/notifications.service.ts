@@ -3,13 +3,13 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { Notification, Follow } from '@entities';
-import { NotificationType } from '@aardvark/shared';
-import { NotificationQueryDto } from './dto';
-import { NotificationsGateway } from './notifications.gateway';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, In } from "typeorm";
+import { Notification, Follow } from "@entities";
+import { NotificationType } from "@aardvark/shared";
+import { NotificationQueryDto } from "./dto";
+import { NotificationsGateway } from "./notifications.gateway";
 
 @Injectable()
 export class NotificationsService {
@@ -45,7 +45,8 @@ export class NotificationsService {
       readAt: null,
     });
 
-    const savedNotification = await this.notificationRepository.save(notification);
+    const savedNotification =
+      await this.notificationRepository.save(notification);
 
     // Send real-time notification
     await this.sendRealTimeNotification(userId, savedNotification);
@@ -61,16 +62,16 @@ export class NotificationsService {
     const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const queryBuilder = this.notificationRepository
-      .createQueryBuilder('notification')
-      .where('notification.userId = :userId', { userId });
+      .createQueryBuilder("notification")
+      .where("notification.userId = :userId", { userId });
 
     // Apply unread filter
     if (unreadOnly) {
-      queryBuilder.andWhere('notification.isRead = :isRead', { isRead: false });
+      queryBuilder.andWhere("notification.isRead = :isRead", { isRead: false });
     }
 
     // Sort by creation date (newest first)
-    queryBuilder.orderBy('notification.createdAt', 'DESC');
+    queryBuilder.orderBy("notification.createdAt", "DESC");
 
     // Pagination
     const skip = (page - 1) * limit;
@@ -102,7 +103,9 @@ export class NotificationsService {
     });
 
     if (notifications.length !== notificationIds.length) {
-      throw new ForbiddenException('Some notifications do not belong to this user');
+      throw new ForbiddenException(
+        "Some notifications do not belong to this user",
+      );
     }
 
     // Update notifications
@@ -140,13 +143,16 @@ export class NotificationsService {
   /**
    * Delete a notification
    */
-  async deleteNotification(userId: string, notificationId: string): Promise<void> {
+  async deleteNotification(
+    userId: string,
+    notificationId: string,
+  ): Promise<void> {
     const notification = await this.notificationRepository.findOne({
       where: { id: notificationId, userId },
     });
 
     if (!notification) {
-      throw new NotFoundException('Notification not found');
+      throw new NotFoundException("Notification not found");
     }
 
     await this.notificationRepository.remove(notification);
@@ -180,7 +186,7 @@ export class NotificationsService {
     // Get all followers of the author
     const follows = await this.followRepository.find({
       where: { followingId: authorId },
-      select: ['followerId'],
+      select: ["followerId"],
     });
 
     const followerIds = follows.map((f) => f.followerId);
@@ -207,7 +213,8 @@ export class NotificationsService {
         }),
       );
 
-      const savedNotifications = await this.notificationRepository.save(notifications);
+      const savedNotifications =
+        await this.notificationRepository.save(notifications);
 
       // Send real-time notifications for this batch
       for (const notification of savedNotifications) {
@@ -215,7 +222,9 @@ export class NotificationsService {
       }
     }
 
-    this.logger.log(`Notified ${followerIds.length} followers of author ${authorId}`);
+    this.logger.log(
+      `Notified ${followerIds.length} followers of author ${authorId}`,
+    );
   }
 
   /**
@@ -226,7 +235,11 @@ export class NotificationsService {
     notification: Notification,
   ): Promise<void> {
     try {
-      this.notificationsGateway.sendToUser(userId, 'notification', notification);
+      this.notificationsGateway.sendToUser(
+        userId,
+        "notification",
+        notification,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to send real-time notification to user ${userId}: ${error.message}`,

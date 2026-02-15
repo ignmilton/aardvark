@@ -6,29 +6,29 @@ import {
   ManyToOne,
   Index,
   JoinColumn,
-} from 'typeorm';
-import { TransactionType } from '@aardvark/shared';
-import { User } from './user.entity';
+} from "typeorm";
+import { TransactionType } from "@aardvark/shared";
+import { User } from "./user.entity";
 
 /**
  * Transaction entity for credit system tracking.
  */
-@Entity('transactions')
+@Entity("transactions")
 export class Transaction {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   userId: string;
 
-  @ManyToOne(() => User, (user) => user.transactions, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, (user) => user.transactions, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @Index()
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: TransactionType,
   })
   type: TransactionType;
@@ -39,18 +39,18 @@ export class Transaction {
   @Column()
   balance: number;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   description: string;
 
-  @Column('uuid', { nullable: true })
+  @Column("uuid", { nullable: true })
   referenceId: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   referenceType: string | null;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: "jsonb", default: {} })
   metadata: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 }

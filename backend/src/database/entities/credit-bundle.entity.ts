@@ -3,14 +3,14 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-} from 'typeorm';
+} from "typeorm";
 
 /**
  * Credit bundle entity - purchasable credit packages
  */
-@Entity('credit_bundles')
+@Entity("credit_bundles")
 export class CreditBundle {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
@@ -22,7 +22,7 @@ export class CreditBundle {
   @Column()
   priceInCents: number;
 
-  @Column({ default: 'usd' })
+  @Column({ default: "usd" })
   currency: string;
 
   @Column()
@@ -37,7 +37,7 @@ export class CreditBundle {
   @Column({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
   /**

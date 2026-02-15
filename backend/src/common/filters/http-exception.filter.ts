@@ -5,8 +5,8 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
+} from "@nestjs/common";
+import { Request, Response } from "express";
 
 /**
  * Global exception filter that catches all HTTP exceptions
@@ -30,32 +30,32 @@ export class HttpExceptionFilter implements ExceptionFilter {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
-      if (typeof exceptionResponse === 'string') {
+      if (typeof exceptionResponse === "string") {
         message = exceptionResponse;
         errorCode = this.getErrorCode(status);
-      } else if (typeof exceptionResponse === 'object') {
+      } else if (typeof exceptionResponse === "object") {
         const responseObj = exceptionResponse as Record<string, unknown>;
         message =
           (responseObj.message as string) ||
           (responseObj.error as string) ||
-          'An error occurred';
+          "An error occurred";
 
         // Handle validation errors (array of messages)
         if (Array.isArray(responseObj.message)) {
-          message = 'Validation failed';
+          message = "Validation failed";
           details = { errors: responseObj.message };
         }
 
         errorCode = (responseObj.code as string) || this.getErrorCode(status);
       } else {
-        message = 'An error occurred';
+        message = "An error occurred";
         errorCode = this.getErrorCode(status);
       }
     } else if (exception instanceof Error) {
       // Handle non-HTTP exceptions
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = 'Internal server error';
-      errorCode = 'E9001';
+      message = "Internal server error";
+      errorCode = "E9001";
 
       // Log the actual error for debugging
       this.logger.error(
@@ -64,8 +64,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       );
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = 'Internal server error';
-      errorCode = 'E9001';
+      message = "Internal server error";
+      errorCode = "E9001";
     }
 
     const errorResponse = {
@@ -75,7 +75,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message,
         ...(details && { details }),
         // Include stack trace only in development
-        ...(process.env.NODE_ENV !== 'production' &&
+        ...(process.env.NODE_ENV !== "production" &&
           exception instanceof Error && { stack: exception.stack }),
       },
       timestamp: new Date().toISOString(),
@@ -96,18 +96,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
    */
   private getErrorCode(status: number): string {
     const errorCodeMap: Record<number, string> = {
-      400: 'E3001', // Bad Request
-      401: 'E1001', // Unauthorized
-      403: 'E2001', // Forbidden
-      404: 'E4001', // Not Found
-      409: 'E3003', // Conflict (Duplicate)
-      422: 'E3001', // Unprocessable Entity
-      429: 'E5001', // Too Many Requests
-      500: 'E9001', // Internal Server Error
-      502: 'E9003', // Bad Gateway
-      503: 'E9003', // Service Unavailable
+      400: "E3001", // Bad Request
+      401: "E1001", // Unauthorized
+      403: "E2001", // Forbidden
+      404: "E4001", // Not Found
+      409: "E3003", // Conflict (Duplicate)
+      422: "E3001", // Unprocessable Entity
+      429: "E5001", // Too Many Requests
+      500: "E9001", // Internal Server Error
+      502: "E9003", // Bad Gateway
+      503: "E9003", // Service Unavailable
     };
 
-    return errorCodeMap[status] || 'E9001';
+    return errorCodeMap[status] || "E9001";
   }
 }

@@ -42,7 +42,7 @@ export function AdminLayout({
           <Shield className="h-16 w-16 text-muted-foreground mx-auto" />
           <h1 className="text-2xl font-bold">Access Denied</h1>
           <p className="text-muted-foreground max-w-md">
-            You don't have permission to access the admin panel. This area is
+            You don&apos;t have permission to access the admin panel. This area is
             restricted to moderators and administrators.
           </p>
           <Button asChild>

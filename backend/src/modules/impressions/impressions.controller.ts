@@ -8,32 +8,32 @@ import {
   UseGuards,
   Request,
   Headers,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
-} from '@nestjs/swagger';
-import { JwtAuthGuard, OptionalJwtAuthGuard } from '@/modules/auth/guards';
-import { RolesGuard } from '@/modules/auth/guards/roles.guard';
-import { Roles } from '@/modules/auth/decorators/roles.decorator';
-import { UserRole } from '@aardvark/shared';
-import { ImpressionsService } from './impressions.service';
+} from "@nestjs/swagger";
+import { JwtAuthGuard, OptionalJwtAuthGuard } from "@/modules/auth/guards";
+import { RolesGuard } from "@/modules/auth/guards/roles.guard";
+import { Roles } from "@/modules/auth/decorators/roles.decorator";
+import { UserRole } from "@aardvark/shared";
+import { ImpressionsService } from "./impressions.service";
 import {
   RecordImpressionDto,
   ImpressionQueryDto,
   RevenueQueryDto,
   CalculateRevenueDto,
-} from './dto';
+} from "./dto";
 
 /**
  * Controller for impression tracking and revenue management.
  * Tracks story views/reads for analytics and author revenue sharing.
  */
-@ApiTags('impressions')
-@Controller('impressions')
+@ApiTags("impressions")
+@Controller("impressions")
 export class ImpressionsController {
   constructor(private readonly impressionsService: ImpressionsService) {}
 
@@ -43,17 +43,17 @@ export class ImpressionsController {
    */
   @Post()
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Record a story impression (view/read)' })
-  @ApiResponse({ status: 201, description: 'Impression recorded' })
+  @ApiOperation({ summary: "Record a story impression (view/read)" })
+  @ApiResponse({ status: 201, description: "Impression recorded" })
   async recordImpression(
     @Body() dto: RecordImpressionDto,
     @Request() req: any,
-    @Headers('user-agent') userAgent?: string,
-    @Headers('x-forwarded-for') forwardedFor?: string,
-    @Headers('x-real-ip') realIp?: string,
+    @Headers("user-agent") userAgent?: string,
+    @Headers("x-forwarded-for") forwardedFor?: string,
+    @Headers("x-real-ip") realIp?: string,
   ) {
     const userId = req.user?.id;
-    const ipAddress = forwardedFor?.split(',')[0] || realIp || req.ip;
+    const ipAddress = forwardedFor?.split(",")[0] || realIp || req.ip;
 
     const impression = await this.impressionsService.recordImpression(
       dto,
@@ -74,16 +74,16 @@ export class ImpressionsController {
   /**
    * Get impression statistics for a story (author only)
    */
-  @Get('story/:storyId/stats')
+  @Get("story/:storyId/stats")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get impression stats for a story' })
-  @ApiParam({ name: 'storyId', description: 'Story ID' })
-  @ApiResponse({ status: 200, description: 'Stats retrieved' })
+  @ApiOperation({ summary: "Get impression stats for a story" })
+  @ApiParam({ name: "storyId", description: "Story ID" })
+  @ApiResponse({ status: 200, description: "Stats retrieved" })
   async getStoryStats(
-    @Param('storyId') storyId: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Param("storyId") storyId: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
   ) {
     const stats = await this.impressionsService.getStoryStats(
       storyId,
@@ -97,40 +97,39 @@ export class ImpressionsController {
   /**
    * Get author's revenue records
    */
-  @Get('revenue')
+  @Get("revenue")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get author revenue records' })
-  @ApiResponse({ status: 200, description: 'Revenue records retrieved' })
-  async getRevenue(
-    @Request() req: any,
-    @Query() query: RevenueQueryDto,
-  ) {
+  @ApiOperation({ summary: "Get author revenue records" })
+  @ApiResponse({ status: 200, description: "Revenue records retrieved" })
+  async getRevenue(@Request() req: any, @Query() query: RevenueQueryDto) {
     return this.impressionsService.getAuthorRevenue(req.user.id, query);
   }
 
   /**
    * Get revenue summary for author dashboard
    */
-  @Get('revenue/summary')
+  @Get("revenue/summary")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get revenue summary for dashboard' })
-  @ApiResponse({ status: 200, description: 'Summary retrieved' })
+  @ApiOperation({ summary: "Get revenue summary for dashboard" })
+  @ApiResponse({ status: 200, description: "Summary retrieved" })
   async getRevenueSummary(@Request() req: any) {
-    const summary = await this.impressionsService.getRevenueSummary(req.user.id);
+    const summary = await this.impressionsService.getRevenueSummary(
+      req.user.id,
+    );
     return { success: true, data: summary };
   }
 
   /**
    * Get all impressions (admin)
    */
-  @Get('admin')
+  @Get("admin")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all impressions (admin)' })
-  @ApiResponse({ status: 200, description: 'Impressions retrieved' })
+  @ApiOperation({ summary: "Get all impressions (admin)" })
+  @ApiResponse({ status: 200, description: "Impressions retrieved" })
   async getImpressions(@Query() query: ImpressionQueryDto) {
     return this.impressionsService.getImpressions(query);
   }
@@ -139,12 +138,12 @@ export class ImpressionsController {
    * Calculate revenue for a period (admin)
    * This should typically be run by a scheduled job
    */
-  @Post('revenue/calculate')
+  @Post("revenue/calculate")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Calculate revenue for a period (admin)' })
-  @ApiResponse({ status: 200, description: 'Revenue calculated' })
+  @ApiOperation({ summary: "Calculate revenue for a period (admin)" })
+  @ApiResponse({ status: 200, description: "Revenue calculated" })
   async calculateRevenue(@Body() dto: CalculateRevenueDto) {
     const result = await this.impressionsService.calculateRevenue(
       new Date(dto.periodStart),

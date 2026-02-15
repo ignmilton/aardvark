@@ -1,20 +1,16 @@
-import {
-  Injectable,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
-import { AdReward, User, Transaction } from '@/database/entities';
-import { TransactionType } from '@aardvark/shared';
+import { Injectable, BadRequestException, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, MoreThanOrEqual } from "typeorm";
+import { ConfigService } from "@nestjs/config";
+import { AdReward, User, Transaction } from "@/database/entities";
+import { TransactionType } from "@aardvark/shared";
 import {
   RecordAdRewardDto,
   AdConfigResponseDto,
   DailyLimitResponseDto,
   AdRewardResponseDto,
   AdType,
-} from './dto';
+} from "./dto";
 
 @Injectable()
 export class AdsService {
@@ -35,17 +31,26 @@ export class AdsService {
     private readonly transactionRepository: Repository<Transaction>,
     private readonly configService: ConfigService,
   ) {
-    this.creditsPerRewardedVideo = this.configService.get<number>('AD_CREDITS_REWARDED_VIDEO', 5);
-    this.creditsPerInterstitial = this.configService.get<number>('AD_CREDITS_INTERSTITIAL', 2);
-    this.dailyAdLimit = this.configService.get<number>('DAILY_AD_LIMIT', 10);
-    this.cooldownSeconds = this.configService.get<number>('AD_COOLDOWN_SECONDS', 30);
+    this.creditsPerRewardedVideo = this.configService.get<number>(
+      "AD_CREDITS_REWARDED_VIDEO",
+      5,
+    );
+    this.creditsPerInterstitial = this.configService.get<number>(
+      "AD_CREDITS_INTERSTITIAL",
+      2,
+    );
+    this.dailyAdLimit = this.configService.get<number>("DAILY_AD_LIMIT", 10);
+    this.cooldownSeconds = this.configService.get<number>(
+      "AD_COOLDOWN_SECONDS",
+      30,
+    );
   }
 
   /**
    * Get ad configuration for the client
    */
   getConfig(): AdConfigResponseDto {
-    const adsEnabled = this.configService.get<boolean>('ADS_ENABLED', true);
+    const adsEnabled = this.configService.get<boolean>("ADS_ENABLED", true);
 
     return {
       enabled: adsEnabled,
@@ -55,12 +60,24 @@ export class AdsService {
       cooldownSeconds: this.cooldownSeconds,
       adUnits: {
         ios: {
-          rewardedVideo: this.configService.get<string>('ADMOB_IOS_REWARDED_VIDEO', ''),
-          interstitial: this.configService.get<string>('ADMOB_IOS_INTERSTITIAL', ''),
+          rewardedVideo: this.configService.get<string>(
+            "ADMOB_IOS_REWARDED_VIDEO",
+            "",
+          ),
+          interstitial: this.configService.get<string>(
+            "ADMOB_IOS_INTERSTITIAL",
+            "",
+          ),
         },
         android: {
-          rewardedVideo: this.configService.get<string>('ADMOB_ANDROID_REWARDED_VIDEO', ''),
-          interstitial: this.configService.get<string>('ADMOB_ANDROID_INTERSTITIAL', ''),
+          rewardedVideo: this.configService.get<string>(
+            "ADMOB_ANDROID_REWARDED_VIDEO",
+            "",
+          ),
+          interstitial: this.configService.get<string>(
+            "ADMOB_ANDROID_INTERSTITIAL",
+            "",
+          ),
         },
       },
     };
@@ -84,13 +101,13 @@ export class AdsService {
 
     // Sum credits earned today
     const creditsResult = await this.adRewardRepository
-      .createQueryBuilder('ar')
-      .select('SUM(ar.creditsAwarded)', 'total')
-      .where('ar.userId = :userId', { userId })
-      .andWhere('ar.watchedAt >= :todayStart', { todayStart })
+      .createQueryBuilder("ar")
+      .select("SUM(ar.creditsAwarded)", "total")
+      .where("ar.userId = :userId", { userId })
+      .andWhere("ar.watchedAt >= :todayStart", { todayStart })
       .getRawOne();
 
-    const creditsEarnedToday = parseInt(creditsResult?.total || '0', 10);
+    const creditsEarnedToday = parseInt(creditsResult?.total || "0", 10);
     const remaining = Math.max(0, this.dailyAdLimit - adsToday);
 
     return {
@@ -114,32 +131,38 @@ export class AdsService {
     // Check daily limit
     const dailyStatus = await this.getDailyLimit(userId);
     if (!dailyStatus.canWatchMore) {
-      throw new BadRequestException('Daily ad limit reached. Try again tomorrow.');
+      throw new BadRequestException(
+        "Daily ad limit reached. Try again tomorrow.",
+      );
     }
 
     // Check cooldown
     const lastAd = await this.adRewardRepository.findOne({
       where: { userId },
-      order: { watchedAt: 'DESC' },
+      order: { watchedAt: "DESC" },
     });
 
     if (lastAd) {
-      const secondsSinceLastAd = (Date.now() - lastAd.watchedAt.getTime()) / 1000;
+      const secondsSinceLastAd =
+        (Date.now() - lastAd.watchedAt.getTime()) / 1000;
       if (secondsSinceLastAd < this.cooldownSeconds) {
         const waitTime = Math.ceil(this.cooldownSeconds - secondsSinceLastAd);
-        throw new BadRequestException(`Please wait ${waitTime} seconds before watching another ad.`);
+        throw new BadRequestException(
+          `Please wait ${waitTime} seconds before watching another ad.`,
+        );
       }
     }
 
     // Determine credits to award based on ad type
-    const creditsToAward = dto.adType === AdType.REWARDED_VIDEO
-      ? this.creditsPerRewardedVideo
-      : this.creditsPerInterstitial;
+    const creditsToAward =
+      dto.adType === AdType.REWARDED_VIDEO
+        ? this.creditsPerRewardedVideo
+        : this.creditsPerInterstitial;
 
     // Get user and update balance
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException("User not found");
     }
 
     const newBalance = user.creditsBalance + creditsToAward;
@@ -173,12 +196,14 @@ export class AdsService {
       balance: newBalance,
       description: `Earned from watching ${dto.adType} ad`,
       referenceId: adReward.id,
-      referenceType: 'ad_reward',
+      referenceType: "ad_reward",
     });
 
     await this.transactionRepository.save(transaction);
 
-    this.logger.log(`User ${userId} earned ${creditsToAward} credits from ${dto.adType} ad`);
+    this.logger.log(
+      `User ${userId} earned ${creditsToAward} credits from ${dto.adType} ad`,
+    );
 
     return {
       success: true,
@@ -196,7 +221,7 @@ export class AdsService {
 
     const [rewards, total] = await this.adRewardRepository.findAndCount({
       where: { userId },
-      order: { watchedAt: 'DESC' },
+      order: { watchedAt: "DESC" },
       skip,
       take: limit,
     });
@@ -243,6 +268,8 @@ export class AdsService {
    */
   private getTodayStart(): Date {
     const now = new Date();
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    return new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
   }
 }

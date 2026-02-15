@@ -1,5 +1,5 @@
-import { Module, Global } from '@nestjs/common';
-import { MailService } from './mail.service';
+import { Module, Global } from "@nestjs/common";
+import { MailService } from "./mail.service";
 
 @Global()
 @Module({

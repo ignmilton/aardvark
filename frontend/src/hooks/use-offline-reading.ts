@@ -45,27 +45,9 @@ function sendMessageToSW<T>(type: string, payload: any): Promise<T> {
 }
 
 export function useOfflineReading() {
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [savedStories, setSavedStories] = useState<OfflineStory[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Load saved stories list
-    loadSavedStories();
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   const loadSavedStories = useCallback(async () => {
     if (!('serviceWorker' in navigator)) return;
@@ -89,6 +71,22 @@ export function useOfflineReading() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Load saved stories list
+    loadSavedStories();
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [loadSavedStories]);
 
   const saveStoryForOffline = useCallback(
     async (story: {

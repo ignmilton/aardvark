@@ -1,1 +1,1 @@
-export * from './branch-submission.dto';
+export * from "./branch-submission.dto";

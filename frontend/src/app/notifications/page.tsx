@@ -214,7 +214,7 @@ export default function NotificationsPage() {
               {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              We'll notify you when something interesting happens
+              We&apos;ll notify you when something interesting happens
             </p>
           </div>
         ) : (

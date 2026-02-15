@@ -1,1 +1,1 @@
-export * from './ai-companion.dto';
+export * from "./ai-companion.dto";

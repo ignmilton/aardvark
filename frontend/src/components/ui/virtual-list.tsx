@@ -26,37 +26,38 @@ export function VirtualList<T>({
 }: VirtualListProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
-  const [height, setHeight] = useState(containerHeight || 600);
+  const [measuredHeight, setMeasuredHeight] = useState(600);
+
+  const height = containerHeight || measuredHeight;
 
   useEffect(() => {
-    if (containerHeight) {
-      setHeight(containerHeight);
-      return;
-    }
+    if (containerHeight) return;
 
     const container = containerRef.current;
     if (!container) return;
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setHeight(entry.contentRect.height);
+        setMeasuredHeight(entry.contentRect.height);
       }
     });
 
     observer.observe(container);
-    setHeight(container.clientHeight);
 
     return () => observer.disconnect();
   }, [containerHeight]);
 
-  const handleScroll = useCallback(
-    throttle(() => {
-      if (containerRef.current) {
-        setScrollTop(containerRef.current.scrollTop);
-      }
+  const throttledScrollRef = useRef(
+    throttle((container: HTMLDivElement) => {
+      setScrollTop(container.scrollTop);
     }, 16),
-    [],
   );
+
+  const handleScroll = useCallback(() => {
+    if (containerRef.current) {
+      throttledScrollRef.current(containerRef.current);
+    }
+  }, []);
 
   const totalHeight = items.length * itemHeight;
   const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);

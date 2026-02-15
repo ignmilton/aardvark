@@ -2,9 +2,9 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import {
   Story,
   StorySegment,
@@ -14,8 +14,8 @@ import {
   Transaction,
   Choice,
   User,
-} from '@entities';
-import { TransactionType, PLATFORM_FEE_PERCENTAGE } from '@aardvark/shared';
+} from "@entities";
+import { PLATFORM_FEE_PERCENTAGE } from "@aardvark/shared";
 import {
   AuthorDashboard,
   TopStory,
@@ -37,8 +37,8 @@ import {
   EngagementTrends,
   ExportResult,
   ExportFormatType,
-} from './analytics.types';
-import { AnalyticsPeriod } from './dto/analytics.dto';
+} from "./analytics.types";
+import { AnalyticsPeriod } from "./dto/analytics.dto";
 
 /**
  * Service for comprehensive analytics and reporting.
@@ -108,11 +108,11 @@ export class AnalyticsService {
     });
 
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     if (story.authorId !== authorId) {
-      throw new ForbiddenException('You do not have access to this story');
+      throw new ForbiddenException("You do not have access to this story");
     }
 
     return story;
@@ -134,30 +134,30 @@ export class AnalyticsService {
     const [totalStories, publishedStories] = await Promise.all([
       this.storyRepository.count({ where: { authorId } }),
       this.storyRepository.count({
-        where: { authorId, status: 'PUBLISHED' as any },
+        where: { authorId, status: "PUBLISHED" as any },
       }),
     ]);
 
     // Get aggregated stats
     const stats = await this.storyRepository
-      .createQueryBuilder('story')
-      .select('SUM(story.viewCount)', 'totalReads')
-      .addSelect('SUM(story.uniqueReaders)', 'uniqueReaders')
-      .addSelect('AVG(story.averageRating)', 'avgRating')
-      .where('story.authorId = :authorId', { authorId })
+      .createQueryBuilder("story")
+      .select("SUM(story.viewCount)", "totalReads")
+      .addSelect("SUM(story.uniqueReaders)", "uniqueReaders")
+      .addSelect("AVG(story.averageRating)", "avgRating")
+      .where("story.authorId = :authorId", { authorId })
       .getRawOne();
 
     // Get total comments and ratings
     const [totalComments, totalRatings] = await Promise.all([
       this.commentRepository
-        .createQueryBuilder('comment')
-        .innerJoin('comment.story', 'story')
-        .where('story.authorId = :authorId', { authorId })
+        .createQueryBuilder("comment")
+        .innerJoin("comment.story", "story")
+        .where("story.authorId = :authorId", { authorId })
         .getCount(),
       this.ratingRepository
-        .createQueryBuilder('rating')
-        .innerJoin('rating.story', 'story')
-        .where('story.authorId = :authorId', { authorId })
+        .createQueryBuilder("rating")
+        .innerJoin("rating.story", "story")
+        .where("story.authorId = :authorId", { authorId })
         .getCount(),
     ]);
 
@@ -199,10 +199,10 @@ export class AnalyticsService {
     };
 
     return {
-      totalReads: parseInt(stats.totalReads || '0'),
-      uniqueReaders: parseInt(stats.uniqueReaders || '0'),
+      totalReads: parseInt(stats.totalReads || "0"),
+      uniqueReaders: parseInt(stats.uniqueReaders || "0"),
       totalEarnings: currentEarnings,
-      avgRating: parseFloat(stats.avgRating || '0'),
+      avgRating: parseFloat(stats.avgRating || "0"),
       totalStories,
       publishedStories,
       totalComments,
@@ -223,16 +223,16 @@ export class AnalyticsService {
     endDate: Date,
   ): Promise<number> {
     const result = await this.transactionRepository
-      .createQueryBuilder('txn')
-      .select('SUM(txn.amount)', 'total')
-      .where('txn.userId = :authorId', { authorId })
-      .andWhere('txn.createdAt >= :startDate', { startDate })
-      .andWhere('txn.createdAt < :endDate', { endDate })
+      .createQueryBuilder("txn")
+      .select("SUM(txn.amount)", "total")
+      .where("txn.userId = :authorId", { authorId })
+      .andWhere("txn.createdAt >= :startDate", { startDate })
+      .andWhere("txn.createdAt < :endDate", { endDate })
       .andWhere("txn.type IN ('STORY_EARNINGS', 'AD_REWARD')")
-      .andWhere('txn.amount > 0')
+      .andWhere("txn.amount > 0")
       .getRawOne();
 
-    return parseFloat(result?.total || '0');
+    return parseFloat(result?.total || "0");
   }
 
   /**
@@ -244,15 +244,15 @@ export class AnalyticsService {
     endDate: Date,
   ): Promise<number> {
     const result = await this.progressRepository
-      .createQueryBuilder('progress')
-      .innerJoin('progress.story', 'story')
-      .select('COUNT(DISTINCT progress.userId)', 'count')
-      .where('story.authorId = :authorId', { authorId })
-      .andWhere('progress.startedAt >= :startDate', { startDate })
-      .andWhere('progress.startedAt < :endDate', { endDate })
+      .createQueryBuilder("progress")
+      .innerJoin("progress.story", "story")
+      .select("COUNT(DISTINCT progress.userId)", "count")
+      .where("story.authorId = :authorId", { authorId })
+      .andWhere("progress.startedAt >= :startDate", { startDate })
+      .andWhere("progress.startedAt < :endDate", { endDate })
       .getRawOne();
 
-    return parseInt(result?.count || '0');
+    return parseInt(result?.count || "0");
   }
 
   /**
@@ -266,17 +266,17 @@ export class AnalyticsService {
 
     // Get recent reads
     const recentReads = await this.progressRepository
-      .createQueryBuilder('progress')
-      .innerJoinAndSelect('progress.story', 'story')
-      .innerJoinAndSelect('progress.user', 'user')
-      .where('story.authorId = :authorId', { authorId })
-      .orderBy('progress.startedAt', 'DESC')
+      .createQueryBuilder("progress")
+      .innerJoinAndSelect("progress.story", "story")
+      .innerJoinAndSelect("progress.user", "user")
+      .where("story.authorId = :authorId", { authorId })
+      .orderBy("progress.startedAt", "DESC")
       .limit(limit)
       .getMany();
 
     for (const read of recentReads) {
       activities.push({
-        type: 'read',
+        type: "read",
         storyId: read.storyId,
         storyTitle: read.story.title,
         userId: read.userId,
@@ -287,17 +287,17 @@ export class AnalyticsService {
 
     // Get recent comments
     const recentComments = await this.commentRepository
-      .createQueryBuilder('comment')
-      .innerJoinAndSelect('comment.story', 'story')
-      .innerJoinAndSelect('comment.user', 'user')
-      .where('story.authorId = :authorId', { authorId })
-      .orderBy('comment.createdAt', 'DESC')
+      .createQueryBuilder("comment")
+      .innerJoinAndSelect("comment.story", "story")
+      .innerJoinAndSelect("comment.user", "user")
+      .where("story.authorId = :authorId", { authorId })
+      .orderBy("comment.createdAt", "DESC")
       .limit(limit)
       .getMany();
 
     for (const comment of recentComments) {
       activities.push({
-        type: 'comment',
+        type: "comment",
         storyId: comment.storyId,
         storyTitle: comment.story.title,
         userId: comment.userId,
@@ -309,17 +309,17 @@ export class AnalyticsService {
 
     // Get recent ratings
     const recentRatings = await this.ratingRepository
-      .createQueryBuilder('rating')
-      .innerJoinAndSelect('rating.story', 'story')
-      .innerJoinAndSelect('rating.user', 'user')
-      .where('story.authorId = :authorId', { authorId })
-      .orderBy('rating.createdAt', 'DESC')
+      .createQueryBuilder("rating")
+      .innerJoinAndSelect("rating.story", "story")
+      .innerJoinAndSelect("rating.user", "user")
+      .where("story.authorId = :authorId", { authorId })
+      .orderBy("rating.createdAt", "DESC")
       .limit(limit)
       .getMany();
 
     for (const rating of recentRatings) {
       activities.push({
-        type: 'rating',
+        type: "rating",
         storyId: rating.storyId,
         storyTitle: rating.story.title,
         userId: rating.userId,
@@ -331,23 +331,26 @@ export class AnalyticsService {
 
     // Get recent earnings
     const recentEarnings = await this.transactionRepository
-      .createQueryBuilder('txn')
-      .where('txn.userId = :authorId', { authorId })
+      .createQueryBuilder("txn")
+      .where("txn.userId = :authorId", { authorId })
       .andWhere("txn.type IN ('STORY_EARNINGS', 'AD_REWARD')")
-      .andWhere('txn.amount > 0')
-      .orderBy('txn.createdAt', 'DESC')
+      .andWhere("txn.amount > 0")
+      .orderBy("txn.createdAt", "DESC")
       .limit(limit)
       .getMany();
 
     for (const txn of recentEarnings) {
-      const story = txn.referenceType === 'story' && txn.referenceId
-        ? await this.storyRepository.findOne({ where: { id: txn.referenceId } })
-        : null;
+      const story =
+        txn.referenceType === "story" && txn.referenceId
+          ? await this.storyRepository.findOne({
+              where: { id: txn.referenceId },
+            })
+          : null;
 
       activities.push({
-        type: 'earning',
-        storyId: story?.id || '',
-        storyTitle: story?.title || 'Unknown',
+        type: "earning",
+        storyId: story?.id || "",
+        storyTitle: story?.title || "Unknown",
         amount: txn.amount,
         timestamp: txn.createdAt,
       });
@@ -370,11 +373,11 @@ export class AnalyticsService {
 
     // Get rating distribution
     const ratingDist = await this.ratingRepository
-      .createQueryBuilder('rating')
-      .select('rating.rating', 'rating')
-      .addSelect('COUNT(*)', 'count')
-      .where('rating.storyId = :storyId', { storyId })
-      .groupBy('rating.rating')
+      .createQueryBuilder("rating")
+      .select("rating.rating", "rating")
+      .addSelect("COUNT(*)", "count")
+      .where("rating.storyId = :storyId", { storyId })
+      .groupBy("rating.rating")
       .getRawMany();
 
     const ratingDistribution = {
@@ -409,9 +412,9 @@ export class AnalyticsService {
 
     // Calculate average read time
     const avgReadTimeResult = await this.progressRepository
-      .createQueryBuilder('progress')
-      .select('AVG(progress.totalReadTime)', 'avg')
-      .where('progress.storyId = :storyId', { storyId })
+      .createQueryBuilder("progress")
+      .select("AVG(progress.totalReadTime)", "avg")
+      .where("progress.storyId = :storyId", { storyId })
       .getRawOne();
 
     return {
@@ -420,7 +423,7 @@ export class AnalyticsService {
       views: story.viewCount,
       uniqueReaders: story.uniqueReaders,
       completionRate: parseFloat(story.completionRate.toString()),
-      avgReadTime: parseFloat(avgReadTimeResult?.avg || '0'),
+      avgReadTime: parseFloat(avgReadTimeResult?.avg || "0"),
       avgRating: parseFloat(story.averageRating.toString()),
       totalRatings: story.ratingsCount,
       totalComments,
@@ -437,11 +440,11 @@ export class AnalyticsService {
    */
   private async getBranchHeatmap(storyId: string): Promise<BranchHeatmap[]> {
     const choices = await this.choiceRepository
-      .createQueryBuilder('choice')
-      .innerJoinAndSelect('choice.segment', 'segment')
-      .innerJoinAndSelect('choice.nextSegment', 'nextSegment')
-      .where('segment.storyId = :storyId', { storyId })
-      .orderBy('choice.timesChosen', 'DESC')
+      .createQueryBuilder("choice")
+      .innerJoinAndSelect("choice.segment", "segment")
+      .innerJoinAndSelect("choice.nextSegment", "nextSegment")
+      .where("segment.storyId = :storyId", { storyId })
+      .orderBy("choice.timesChosen", "DESC")
       .getMany();
 
     const totalChoices = choices.reduce(
@@ -456,7 +459,8 @@ export class AnalyticsService {
       choiceText: choice.choiceText,
       nextSegmentId: choice.nextSegmentId,
       timesSelected: choice.timesChosen,
-      percentage: totalChoices > 0 ? (choice.timesChosen / totalChoices) * 100 : 0,
+      percentage:
+        totalChoices > 0 ? (choice.timesChosen / totalChoices) * 100 : 0,
     }));
   }
 
@@ -472,48 +476,48 @@ export class AnalyticsService {
 
     // Get daily reads
     const reads = await this.progressRepository
-      .createQueryBuilder('progress')
-      .select("DATE(progress.startedAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('COUNT(*)', 'reads')
-      .addSelect('COUNT(DISTINCT progress.userId)', 'uniqueReaders')
-      .where('progress.storyId = :storyId', { storyId })
-      .andWhere('progress.startedAt >= :startDate', { startDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .createQueryBuilder("progress")
+      .select("DATE(progress.startedAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("COUNT(*)", "reads")
+      .addSelect("COUNT(DISTINCT progress.userId)", "uniqueReaders")
+      .where("progress.storyId = :storyId", { storyId })
+      .andWhere("progress.startedAt >= :startDate", { startDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Get daily completions
     const completions = await this.progressRepository
-      .createQueryBuilder('progress')
-      .select("DATE(progress.completedAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('COUNT(*)', 'completions')
-      .where('progress.storyId = :storyId', { storyId })
-      .andWhere('progress.isCompleted = true')
-      .andWhere('progress.completedAt >= :startDate', { startDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .createQueryBuilder("progress")
+      .select("DATE(progress.completedAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("COUNT(*)", "completions")
+      .where("progress.storyId = :storyId", { storyId })
+      .andWhere("progress.isCompleted = true")
+      .andWhere("progress.completedAt >= :startDate", { startDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Get daily comments
     const comments = await this.commentRepository
-      .createQueryBuilder('comment')
-      .select("DATE(comment.createdAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('COUNT(*)', 'comments')
-      .where('comment.storyId = :storyId', { storyId })
-      .andWhere('comment.createdAt >= :startDate', { startDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .createQueryBuilder("comment")
+      .select("DATE(comment.createdAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("COUNT(*)", "comments")
+      .where("comment.storyId = :storyId", { storyId })
+      .andWhere("comment.createdAt >= :startDate", { startDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Get daily ratings
     const ratings = await this.ratingRepository
-      .createQueryBuilder('rating')
-      .select("DATE(rating.createdAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('COUNT(*)', 'ratings')
-      .where('rating.storyId = :storyId', { storyId })
-      .andWhere('rating.createdAt >= :startDate', { startDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .createQueryBuilder("rating")
+      .select("DATE(rating.createdAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("COUNT(*)", "ratings")
+      .where("rating.storyId = :storyId", { storyId })
+      .andWhere("rating.createdAt >= :startDate", { startDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Merge all data by date
@@ -565,10 +569,10 @@ export class AnalyticsService {
     limit: number,
   ): Promise<SegmentStat[]> {
     const segments = await this.segmentRepository
-      .createQueryBuilder('segment')
-      .leftJoinAndSelect('segment.choices', 'choice')
-      .where('segment.storyId = :storyId', { storyId })
-      .orderBy('segment.readCount', 'DESC')
+      .createQueryBuilder("segment")
+      .leftJoinAndSelect("segment.choices", "choice")
+      .where("segment.storyId = :storyId", { storyId })
+      .orderBy("segment.readCount", "DESC")
       .limit(limit)
       .getMany();
 
@@ -579,7 +583,9 @@ export class AnalyticsService {
           (sum, c) => sum + (c.timesChosen || 0),
           0,
         );
-        dropoffRate = Math.round(((segment.readCount - totalChosen) / segment.readCount) * 100);
+        dropoffRate = Math.round(
+          ((segment.readCount - totalChosen) / segment.readCount) * 100,
+        );
         if (dropoffRate < 0) dropoffRate = 0;
       }
       return {
@@ -597,14 +603,14 @@ export class AnalyticsService {
    */
   private async getStoryEarnings(storyId: string): Promise<number> {
     const result = await this.transactionRepository
-      .createQueryBuilder('txn')
-      .select('SUM(txn.amount)', 'total')
-      .where('txn.referenceId = :storyId', { storyId })
+      .createQueryBuilder("txn")
+      .select("SUM(txn.amount)", "total")
+      .where("txn.referenceId = :storyId", { storyId })
       .andWhere("txn.referenceType = 'story'")
-      .andWhere('txn.amount > 0')
+      .andWhere("txn.amount > 0")
       .getRawOne();
 
-    return parseFloat(result?.total || '0');
+    return parseFloat(result?.total || "0");
   }
 
   /**
@@ -616,15 +622,15 @@ export class AnalyticsService {
     period?: AnalyticsPeriod,
   ): Promise<TopStory[]> {
     let query = this.storyRepository
-      .createQueryBuilder('story')
-      .where('story.authorId = :authorId', { authorId })
-      .orderBy('story.viewCount', 'DESC')
+      .createQueryBuilder("story")
+      .where("story.authorId = :authorId", { authorId })
+      .orderBy("story.viewCount", "DESC")
       .limit(limit);
 
     // If period is specified, filter by publication date
     if (period && period !== AnalyticsPeriod.ALL) {
       const { startDate } = this.getPeriodDateRange(period);
-      query = query.andWhere('story.publishedAt >= :startDate', { startDate });
+      query = query.andWhere("story.publishedAt >= :startDate", { startDate });
     }
 
     const stories = await query.getMany();
@@ -656,11 +662,11 @@ export class AnalyticsService {
 
     // Get all progress records in period
     const progress = await this.progressRepository
-      .createQueryBuilder('progress')
-      .innerJoin('progress.story', 'story')
-      .where('story.authorId = :authorId', { authorId })
-      .andWhere('progress.startedAt >= :startDate', { startDate })
-      .andWhere('progress.startedAt < :endDate', { endDate })
+      .createQueryBuilder("progress")
+      .innerJoin("progress.story", "story")
+      .where("story.authorId = :authorId", { authorId })
+      .andWhere("progress.startedAt >= :startDate", { startDate })
+      .andWhere("progress.startedAt < :endDate", { endDate })
       .getMany();
 
     const uniqueUserIds = new Set(progress.map((p) => p.userId));
@@ -688,14 +694,14 @@ export class AnalyticsService {
     );
 
     const previousReaders = await this.progressRepository
-      .createQueryBuilder('progress')
-      .innerJoin('progress.story', 'story')
-      .select('DISTINCT progress.userId', 'userId')
-      .where('story.authorId = :authorId', { authorId })
-      .andWhere('progress.startedAt >= :startDate', {
+      .createQueryBuilder("progress")
+      .innerJoin("progress.story", "story")
+      .select("DISTINCT progress.userId", "userId")
+      .where("story.authorId = :authorId", { authorId })
+      .andWhere("progress.startedAt >= :startDate", {
         startDate: previousPeriod.startDate,
       })
-      .andWhere('progress.startedAt < :endDate', {
+      .andWhere("progress.startedAt < :endDate", {
         endDate: previousPeriod.endDate,
       })
       .getRawMany();
@@ -720,7 +726,8 @@ export class AnalyticsService {
         : 0;
 
     // Calculate average stories per reader
-    const avgStoriesPerReader = totalReaders > 0 ? progress.length / totalReaders : 0;
+    const avgStoriesPerReader =
+      totalReaders > 0 ? progress.length / totalReaders : 0;
 
     // Calculate retention rate
     const retentionRate =
@@ -757,70 +764,70 @@ export class AnalyticsService {
   ): Promise<EngagementPoint[]> {
     // Get daily reads
     const reads = await this.progressRepository
-      .createQueryBuilder('progress')
-      .innerJoin('progress.story', 'story')
-      .select("DATE(progress.startedAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('COUNT(*)', 'reads')
-      .addSelect('COUNT(DISTINCT progress.userId)', 'uniqueReaders')
-      .where('story.authorId = :authorId', { authorId })
-      .andWhere('progress.startedAt >= :startDate', { startDate })
-      .andWhere('progress.startedAt < :endDate', { endDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .createQueryBuilder("progress")
+      .innerJoin("progress.story", "story")
+      .select("DATE(progress.startedAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("COUNT(*)", "reads")
+      .addSelect("COUNT(DISTINCT progress.userId)", "uniqueReaders")
+      .where("story.authorId = :authorId", { authorId })
+      .andWhere("progress.startedAt >= :startDate", { startDate })
+      .andWhere("progress.startedAt < :endDate", { endDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Get daily completions
     const completions = await this.progressRepository
-      .createQueryBuilder('progress')
-      .innerJoin('progress.story', 'story')
-      .select("DATE(progress.completedAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('COUNT(*)', 'completions')
-      .where('story.authorId = :authorId', { authorId })
-      .andWhere('progress.isCompleted = true')
-      .andWhere('progress.completedAt >= :startDate', { startDate })
-      .andWhere('progress.completedAt < :endDate', { endDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .createQueryBuilder("progress")
+      .innerJoin("progress.story", "story")
+      .select("DATE(progress.completedAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("COUNT(*)", "completions")
+      .where("story.authorId = :authorId", { authorId })
+      .andWhere("progress.isCompleted = true")
+      .andWhere("progress.completedAt >= :startDate", { startDate })
+      .andWhere("progress.completedAt < :endDate", { endDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Get daily comments
     const comments = await this.commentRepository
-      .createQueryBuilder('comment')
-      .innerJoin('comment.story', 'story')
-      .select("DATE(comment.createdAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('COUNT(*)', 'comments')
-      .where('story.authorId = :authorId', { authorId })
-      .andWhere('comment.createdAt >= :startDate', { startDate })
-      .andWhere('comment.createdAt < :endDate', { endDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .createQueryBuilder("comment")
+      .innerJoin("comment.story", "story")
+      .select("DATE(comment.createdAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("COUNT(*)", "comments")
+      .where("story.authorId = :authorId", { authorId })
+      .andWhere("comment.createdAt >= :startDate", { startDate })
+      .andWhere("comment.createdAt < :endDate", { endDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Get daily ratings
     const ratings = await this.ratingRepository
-      .createQueryBuilder('rating')
-      .innerJoin('rating.story', 'story')
-      .select("DATE(rating.createdAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('COUNT(*)', 'ratings')
-      .where('story.authorId = :authorId', { authorId })
-      .andWhere('rating.createdAt >= :startDate', { startDate })
-      .andWhere('rating.createdAt < :endDate', { endDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .createQueryBuilder("rating")
+      .innerJoin("rating.story", "story")
+      .select("DATE(rating.createdAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("COUNT(*)", "ratings")
+      .where("story.authorId = :authorId", { authorId })
+      .andWhere("rating.createdAt >= :startDate", { startDate })
+      .andWhere("rating.createdAt < :endDate", { endDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Get daily earnings
     const earnings = await this.transactionRepository
-      .createQueryBuilder('txn')
-      .select("DATE(txn.createdAt AT TIME ZONE 'UTC')", 'date')
-      .addSelect('SUM(txn.amount)', 'earnings')
-      .where('txn.userId = :authorId', { authorId })
+      .createQueryBuilder("txn")
+      .select("DATE(txn.createdAt AT TIME ZONE 'UTC')", "date")
+      .addSelect("SUM(txn.amount)", "earnings")
+      .where("txn.userId = :authorId", { authorId })
       .andWhere("txn.type IN ('STORY_EARNINGS', 'AD_REWARD')")
-      .andWhere('txn.amount > 0')
-      .andWhere('txn.createdAt >= :startDate', { startDate })
-      .andWhere('txn.createdAt < :endDate', { endDate })
-      .groupBy('date')
-      .orderBy('date', 'ASC')
+      .andWhere("txn.amount > 0")
+      .andWhere("txn.createdAt >= :startDate", { startDate })
+      .andWhere("txn.createdAt < :endDate", { endDate })
+      .groupBy("date")
+      .orderBy("date", "ASC")
       .getRawMany();
 
     // Merge all data by date
@@ -910,13 +917,13 @@ export class AnalyticsService {
 
     // Get all transactions in period
     const transactions = await this.transactionRepository
-      .createQueryBuilder('txn')
-      .where('txn.userId = :authorId', { authorId })
-      .andWhere('txn.createdAt >= :startDate', { startDate })
-      .andWhere('txn.createdAt < :endDate', { endDate })
+      .createQueryBuilder("txn")
+      .where("txn.userId = :authorId", { authorId })
+      .andWhere("txn.createdAt >= :startDate", { startDate })
+      .andWhere("txn.createdAt < :endDate", { endDate })
       .andWhere("txn.type IN ('STORY_EARNINGS', 'AD_REWARD')")
-      .andWhere('txn.amount > 0')
-      .orderBy('txn.createdAt', 'DESC')
+      .andWhere("txn.amount > 0")
+      .orderBy("txn.createdAt", "DESC")
       .getMany();
 
     const feeRate = PLATFORM_FEE_PERCENTAGE / 100;
@@ -929,10 +936,10 @@ export class AnalyticsService {
     const byStoryMap = new Map<string, StoryEarnings>();
 
     for (const txn of transactions) {
-      if (txn.referenceType === 'story' && txn.referenceId) {
+      if (txn.referenceType === "story" && txn.referenceId) {
         const existing = byStoryMap.get(txn.referenceId) || {
           storyId: txn.referenceId,
-          storyTitle: '',
+          storyTitle: "",
           gross: 0,
           fees: 0,
           net: 0,
@@ -952,8 +959,8 @@ export class AnalyticsService {
     const storyIds = Array.from(byStoryMap.keys());
     if (storyIds.length > 0) {
       const stories = await this.storyRepository
-        .createQueryBuilder('story')
-        .where('story.id IN (:...storyIds)', { storyIds })
+        .createQueryBuilder("story")
+        .where("story.id IN (:...storyIds)", { storyIds })
         .getMany();
 
       for (const story of stories) {
@@ -1003,10 +1010,10 @@ export class AnalyticsService {
         period === AnalyticsPeriod.WEEK ||
         period === AnalyticsPeriod.MONTH
       ) {
-        periodKey = txn.createdAt.toISOString().split('T')[0];
+        periodKey = txn.createdAt.toISOString().split("T")[0];
       } else if (period === AnalyticsPeriod.YEAR) {
         const date = new Date(txn.createdAt);
-        periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       } else {
         const date = new Date(txn.createdAt);
         periodKey = `${date.getFullYear()}`;
@@ -1028,9 +1035,11 @@ export class AnalyticsService {
       periodMap.set(periodKey, existing);
     }
 
-    byPeriod.push(...Array.from(periodMap.values()).sort((a, b) =>
-      a.period.localeCompare(b.period),
-    ));
+    byPeriod.push(
+      ...Array.from(periodMap.values()).sort((a, b) =>
+        a.period.localeCompare(b.period),
+      ),
+    );
 
     return {
       totalGross,
@@ -1053,11 +1062,11 @@ export class AnalyticsService {
 
     // Get all segments with their choices
     const segments = await this.segmentRepository
-      .createQueryBuilder('segment')
-      .leftJoinAndSelect('segment.choices', 'choice')
-      .leftJoinAndSelect('choice.nextSegment', 'nextSegment')
-      .where('segment.storyId = :storyId', { storyId })
-      .orderBy('segment.createdAt', 'ASC')
+      .createQueryBuilder("segment")
+      .leftJoinAndSelect("segment.choices", "choice")
+      .leftJoinAndSelect("choice.nextSegment", "nextSegment")
+      .where("segment.storyId = :storyId", { storyId })
+      .orderBy("segment.createdAt", "ASC")
       .getMany();
 
     const result: BranchPopularity[] = [];
@@ -1075,7 +1084,8 @@ export class AnalyticsService {
         choiceText: choice.choiceText,
         nextSegmentId: choice.nextSegmentId,
         timesSelected: choice.timesChosen,
-        percentage: totalReads > 0 ? (choice.timesChosen / totalReads) * 100 : 0,
+        percentage:
+          totalReads > 0 ? (choice.timesChosen / totalReads) * 100 : 0,
       }));
 
       result.push({
@@ -1096,28 +1106,33 @@ export class AnalyticsService {
     storyId: string,
     authorId: string,
   ): Promise<CompletionFunnel> {
-    const story = await this.verifyStoryOwnership(storyId, authorId);
+    const _story = await this.verifyStoryOwnership(storyId, authorId);
 
     // Get all progress records for this story
     const progressRecords = await this.progressRepository
-      .createQueryBuilder('progress')
-      .where('progress.storyId = :storyId', { storyId })
+      .createQueryBuilder("progress")
+      .where("progress.storyId = :storyId", { storyId })
       .getMany();
 
     const totalStarts = progressRecords.length;
-    const totalCompletions = progressRecords.filter((p) => p.isCompleted).length;
+    const totalCompletions = progressRecords.filter(
+      (p) => p.isCompleted,
+    ).length;
     const completionRate =
       totalStarts > 0 ? (totalCompletions / totalStarts) * 100 : 0;
 
     // Get all segments ordered by their logical flow
     const segments = await this.segmentRepository
-      .createQueryBuilder('segment')
-      .where('segment.storyId = :storyId', { storyId })
-      .orderBy('segment.readCount', 'DESC')
+      .createQueryBuilder("segment")
+      .where("segment.storyId = :storyId", { storyId })
+      .orderBy("segment.readCount", "DESC")
       .getMany();
 
     // Calculate retention for each segment
-    const segmentStats = new Map<string, { reads: number; totalTime: number }>();
+    const segmentStats = new Map<
+      string,
+      { reads: number; totalTime: number }
+    >();
 
     for (const progress of progressRecords) {
       for (const segmentId of progress.visitedSegmentIds) {
@@ -1133,7 +1148,8 @@ export class AnalyticsService {
     const funnelSegments: FunnelSegment[] = segments.map((segment, index) => {
       const stats = segmentStats.get(segment.id) || { reads: 0, totalTime: 0 };
       const readCount = stats.reads;
-      const retentionRate = totalStarts > 0 ? (readCount / totalStarts) * 100 : 0;
+      const retentionRate =
+        totalStarts > 0 ? (readCount / totalStarts) * 100 : 0;
 
       return {
         segmentId: segment.id,
@@ -1207,7 +1223,11 @@ export class AnalyticsService {
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    const data = await this.getAuthorEngagementByDay(authorId, startDate, endDate);
+    const data = await this.getAuthorEngagementByDay(
+      authorId,
+      startDate,
+      endDate,
+    );
 
     // Calculate summary stats
     const totalReads = data.reduce((sum, d) => sum + d.reads, 0);
@@ -1216,7 +1236,7 @@ export class AnalyticsService {
     const avgDailyEarnings = days > 0 ? totalEarnings / days : 0;
 
     // Find peak day
-    let peakDay = data[0]?.date || '';
+    let peakDay = data[0]?.date || "";
     let peakReads = data[0]?.reads || 0;
 
     for (const point of data) {
@@ -1249,46 +1269,46 @@ export class AnalyticsService {
    */
   async exportAnalytics(
     authorId: string,
-    type: 'dashboard' | 'stories' | 'earnings' | 'readers',
-    format: ExportFormatType = 'json',
+    type: "dashboard" | "stories" | "earnings" | "readers",
+    format: ExportFormatType = "json",
   ): Promise<ExportResult> {
     let data: any;
 
     switch (type) {
-      case 'dashboard':
+      case "dashboard":
         data = await this.getAuthorDashboard(authorId);
         break;
-      case 'stories':
+      case "stories":
         data = await this.getTopStories(authorId, 100);
         break;
-      case 'earnings':
+      case "earnings":
         data = await this.getEarningsBreakdown(authorId, AnalyticsPeriod.ALL);
         break;
-      case 'readers':
+      case "readers":
         data = await this.getReaderStats(authorId, AnalyticsPeriod.ALL);
         break;
       default:
         data = await this.getAuthorDashboard(authorId);
     }
 
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = new Date().toISOString().split("T")[0];
     const filename = `aardvark-analytics-${type}-${timestamp}.${format}`;
 
-    if (format === 'json') {
+    if (format === "json") {
       return {
-        format: 'json',
+        format: "json",
         data: JSON.stringify(data, null, 2),
         filename,
-        contentType: 'application/json',
+        contentType: "application/json",
       };
     } else {
       // CSV export
       const csv = this.convertToCSV(data, type);
       return {
-        format: 'csv',
+        format: "csv",
         data: csv,
         filename,
-        contentType: 'text/csv',
+        contentType: "text/csv",
       };
     }
   }
@@ -1299,17 +1319,17 @@ export class AnalyticsService {
   private convertToCSV(data: any, type: string): string {
     const lines: string[] = [];
 
-    if (type === 'stories' && Array.isArray(data)) {
+    if (type === "stories" && Array.isArray(data)) {
       lines.push(
-        'ID,Title,View Count,Unique Readers,Average Rating,Completion Rate,Earnings',
+        "ID,Title,View Count,Unique Readers,Average Rating,Completion Rate,Earnings",
       );
       for (const story of data) {
         lines.push(
           `"${story.id}","${story.title}",${story.viewCount},${story.uniqueReaders},${story.averageRating},${story.completionRate},${story.earnings}`,
         );
       }
-    } else if (type === 'earnings' && data.byStory) {
-      lines.push('Story ID,Story Title,Gross,Fees,Net,Transaction Count');
+    } else if (type === "earnings" && data.byStory) {
+      lines.push("Story ID,Story Title,Gross,Fees,Net,Transaction Count");
       for (const story of data.byStory) {
         lines.push(
           `"${story.storyId}","${story.storyTitle}",${story.gross},${story.fees},${story.net},${story.transactionCount}`,
@@ -1320,6 +1340,6 @@ export class AnalyticsService {
       lines.push(JSON.stringify(data));
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 }

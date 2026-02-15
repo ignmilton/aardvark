@@ -9,22 +9,21 @@ import {
   RawBodyRequest,
   UseGuards,
   Logger,
-  BadRequestException,
   HttpCode,
-} from '@nestjs/common';
-import { Response, Request } from 'express';
-import { ConfigService } from '@nestjs/config';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
-import { Public } from '@/modules/auth/decorators/public.decorator';
-import { SubscriptionsService } from './subscriptions.service';
-import { PaymentsService } from '@/modules/payments/payments.service';
-import { RazorpayService } from '@/modules/payments/razorpay.service';
-import { CreateSubscriptionDto, CancelSubscriptionDto } from './dto';
+} from "@nestjs/common";
+import { Response, Request } from "express";
+import { ConfigService } from "@nestjs/config";
+import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { Public } from "@/modules/auth/decorators/public.decorator";
+import { SubscriptionsService } from "./subscriptions.service";
+import { PaymentsService } from "@/modules/payments/payments.service";
+import { RazorpayService } from "@/modules/payments/razorpay.service";
+import { CreateSubscriptionDto, CancelSubscriptionDto } from "./dto";
 
 /**
  * Controller for subscription management.
  */
-@Controller('subscriptions')
+@Controller("subscriptions")
 export class SubscriptionsController {
   private readonly logger = new Logger(SubscriptionsController.name);
 
@@ -40,7 +39,7 @@ export class SubscriptionsController {
    * GET /subscriptions/plans
    */
   @Public()
-  @Get('plans')
+  @Get("plans")
   async getPlans() {
     const plans = await this.subscriptionsService.getPlans();
     return {
@@ -63,10 +62,11 @@ export class SubscriptionsController {
    * GET /subscriptions/status
    */
   @UseGuards(JwtAuthGuard)
-  @Get('status')
+  @Get("status")
   async getStatus(@Req() req: any) {
     const userId = req.user.id;
-    const status = await this.subscriptionsService.getSubscriptionStatus(userId);
+    const status =
+      await this.subscriptionsService.getSubscriptionStatus(userId);
     return {
       success: true,
       data: {
@@ -92,7 +92,7 @@ export class SubscriptionsController {
    * GET /subscriptions/premium
    */
   @UseGuards(JwtAuthGuard)
-  @Get('premium')
+  @Get("premium")
   async checkPremium(@Req() req: any) {
     const userId = req.user.id;
     const isPremium = await this.subscriptionsService.isPremium(userId);
@@ -107,11 +107,8 @@ export class SubscriptionsController {
    * POST /subscriptions/subscribe
    */
   @UseGuards(JwtAuthGuard)
-  @Post('subscribe')
-  async subscribe(
-    @Req() req: any,
-    @Body() dto: CreateSubscriptionDto,
-  ) {
+  @Post("subscribe")
+  async subscribe(@Req() req: any, @Body() dto: CreateSubscriptionDto) {
     const userId = req.user.id;
     const user = req.user;
 
@@ -145,7 +142,8 @@ export class SubscriptionsController {
       data: {
         id: subscription.id,
         status: subscription.status,
-        clientSecret: (stripeSubscription.latest_invoice as any)?.payment_intent?.client_secret,
+        clientSecret: (stripeSubscription.latest_invoice as any)?.payment_intent
+          ?.client_secret,
         currentPeriodEnd: subscription.currentPeriodEnd,
       },
     };
@@ -156,11 +154,8 @@ export class SubscriptionsController {
    * POST /subscriptions/cancel
    */
   @UseGuards(JwtAuthGuard)
-  @Post('cancel')
-  async cancel(
-    @Req() req: any,
-    @Body() dto: CancelSubscriptionDto,
-  ) {
+  @Post("cancel")
+  async cancel(@Req() req: any, @Body() dto: CancelSubscriptionDto) {
     const userId = req.user.id;
     const subscription = await this.subscriptionsService.cancelSubscription(
       userId,
@@ -181,10 +176,11 @@ export class SubscriptionsController {
    * POST /subscriptions/resume
    */
   @UseGuards(JwtAuthGuard)
-  @Post('resume')
+  @Post("resume")
   async resume(@Req() req: any) {
     const userId = req.user.id;
-    const subscription = await this.subscriptionsService.resumeSubscription(userId);
+    const subscription =
+      await this.subscriptionsService.resumeSubscription(userId);
     return {
       success: true,
       data: {
@@ -199,7 +195,7 @@ export class SubscriptionsController {
    * GET /subscriptions/history
    */
   @UseGuards(JwtAuthGuard)
-  @Get('history')
+  @Get("history")
   async getHistory(@Req() req: any) {
     const userId = req.user.id;
     const history = await this.subscriptionsService.getHistory(userId);
@@ -231,23 +227,25 @@ export class SubscriptionsController {
    * POST /subscriptions/webhook/stripe
    */
   @Public()
-  @Post('webhook/stripe')
+  @Post("webhook/stripe")
   @HttpCode(200)
   async handleStripeWebhook(
     @Req() req: RawBodyRequest<Request>,
-    @Headers('stripe-signature') signature: string,
+    @Headers("stripe-signature") signature: string,
     @Res() res: Response,
   ) {
-    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    const webhookSecret = this.configService.get<string>(
+      "STRIPE_WEBHOOK_SECRET",
+    );
 
     if (!webhookSecret) {
-      this.logger.error('Stripe webhook secret not configured');
-      return res.status(500).json({ error: 'Webhook secret not configured' });
+      this.logger.error("Stripe webhook secret not configured");
+      return res.status(500).json({ error: "Webhook secret not configured" });
     }
 
     const rawBody = req.rawBody;
     if (!rawBody) {
-      return res.status(400).json({ error: 'Missing request body' });
+      return res.status(400).json({ error: "Missing request body" });
     }
 
     try {
@@ -261,27 +259,27 @@ export class SubscriptionsController {
 
       // Handle specific events
       switch (event.type) {
-        case 'customer.subscription.created':
-        case 'customer.subscription.updated':
+        case "customer.subscription.created":
+        case "customer.subscription.updated":
           await this.subscriptionsService.handleRenewal(
             (event.data.object as any).id,
           );
           break;
 
-        case 'customer.subscription.deleted':
+        case "customer.subscription.deleted":
           await this.subscriptionsService.handleExpiration(
             (event.data.object as any).id,
           );
           break;
 
-        case 'invoice.payment_succeeded':
+        case "invoice.payment_succeeded":
           // Handle successful payment - subscription is already active
-          this.logger.log('Invoice payment succeeded');
+          this.logger.log("Invoice payment succeeded");
           break;
 
-        case 'invoice.payment_failed':
+        case "invoice.payment_failed":
           // Handle failed payment - may need to notify user
-          this.logger.warn('Invoice payment failed');
+          this.logger.warn("Invoice payment failed");
           break;
 
         default:
@@ -300,11 +298,11 @@ export class SubscriptionsController {
    * POST /subscriptions/webhook/razorpay
    */
   @Public()
-  @Post('webhook/razorpay')
+  @Post("webhook/razorpay")
   @HttpCode(200)
   async handleRazorpayWebhook(
     @Req() req: Request,
-    @Headers('x-razorpay-signature') signature: string,
+    @Headers("x-razorpay-signature") signature: string,
     @Body() body: any,
     @Res() res: Response,
   ) {
@@ -312,8 +310,8 @@ export class SubscriptionsController {
     const rawBody = JSON.stringify(body);
 
     if (!this.razorpayService.verifyWebhookSignature(rawBody, signature)) {
-      this.logger.error('Invalid Razorpay webhook signature');
-      return res.status(400).json({ error: 'Invalid signature' });
+      this.logger.error("Invalid Razorpay webhook signature");
+      return res.status(400).json({ error: "Invalid signature" });
     }
 
     try {

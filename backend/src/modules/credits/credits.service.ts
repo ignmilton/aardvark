@@ -3,9 +3,9 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, MoreThanOrEqual } from 'typeorm';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, DataSource, MoreThanOrEqual } from "typeorm";
 import {
   Transaction,
   User,
@@ -13,20 +13,19 @@ import {
   CreditBundle,
   AuthorEarning,
   StoryUnlock,
-} from '@/database/entities';
+} from "@/database/entities";
 import {
   TransactionType,
   EarningType,
   DEFAULT_CREDIT_CONFIG,
   PLATFORM_FEE_PERCENTAGE,
-  AUTHOR_SHARE_PERCENTAGE,
-} from '@aardvark/shared';
+} from "@aardvark/shared";
 import {
   UnlockStoryDto,
   TipAuthorDto,
   AdWatchRewardDto,
   TransactionHistoryQueryDto,
-} from './dto';
+} from "./dto";
 
 @Injectable()
 export class CreditsService {
@@ -56,29 +55,29 @@ export class CreditsService {
   }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Calculate lifetime stats
     const [earnedResult, spentResult] = await Promise.all([
       this.transactionRepository
-        .createQueryBuilder('tx')
-        .select('COALESCE(SUM(tx.amount), 0)', 'total')
-        .where('tx.userId = :userId', { userId })
-        .andWhere('tx.amount > 0')
+        .createQueryBuilder("tx")
+        .select("COALESCE(SUM(tx.amount), 0)", "total")
+        .where("tx.userId = :userId", { userId })
+        .andWhere("tx.amount > 0")
         .getRawOne(),
       this.transactionRepository
-        .createQueryBuilder('tx')
-        .select('COALESCE(SUM(ABS(tx.amount)), 0)', 'total')
-        .where('tx.userId = :userId', { userId })
-        .andWhere('tx.amount < 0')
+        .createQueryBuilder("tx")
+        .select("COALESCE(SUM(ABS(tx.amount)), 0)", "total")
+        .where("tx.userId = :userId", { userId })
+        .andWhere("tx.amount < 0")
         .getRawOne(),
     ]);
 
     return {
       balance: user.creditsBalance,
-      lifetimeEarned: parseInt(earnedResult?.total || '0', 10),
-      lifetimeSpent: parseInt(spentResult?.total || '0', 10),
+      lifetimeEarned: parseInt(earnedResult?.total || "0", 10),
+      lifetimeSpent: parseInt(spentResult?.total || "0", 10),
     };
   }
 
@@ -88,21 +87,26 @@ export class CreditsService {
   async getTransactionHistory(
     userId: string,
     query: TransactionHistoryQueryDto,
-  ): Promise<{ transactions: Transaction[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    transactions: Transaction[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const { page = 1, limit: rawLimit = 20, type } = query;
     // Cap limit to prevent resource exhaustion
     const limit = Math.min(Math.max(1, rawLimit), 100);
 
     const queryBuilder = this.transactionRepository
-      .createQueryBuilder('tx')
-      .where('tx.userId = :userId', { userId });
+      .createQueryBuilder("tx")
+      .where("tx.userId = :userId", { userId });
 
     if (type) {
-      queryBuilder.andWhere('tx.type = :type', { type });
+      queryBuilder.andWhere("tx.type = :type", { type });
     }
 
     queryBuilder
-      .orderBy('tx.createdAt', 'DESC')
+      .orderBy("tx.createdAt", "DESC")
       .skip((page - 1) * limit)
       .take(limit);
 
@@ -119,9 +123,11 @@ export class CreditsService {
     bundleId: string,
     stripePaymentId: string,
   ): Promise<Transaction> {
-    const bundle = await this.bundleRepository.findOne({ where: { id: bundleId } });
+    const bundle = await this.bundleRepository.findOne({
+      where: { id: bundleId },
+    });
     if (!bundle) {
-      throw new NotFoundException('Bundle not found');
+      throw new NotFoundException("Bundle not found");
     }
 
     const totalCredits = bundle.credits + bundle.bonusCredits;
@@ -132,7 +138,7 @@ export class CreditsService {
       TransactionType.CREDIT_PURCHASE,
       `Purchased ${bundle.name}`,
       stripePaymentId,
-      'stripe_payment',
+      "stripe_payment",
       { bundleId, bonusCredits: bundle.bonusCredits },
     );
   }
@@ -156,11 +162,11 @@ export class CreditsService {
       // Lock user row for update
       const user = await userRepo.findOne({
         where: { id: userId },
-        lock: { mode: 'pessimistic_write' },
+        lock: { mode: "pessimistic_write" },
       });
 
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException("User not found");
       }
 
       // Update balance
@@ -189,19 +195,19 @@ export class CreditsService {
   async unlockStory(userId: string, dto: UnlockStoryDto): Promise<Transaction> {
     const story = await this.storyRepository.findOne({
       where: { id: dto.storyId },
-      relations: ['author'],
+      relations: ["author"],
     });
 
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     if (!story.isPremium) {
-      throw new BadRequestException('Story is not premium');
+      throw new BadRequestException("Story is not premium");
     }
 
     if (story.authorId === userId) {
-      throw new BadRequestException('You cannot unlock your own story');
+      throw new BadRequestException("You cannot unlock your own story");
     }
 
     // Check if already unlocked
@@ -209,7 +215,7 @@ export class CreditsService {
       where: { userId, storyId: dto.storyId },
     });
     if (existingUnlock) {
-      throw new BadRequestException('Story already unlocked');
+      throw new BadRequestException("Story already unlocked");
     }
 
     return this.dataSource.transaction(async (manager) => {
@@ -221,15 +227,15 @@ export class CreditsService {
       // Lock user row
       const user = await userRepo.findOne({
         where: { id: userId },
-        lock: { mode: 'pessimistic_write' },
+        lock: { mode: "pessimistic_write" },
       });
 
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException("User not found");
       }
 
       if (user.creditsBalance < story.creditCost) {
-        throw new BadRequestException('Insufficient credits');
+        throw new BadRequestException("Insufficient credits");
       }
 
       // Deduct credits
@@ -244,13 +250,15 @@ export class CreditsService {
         balance: newBalance,
         description: `Unlocked "${story.title}"`,
         referenceId: story.id,
-        referenceType: 'story',
+        referenceType: "story",
       });
 
       const savedTx = await txRepo.save(transaction);
 
       // Create author earning (derive author share from total minus fee to avoid rounding loss)
-      const platformFee = Math.floor(story.creditCost * PLATFORM_FEE_PERCENTAGE);
+      const platformFee = Math.floor(
+        story.creditCost * PLATFORM_FEE_PERCENTAGE,
+      );
       const authorEarning = story.creditCost - platformFee;
 
       const earning = earningRepo.create({
@@ -284,12 +292,14 @@ export class CreditsService {
    */
   async tipAuthor(userId: string, dto: TipAuthorDto): Promise<Transaction> {
     if (dto.authorId === userId) {
-      throw new BadRequestException('You cannot tip yourself');
+      throw new BadRequestException("You cannot tip yourself");
     }
 
-    const author = await this.userRepository.findOne({ where: { id: dto.authorId } });
+    const author = await this.userRepository.findOne({
+      where: { id: dto.authorId },
+    });
     if (!author) {
-      throw new NotFoundException('Author not found');
+      throw new NotFoundException("Author not found");
     }
 
     return this.dataSource.transaction(async (manager) => {
@@ -300,15 +310,15 @@ export class CreditsService {
       // Lock user row
       const user = await userRepo.findOne({
         where: { id: userId },
-        lock: { mode: 'pessimistic_write' },
+        lock: { mode: "pessimistic_write" },
       });
 
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException("User not found");
       }
 
       if (user.creditsBalance < dto.amount) {
-        throw new BadRequestException('Insufficient credits');
+        throw new BadRequestException("Insufficient credits");
       }
 
       // Deduct credits
@@ -323,7 +333,7 @@ export class CreditsService {
         balance: newBalance,
         description: `Tip to ${author.displayName || author.username}`,
         referenceId: dto.authorId,
-        referenceType: 'user',
+        referenceType: "user",
         metadata: { message: dto.message, storyId: dto.storyId },
       });
 
@@ -363,18 +373,18 @@ export class CreditsService {
         userId,
         type: TransactionType.DAILY_BONUS,
       },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
 
     if (existingClaim && existingClaim.createdAt >= today) {
-      throw new BadRequestException('Daily bonus already claimed today');
+      throw new BadRequestException("Daily bonus already claimed today");
     }
 
     return this.addCredits(
       userId,
       DEFAULT_CREDIT_CONFIG.dailyBonusCredits,
       TransactionType.DAILY_BONUS,
-      'Daily login bonus',
+      "Daily login bonus",
     );
   }
 
@@ -382,7 +392,10 @@ export class CreditsService {
    * Award credits for watching an ad
    * Premium users cannot claim ad rewards (they have ad-free experience)
    */
-  async rewardAdWatch(userId: string, dto: AdWatchRewardDto): Promise<Transaction | null> {
+  async rewardAdWatch(
+    userId: string,
+    dto: AdWatchRewardDto,
+  ): Promise<Transaction | null> {
     if (!dto.completed) {
       return null;
     }
@@ -390,12 +403,12 @@ export class CreditsService {
     // Check if user is premium - premium users cannot claim ad rewards
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     if (user.isPremium) {
       throw new ForbiddenException(
-        'Premium subscribers have ad-free access and cannot claim ad rewards.',
+        "Premium subscribers have ad-free access and cannot claim ad rewards.",
       );
     }
 
@@ -405,15 +418,16 @@ export class CreditsService {
         userId,
         type: TransactionType.AD_WATCH,
       },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
 
     if (lastAdWatch) {
       const cooldownEnd = new Date(
-        lastAdWatch.createdAt.getTime() + DEFAULT_CREDIT_CONFIG.adWatchCooldown * 1000
+        lastAdWatch.createdAt.getTime() +
+          DEFAULT_CREDIT_CONFIG.adWatchCooldown * 1000,
       );
       if (new Date() < cooldownEnd) {
-        throw new BadRequestException('Ad watch cooldown not elapsed');
+        throw new BadRequestException("Ad watch cooldown not elapsed");
       }
     }
 
@@ -421,9 +435,9 @@ export class CreditsService {
       userId,
       DEFAULT_CREDIT_CONFIG.adWatchCredits,
       TransactionType.AD_WATCH,
-      'Watched rewarded ad',
+      "Watched rewarded ad",
       dto.adUnitId,
-      'ad',
+      "ad",
       { adType: dto.adType, duration: dto.duration },
     );
   }
@@ -431,7 +445,10 @@ export class CreditsService {
   /**
    * Award credits for completing a story
    */
-  async rewardStoryCompletion(userId: string, storyId: string): Promise<Transaction> {
+  async rewardStoryCompletion(
+    userId: string,
+    storyId: string,
+  ): Promise<Transaction> {
     // Check if already rewarded for this story
     const existingReward = await this.transactionRepository.findOne({
       where: {
@@ -442,12 +459,14 @@ export class CreditsService {
     });
 
     if (existingReward) {
-      throw new BadRequestException('Already rewarded for this story');
+      throw new BadRequestException("Already rewarded for this story");
     }
 
-    const story = await this.storyRepository.findOne({ where: { id: storyId } });
+    const story = await this.storyRepository.findOne({
+      where: { id: storyId },
+    });
     if (!story) {
-      throw new NotFoundException('Story not found');
+      throw new NotFoundException("Story not found");
     }
 
     return this.addCredits(
@@ -456,7 +475,7 @@ export class CreditsService {
       TransactionType.STORY_COMPLETION,
       `Completed "${story.title}"`,
       storyId,
-      'story',
+      "story",
     );
   }
 
@@ -476,7 +495,7 @@ export class CreditsService {
   async getUnlockedStoryIds(userId: string): Promise<string[]> {
     const unlocks = await this.storyUnlockRepository.find({
       where: { userId },
-      select: ['storyId'],
+      select: ["storyId"],
     });
     return unlocks.map((u) => u.storyId);
   }
@@ -487,7 +506,7 @@ export class CreditsService {
   async getBundles(): Promise<CreditBundle[]> {
     return this.bundleRepository.find({
       where: { isActive: true },
-      order: { priceInCents: 'ASC' },
+      order: { priceInCents: "ASC" },
     });
   }
 

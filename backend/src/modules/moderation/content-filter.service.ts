@@ -1,24 +1,24 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ConfigService } from "@nestjs/config";
 import {
   ContentFlag,
   ModerationContentType,
   ModerationStatus,
-} from '@/database/entities/moderation.entity';
+} from "@/database/entities/moderation.entity";
 
 /**
  * Content filter types for automated moderation
  */
 export enum ContentFilterType {
-  PROFANITY = 'profanity',
-  HATE_SPEECH = 'hate_speech',
-  VIOLENCE = 'violence',
-  SPAM = 'spam',
-  ADULT_CONTENT = 'adult_content',
-  HARASSMENT = 'harassment',
-  SELF_HARM = 'self_harm',
+  PROFANITY = "profanity",
+  HATE_SPEECH = "hate_speech",
+  VIOLENCE = "violence",
+  SPAM = "spam",
+  ADULT_CONTENT = "adult_content",
+  HARASSMENT = "harassment",
+  SELF_HARM = "self_harm",
 }
 
 /**
@@ -52,11 +52,7 @@ const PROFANITY_PATTERNS = {
     /\bb+i+t+c+h+/gi,
     /\bb+a+s+t+a+r+d+/gi,
   ],
-  mild: [
-    /\bcrap+/gi,
-    /\bsuck+s?/gi,
-    /\bpiss+/gi,
-  ],
+  mild: [/\bcrap+/gi, /\bsuck+s?/gi, /\bpiss+/gi],
 };
 
 /**
@@ -106,15 +102,21 @@ const SELF_HARM_PATTERNS = [
 export class ContentFilterService {
   private readonly logger = new Logger(ContentFilterService.name);
   private readonly autoFlagThreshold: number;
-  private readonly profanityLevel: 'strict' | 'moderate' | 'relaxed';
+  private readonly profanityLevel: "strict" | "moderate" | "relaxed";
 
   constructor(
     @InjectRepository(ContentFlag)
     private readonly contentFlagRepository: Repository<ContentFlag>,
     private readonly configService: ConfigService,
   ) {
-    this.autoFlagThreshold = this.configService.get<number>('CONTENT_FILTER_THRESHOLD', 0.7);
-    this.profanityLevel = this.configService.get('PROFANITY_FILTER_LEVEL', 'moderate');
+    this.autoFlagThreshold = this.configService.get<number>(
+      "CONTENT_FILTER_THRESHOLD",
+      0.7,
+    );
+    this.profanityLevel = this.configService.get(
+      "PROFANITY_FILTER_LEVEL",
+      "moderate",
+    );
   }
 
   /**
@@ -126,7 +128,7 @@ export class ContentFilterService {
     contentId: string,
     authorId?: string,
   ): Promise<ContentFilterResult> {
-    const flags: ContentFilterResult['flags'] = [];
+    const flags: ContentFilterResult["flags"] = [];
 
     // Check profanity
     const profanityResult = this.checkProfanity(content);
@@ -139,7 +141,11 @@ export class ContentFilterService {
     }
 
     // Check hate speech
-    const hateSpeechResult = this.checkPatterns(content, HATE_SPEECH_PATTERNS, 'hate speech');
+    const hateSpeechResult = this.checkPatterns(
+      content,
+      HATE_SPEECH_PATTERNS,
+      "hate speech",
+    );
     if (hateSpeechResult.confidence > 0) {
       flags.push({
         type: ContentFilterType.HATE_SPEECH,
@@ -149,7 +155,7 @@ export class ContentFilterService {
     }
 
     // Check spam
-    const spamResult = this.checkPatterns(content, SPAM_PATTERNS, 'spam');
+    const spamResult = this.checkPatterns(content, SPAM_PATTERNS, "spam");
     if (spamResult.confidence > 0) {
       flags.push({
         type: ContentFilterType.SPAM,
@@ -159,7 +165,11 @@ export class ContentFilterService {
     }
 
     // Check violence
-    const violenceResult = this.checkPatterns(content, VIOLENCE_PATTERNS, 'violence');
+    const violenceResult = this.checkPatterns(
+      content,
+      VIOLENCE_PATTERNS,
+      "violence",
+    );
     if (violenceResult.confidence > 0) {
       flags.push({
         type: ContentFilterType.VIOLENCE,
@@ -169,7 +179,11 @@ export class ContentFilterService {
     }
 
     // Check self-harm content
-    const selfHarmResult = this.checkPatterns(content, SELF_HARM_PATTERNS, 'self-harm');
+    const selfHarmResult = this.checkPatterns(
+      content,
+      SELF_HARM_PATTERNS,
+      "self-harm",
+    );
     if (selfHarmResult.confidence > 0) {
       flags.push({
         type: ContentFilterType.SELF_HARM,
@@ -179,9 +193,8 @@ export class ContentFilterService {
     }
 
     // Calculate overall confidence
-    const overallConfidence = flags.length > 0
-      ? Math.max(...flags.map(f => f.confidence))
-      : 0;
+    const overallConfidence =
+      flags.length > 0 ? Math.max(...flags.map((f) => f.confidence)) : 0;
 
     const result: ContentFilterResult = {
       isClean: overallConfidence < this.autoFlagThreshold,
@@ -200,7 +213,10 @@ export class ContentFilterService {
   /**
    * Check content for profanity based on configured level
    */
-  private checkProfanity(content: string): { confidence: number; matches: string[] } {
+  private checkProfanity(content: string): {
+    confidence: number;
+    matches: string[];
+  } {
     const matches: string[] = [];
     let severityScore = 0;
 
@@ -214,7 +230,10 @@ export class ContentFilterService {
     }
 
     // Check moderate profanity
-    if (this.profanityLevel === 'strict' || this.profanityLevel === 'moderate') {
+    if (
+      this.profanityLevel === "strict" ||
+      this.profanityLevel === "moderate"
+    ) {
       for (const pattern of PROFANITY_PATTERNS.moderate) {
         const found = content.match(pattern);
         if (found) {
@@ -225,7 +244,7 @@ export class ContentFilterService {
     }
 
     // Check mild profanity (only in strict mode)
-    if (this.profanityLevel === 'strict') {
+    if (this.profanityLevel === "strict") {
       for (const pattern of PROFANITY_PATTERNS.mild) {
         const found = content.match(pattern);
         if (found) {
@@ -250,7 +269,7 @@ export class ContentFilterService {
   private checkPatterns(
     content: string,
     patterns: RegExp[],
-    type: string,
+    _type: string,
   ): { confidence: number; matches: string[] } {
     const matches: string[] = [];
     let matchCount = 0;
@@ -264,9 +283,8 @@ export class ContentFilterService {
     }
 
     // Calculate confidence based on number of pattern matches
-    const confidence = matchCount > 0
-      ? Math.min(matchCount / patterns.length + 0.5, 1.0)
-      : 0;
+    const confidence =
+      matchCount > 0 ? Math.min(matchCount / patterns.length + 0.5, 1.0) : 0;
 
     return {
       confidence,
@@ -281,7 +299,7 @@ export class ContentFilterService {
     contentType: ModerationContentType,
     contentId: string,
     authorId: string,
-    flags: ContentFilterResult['flags'],
+    flags: ContentFilterResult["flags"],
   ): Promise<void> {
     for (const flag of flags) {
       try {
@@ -301,7 +319,7 @@ export class ContentFilterService {
             authorId,
             flagType: flag.type,
             confidence: flag.confidence,
-            matchedPatterns: flag.matchedPatterns?.join(', ') || null,
+            matchedPatterns: flag.matchedPatterns?.join(", ") || null,
             status: ModerationStatus.PENDING,
             isAutoResolved: false,
           });
@@ -325,13 +343,20 @@ export class ContentFilterService {
 
     // Replace severe profanity
     for (const pattern of PROFANITY_PATTERNS.severe) {
-      sanitized = sanitized.replace(pattern, (match) => '*'.repeat(match.length));
+      sanitized = sanitized.replace(pattern, (match) =>
+        "*".repeat(match.length),
+      );
     }
 
     // Replace moderate profanity if configured
-    if (this.profanityLevel === 'strict' || this.profanityLevel === 'moderate') {
+    if (
+      this.profanityLevel === "strict" ||
+      this.profanityLevel === "moderate"
+    ) {
       for (const pattern of PROFANITY_PATTERNS.moderate) {
-        sanitized = sanitized.replace(pattern, (match) => '*'.repeat(match.length));
+        sanitized = sanitized.replace(pattern, (match) =>
+          "*".repeat(match.length),
+        );
       }
     }
 
@@ -343,31 +368,34 @@ export class ContentFilterService {
    */
   async isContentSafeForRating(
     content: string,
-    rating: 'G' | 'PG' | 'PG13' | 'R' | 'MATURE',
+    rating: "G" | "PG" | "PG13" | "R" | "MATURE",
   ): Promise<{ safe: boolean; violations: string[] }> {
     const result = await this.analyzeContent(
       content,
       ModerationContentType.STORY,
-      'rating-check',
+      "rating-check",
     );
 
     const violations: string[] = [];
 
     for (const flag of result.flags) {
       switch (rating) {
-        case 'G':
+        case "G":
           // No flags allowed for G rating
           if (flag.confidence > 0.3) {
             violations.push(`${flag.type} content detected`);
           }
           break;
-        case 'PG':
+        case "PG":
           // Only mild content allowed
-          if (flag.type !== ContentFilterType.PROFANITY && flag.confidence > 0.5) {
+          if (
+            flag.type !== ContentFilterType.PROFANITY &&
+            flag.confidence > 0.5
+          ) {
             violations.push(`${flag.type} content detected`);
           }
           break;
-        case 'PG13':
+        case "PG13":
           // Moderate content allowed, no hate speech/violence
           if (
             (flag.type === ContentFilterType.HATE_SPEECH ||
@@ -378,8 +406,8 @@ export class ContentFilterService {
             violations.push(`${flag.type} content detected`);
           }
           break;
-        case 'R':
-        case 'MATURE':
+        case "R":
+        case "MATURE":
           // Only hate speech and self-harm flagged
           if (
             (flag.type === ContentFilterType.HATE_SPEECH ||
@@ -409,13 +437,13 @@ export class ContentFilterService {
 
       // Block localhost and loopback
       if (
-        hostname === 'localhost' ||
-        hostname === '127.0.0.1' ||
-        hostname === '::1' ||
-        hostname === '[::1]' ||
-        hostname.endsWith('.localhost')
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "::1" ||
+        hostname === "[::1]" ||
+        hostname.endsWith(".localhost")
       ) {
-        return { safe: false, reason: 'localhost_blocked' };
+        return { safe: false, reason: "localhost_blocked" };
       }
 
       // Block private IP ranges using regex patterns
@@ -431,36 +459,36 @@ export class ContentFilterService {
 
       for (const pattern of privateIpPatterns) {
         if (pattern.test(hostname)) {
-          return { safe: false, reason: 'private_ip_blocked' };
+          return { safe: false, reason: "private_ip_blocked" };
         }
       }
 
       // Block cloud metadata endpoints explicitly
       const blockedHostnames = [
-        '169.254.169.254', // AWS/GCP/Azure metadata
-        'metadata.google.internal',
-        'metadata.goog',
-        'kubernetes.default.svc',
-        'kubernetes.default',
+        "169.254.169.254", // AWS/GCP/Azure metadata
+        "metadata.google.internal",
+        "metadata.goog",
+        "kubernetes.default.svc",
+        "kubernetes.default",
       ];
 
       if (blockedHostnames.includes(hostname)) {
-        return { safe: false, reason: 'metadata_endpoint_blocked' };
+        return { safe: false, reason: "metadata_endpoint_blocked" };
       }
 
       // Block internal-looking hostnames
       if (
-        hostname.endsWith('.internal') ||
-        hostname.endsWith('.local') ||
-        hostname.endsWith('.corp') ||
-        hostname.endsWith('.intranet')
+        hostname.endsWith(".internal") ||
+        hostname.endsWith(".local") ||
+        hostname.endsWith(".corp") ||
+        hostname.endsWith(".intranet")
       ) {
-        return { safe: false, reason: 'internal_hostname_blocked' };
+        return { safe: false, reason: "internal_hostname_blocked" };
       }
 
       return { safe: true };
     } catch {
-      return { safe: false, reason: 'invalid_url' };
+      return { safe: false, reason: "invalid_url" };
     }
   }
 
@@ -479,14 +507,21 @@ export class ContentFilterService {
 
     // Block data: URIs (potential XSS/exploit vector)
     if (/^data:/i.test(imageUrl)) {
-      flags.push('data_uri_blocked');
-      await this.flagContent(contentType, contentId, authorId, 'data_uri', 1.0, imageUrl);
+      flags.push("data_uri_blocked");
+      await this.flagContent(
+        contentType,
+        contentId,
+        authorId,
+        "data_uri",
+        1.0,
+        imageUrl,
+      );
       return { safe: false, flags };
     }
 
     // Block non-http(s) URLs
     if (!/^https?:\/\//i.test(imageUrl)) {
-      flags.push('invalid_protocol');
+      flags.push("invalid_protocol");
       return { safe: false, flags };
     }
 
@@ -498,8 +533,15 @@ export class ContentFilterService {
     ];
     for (const pattern of suspiciousPatterns) {
       if (pattern.test(imageUrl)) {
-        flags.push('suspicious_url_pattern');
-        await this.flagContent(contentType, contentId, authorId, 'suspicious_url', 0.9, imageUrl);
+        flags.push("suspicious_url_pattern");
+        await this.flagContent(
+          contentType,
+          contentId,
+          authorId,
+          "suspicious_url",
+          0.9,
+          imageUrl,
+        );
         return { safe: false, flags };
       }
     }
@@ -507,9 +549,18 @@ export class ContentFilterService {
     // SECURITY: Block SSRF attacks - prevent fetching internal/private IPs
     const ssrfCheck = this.isUrlSafeForFetch(imageUrl);
     if (!ssrfCheck.safe) {
-      flags.push(ssrfCheck.reason || 'ssrf_blocked');
-      this.logger.warn(`SSRF attempt blocked: ${imageUrl} - ${ssrfCheck.reason}`);
-      await this.flagContent(contentType, contentId, authorId, 'ssrf_attempt', 1.0, imageUrl);
+      flags.push(ssrfCheck.reason || "ssrf_blocked");
+      this.logger.warn(
+        `SSRF attempt blocked: ${imageUrl} - ${ssrfCheck.reason}`,
+      );
+      await this.flagContent(
+        contentType,
+        contentId,
+        authorId,
+        "ssrf_attempt",
+        1.0,
+        imageUrl,
+      );
       return { safe: false, flags };
     }
 
@@ -520,49 +571,62 @@ export class ContentFilterService {
 
       // SECURITY: Disable redirect following to prevent SSRF via redirects
       const response = await fetch(imageUrl, {
-        method: 'HEAD',
+        method: "HEAD",
         signal: controller.signal,
-        redirect: 'manual',
+        redirect: "manual",
       });
 
       // If we get a redirect, validate the redirect URL too
       if (response.status >= 300 && response.status < 400) {
-        const redirectUrl = response.headers.get('location');
+        const redirectUrl = response.headers.get("location");
         if (redirectUrl) {
           const redirectCheck = this.isUrlSafeForFetch(redirectUrl);
           if (!redirectCheck.safe) {
-            flags.push('redirect_to_internal_blocked');
-            this.logger.warn(`SSRF via redirect blocked: ${imageUrl} -> ${redirectUrl}`);
+            flags.push("redirect_to_internal_blocked");
+            this.logger.warn(
+              `SSRF via redirect blocked: ${imageUrl} -> ${redirectUrl}`,
+            );
             return { safe: false, flags };
           }
         }
       }
       clearTimeout(timeout);
 
-      const responseContentType = response.headers.get('content-type') || '';
-      if (!responseContentType.startsWith('image/')) {
-        flags.push('not_an_image');
-        await this.flagContent(contentType, contentId, authorId, 'invalid_content_type', 0.95, `${imageUrl} -> ${responseContentType}`);
+      const responseContentType = response.headers.get("content-type") || "";
+      if (!responseContentType.startsWith("image/")) {
+        flags.push("not_an_image");
+        await this.flagContent(
+          contentType,
+          contentId,
+          authorId,
+          "invalid_content_type",
+          0.95,
+          `${imageUrl} -> ${responseContentType}`,
+        );
         return { safe: false, flags };
       }
     } catch (error) {
       // If URL is unreachable, flag but don't block (might be temporary)
       this.logger.warn(`Image URL unreachable: ${imageUrl} - ${error.message}`);
-      flags.push('unreachable_url');
+      flags.push("unreachable_url");
     }
 
     // Call external moderation API if configured
-    const moderationApiUrl = this.configService.get<string>('IMAGE_MODERATION_API_URL');
+    const moderationApiUrl = this.configService.get<string>(
+      "IMAGE_MODERATION_API_URL",
+    );
     if (moderationApiUrl) {
       try {
-        const apiKey = this.configService.get<string>('IMAGE_MODERATION_API_KEY');
+        const apiKey = this.configService.get<string>(
+          "IMAGE_MODERATION_API_KEY",
+        );
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch(moderationApiUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
           },
           body: JSON.stringify({ image_url: imageUrl }),
@@ -574,13 +638,13 @@ export class ContentFilterService {
           const result = await response.json();
           // Expected response: { safe: boolean, categories: string[] }
           if (result.safe === false) {
-            const categories = result.categories || ['nsfw_content'];
+            const categories = result.categories || ["nsfw_content"];
             flags.push(...categories);
             await this.flagContent(
               contentType,
               contentId,
               authorId,
-              categories.join(','),
+              categories.join(","),
               result.confidence || 0.8,
               imageUrl,
             );
@@ -590,7 +654,14 @@ export class ContentFilterService {
       } catch (error) {
         this.logger.warn(`External image moderation failed: ${error.message}`);
         // Don't block on moderation service failure - flag for manual review
-        await this.flagContent(contentType, contentId, authorId, 'moderation_api_error', 0.5, imageUrl);
+        await this.flagContent(
+          contentType,
+          contentId,
+          authorId,
+          "moderation_api_error",
+          0.5,
+          imageUrl,
+        );
       }
     }
 

@@ -2,4 +2,4 @@
  * Export all moderation DTOs
  */
 
-export * from './moderation.dto';
+export * from "./moderation.dto";

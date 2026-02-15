@@ -381,7 +381,7 @@ export default function SettingsPage() {
                     <div>
                       <p className="font-medium">Show Reading Activity</p>
                       <p className="text-sm text-muted-foreground">
-                        Let others see what stories you've read
+                        Let others see what stories you&apos;ve read
                       </p>
                     </div>
                     <input

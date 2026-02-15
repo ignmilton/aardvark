@@ -3,11 +3,16 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThan } from 'typeorm';
-import { Message, Conversation, UserBlock } from '@/database/entities';
-import { SendMessageDto, ConversationQueryDto, MessageQueryDto, BlockUserDto } from './dto';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, DataSource } from "typeorm";
+import { Message, Conversation, UserBlock } from "@/database/entities";
+import {
+  SendMessageDto,
+  ConversationQueryDto,
+  MessageQueryDto,
+  BlockUserDto,
+} from "./dto";
 
 @Injectable()
 export class MessagingService {
@@ -29,19 +34,22 @@ export class MessagingService {
     const limit = Math.min(Math.max(1, rawLimit), 50);
 
     const queryBuilder = this.conversationRepository
-      .createQueryBuilder('conversation')
-      .leftJoinAndSelect('conversation.participant1', 'participant1')
-      .leftJoinAndSelect('conversation.participant2', 'participant2')
-      .where('(conversation.participant1Id = :userId OR conversation.participant2Id = :userId)', { userId });
+      .createQueryBuilder("conversation")
+      .leftJoinAndSelect("conversation.participant1", "participant1")
+      .leftJoinAndSelect("conversation.participant2", "participant2")
+      .where(
+        "(conversation.participant1Id = :userId OR conversation.participant2Id = :userId)",
+        { userId },
+      );
 
     // Filter by archived status
     queryBuilder.andWhere(
-      '(conversation.participant1Id = :userId AND conversation.isArchived1 = :archived) OR (conversation.participant2Id = :userId AND conversation.isArchived2 = :archived)',
+      "(conversation.participant1Id = :userId AND conversation.isArchived1 = :archived) OR (conversation.participant2Id = :userId AND conversation.isArchived2 = :archived)",
       { userId, archived },
     );
 
     // Order by most recent message
-    queryBuilder.orderBy('conversation.lastMessageAt', 'DESC', 'NULLS LAST');
+    queryBuilder.orderBy("conversation.lastMessageAt", "DESC", "NULLS LAST");
 
     const skip = (page - 1) * limit;
     const [conversations, total] = await queryBuilder
@@ -50,7 +58,9 @@ export class MessagingService {
       .getManyAndCount();
 
     // Sanitize conversations
-    const sanitizedConversations = conversations.map((conv) => this.sanitizeConversation(conv, userId));
+    const sanitizedConversations = conversations.map((conv) =>
+      this.sanitizeConversation(conv, userId),
+    );
 
     return {
       data: sanitizedConversations,
@@ -66,22 +76,25 @@ export class MessagingService {
   /**
    * Get or create conversation between two users
    */
-  async getOrCreateConversation(userId: string, recipientId: string): Promise<Conversation> {
+  async getOrCreateConversation(
+    userId: string,
+    recipientId: string,
+  ): Promise<Conversation> {
     if (userId === recipientId) {
-      throw new BadRequestException('Cannot create conversation with yourself');
+      throw new BadRequestException("Cannot create conversation with yourself");
     }
 
     // Check if users have blocked each other
     const isBlocked = await this.isBlocked(userId, recipientId);
     if (isBlocked) {
-      throw new ForbiddenException('Cannot create conversation with this user');
+      throw new ForbiddenException("Cannot create conversation with this user");
     }
 
     // Try to find existing conversation (order doesn't matter)
     let conversation = await this.conversationRepository
-      .createQueryBuilder('conversation')
+      .createQueryBuilder("conversation")
       .where(
-        '(conversation.participant1Id = :userId AND conversation.participant2Id = :recipientId) OR (conversation.participant1Id = :recipientId AND conversation.participant2Id = :userId)',
+        "(conversation.participant1Id = :userId AND conversation.participant2Id = :recipientId) OR (conversation.participant1Id = :recipientId AND conversation.participant2Id = :userId)",
         { userId, recipientId },
       )
       .getOne();
@@ -98,14 +111,18 @@ export class MessagingService {
     // Load participants
     return this.conversationRepository.findOne({
       where: { id: conversation.id },
-      relations: ['participant1', 'participant2'],
+      relations: ["participant1", "participant2"],
     }) as Promise<Conversation>;
   }
 
   /**
    * Get messages in a conversation with pagination
    */
-  async getMessages(userId: string, conversationId: string, query: MessageQueryDto) {
+  async getMessages(
+    userId: string,
+    conversationId: string,
+    query: MessageQueryDto,
+  ) {
     const { page = 1, limit: rawLimit = 50, before } = query;
     const limit = Math.min(Math.max(1, rawLimit), 100);
 
@@ -115,32 +132,39 @@ export class MessagingService {
     });
 
     if (!conversation) {
-      throw new NotFoundException('Conversation not found');
+      throw new NotFoundException("Conversation not found");
     }
 
-    if (conversation.participant1Id !== userId && conversation.participant2Id !== userId) {
-      throw new ForbiddenException('You are not part of this conversation');
+    if (
+      conversation.participant1Id !== userId &&
+      conversation.participant2Id !== userId
+    ) {
+      throw new ForbiddenException("You are not part of this conversation");
     }
 
     const queryBuilder = this.messageRepository
-      .createQueryBuilder('message')
-      .leftJoinAndSelect('message.sender', 'sender')
-      .where('message.conversationId = :conversationId', { conversationId })
-      .andWhere('message.isDeleted = :isDeleted', { isDeleted: false });
+      .createQueryBuilder("message")
+      .leftJoinAndSelect("message.sender", "sender")
+      .where("message.conversationId = :conversationId", { conversationId })
+      .andWhere("message.isDeleted = :isDeleted", { isDeleted: false });
 
     if (before) {
-      queryBuilder.andWhere('message.createdAt < :before', { before: new Date(before) });
+      queryBuilder.andWhere("message.createdAt < :before", {
+        before: new Date(before),
+      });
     }
 
     const skip = (page - 1) * limit;
     const [messages, total] = await queryBuilder
-      .orderBy('message.createdAt', 'DESC')
+      .orderBy("message.createdAt", "DESC")
       .skip(skip)
       .take(limit)
       .getManyAndCount();
 
     // Reverse to show oldest first
-    const sanitizedMessages = messages.reverse().map((msg) => this.sanitizeMessage(msg));
+    const sanitizedMessages = messages
+      .reverse()
+      .map((msg) => this.sanitizeMessage(msg));
 
     return {
       data: sanitizedMessages,
@@ -160,13 +184,13 @@ export class MessagingService {
     const { recipientId, content } = dto;
 
     if (userId === recipientId) {
-      throw new BadRequestException('Cannot send message to yourself');
+      throw new BadRequestException("Cannot send message to yourself");
     }
 
     // Check if users have blocked each other
     const isBlocked = await this.isBlocked(userId, recipientId);
     if (isBlocked) {
-      throw new ForbiddenException('Cannot send message to this user');
+      throw new ForbiddenException("Cannot send message to this user");
     }
 
     // Use transaction to ensure consistency
@@ -174,9 +198,9 @@ export class MessagingService {
       // Get or create conversation
       let conversation = await entityManager
         .getRepository(Conversation)
-        .createQueryBuilder('conversation')
+        .createQueryBuilder("conversation")
         .where(
-          '(conversation.participant1Id = :userId AND conversation.participant2Id = :recipientId) OR (conversation.participant1Id = :recipientId AND conversation.participant2Id = :userId)',
+          "(conversation.participant1Id = :userId AND conversation.participant2Id = :recipientId) OR (conversation.participant1Id = :recipientId AND conversation.participant2Id = :userId)",
           { userId, recipientId },
         )
         .getOne();
@@ -186,7 +210,9 @@ export class MessagingService {
           participant1Id: userId,
           participant2Id: recipientId,
         });
-        conversation = await entityManager.getRepository(Conversation).save(conversation);
+        conversation = await entityManager
+          .getRepository(Conversation)
+          .save(conversation);
       }
 
       // Create message
@@ -197,7 +223,9 @@ export class MessagingService {
         content,
       });
 
-      const savedMessage = await entityManager.getRepository(Message).save(message);
+      const savedMessage = await entityManager
+        .getRepository(Message)
+        .save(message);
 
       // Update conversation metadata
       conversation.lastMessagePreview = content.substring(0, 100);
@@ -219,7 +247,7 @@ export class MessagingService {
       // Load sender relation for response
       return entityManager.getRepository(Message).findOne({
         where: { id: savedMessage.id },
-        relations: ['sender'],
+        relations: ["sender"],
       }) as Promise<Message>;
     });
   }
@@ -234,11 +262,14 @@ export class MessagingService {
     });
 
     if (!conversation) {
-      throw new NotFoundException('Conversation not found');
+      throw new NotFoundException("Conversation not found");
     }
 
-    if (conversation.participant1Id !== userId && conversation.participant2Id !== userId) {
-      throw new ForbiddenException('You are not part of this conversation');
+    if (
+      conversation.participant1Id !== userId &&
+      conversation.participant2Id !== userId
+    ) {
+      throw new ForbiddenException("You are not part of this conversation");
     }
 
     await this.dataSource.transaction(async (entityManager) => {
@@ -248,9 +279,9 @@ export class MessagingService {
         .createQueryBuilder()
         .update(Message)
         .set({ isRead: true, readAt: new Date() })
-        .where('conversationId = :conversationId', { conversationId })
-        .andWhere('recipientId = :userId', { userId })
-        .andWhere('isRead = :isRead', { isRead: false })
+        .where("conversationId = :conversationId", { conversationId })
+        .andWhere("recipientId = :userId", { userId })
+        .andWhere("isRead = :isRead", { isRead: false })
         .execute();
 
       // Reset unread count for the user
@@ -273,37 +304,43 @@ export class MessagingService {
     });
 
     if (!message) {
-      throw new NotFoundException('Message not found');
+      throw new NotFoundException("Message not found");
     }
 
     if (message.senderId !== userId) {
-      throw new ForbiddenException('You can only delete your own messages');
+      throw new ForbiddenException("You can only delete your own messages");
     }
 
     if (message.isDeleted) {
-      throw new BadRequestException('Message is already deleted');
+      throw new BadRequestException("Message is already deleted");
     }
 
     // Soft delete
     message.isDeleted = true;
-    message.content = '[deleted]';
+    message.content = "[deleted]";
     await this.messageRepository.save(message);
   }
 
   /**
    * Archive a conversation
    */
-  async archiveConversation(userId: string, conversationId: string): Promise<void> {
+  async archiveConversation(
+    userId: string,
+    conversationId: string,
+  ): Promise<void> {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
     });
 
     if (!conversation) {
-      throw new NotFoundException('Conversation not found');
+      throw new NotFoundException("Conversation not found");
     }
 
-    if (conversation.participant1Id !== userId && conversation.participant2Id !== userId) {
-      throw new ForbiddenException('You are not part of this conversation');
+    if (
+      conversation.participant1Id !== userId &&
+      conversation.participant2Id !== userId
+    ) {
+      throw new ForbiddenException("You are not part of this conversation");
     }
 
     // Archive for the current user
@@ -323,7 +360,7 @@ export class MessagingService {
     const { userId: blockedId, reason } = dto;
 
     if (userId === blockedId) {
-      throw new BadRequestException('Cannot block yourself');
+      throw new BadRequestException("Cannot block yourself");
     }
 
     // Check if already blocked
@@ -332,7 +369,7 @@ export class MessagingService {
     });
 
     if (existingBlock) {
-      throw new BadRequestException('User is already blocked');
+      throw new BadRequestException("User is already blocked");
     }
 
     // Create block
@@ -349,14 +386,20 @@ export class MessagingService {
       .createQueryBuilder()
       .update(Conversation)
       .set({ isBlocked1: true })
-      .where('participant1Id = :userId AND participant2Id = :blockedId', { userId, blockedId })
+      .where("participant1Id = :userId AND participant2Id = :blockedId", {
+        userId,
+        blockedId,
+      })
       .execute();
 
     await this.conversationRepository
       .createQueryBuilder()
       .update(Conversation)
       .set({ isBlocked2: true })
-      .where('participant2Id = :userId AND participant1Id = :blockedId', { userId, blockedId })
+      .where("participant2Id = :userId AND participant1Id = :blockedId", {
+        userId,
+        blockedId,
+      })
       .execute();
   }
 
@@ -365,7 +408,7 @@ export class MessagingService {
    */
   async unblockUser(userId: string, blockedId: string): Promise<void> {
     if (userId === blockedId) {
-      throw new BadRequestException('Invalid operation');
+      throw new BadRequestException("Invalid operation");
     }
 
     const block = await this.userBlockRepository.findOne({
@@ -373,7 +416,7 @@ export class MessagingService {
     });
 
     if (!block) {
-      throw new NotFoundException('Block not found');
+      throw new NotFoundException("Block not found");
     }
 
     await this.userBlockRepository.remove(block);
@@ -383,14 +426,20 @@ export class MessagingService {
       .createQueryBuilder()
       .update(Conversation)
       .set({ isBlocked1: false })
-      .where('participant1Id = :userId AND participant2Id = :blockedId', { userId, blockedId })
+      .where("participant1Id = :userId AND participant2Id = :blockedId", {
+        userId,
+        blockedId,
+      })
       .execute();
 
     await this.conversationRepository
       .createQueryBuilder()
       .update(Conversation)
       .set({ isBlocked2: false })
-      .where('participant2Id = :userId AND participant1Id = :blockedId', { userId, blockedId })
+      .where("participant2Id = :userId AND participant1Id = :blockedId", {
+        userId,
+        blockedId,
+      })
       .execute();
   }
 
@@ -400,8 +449,8 @@ export class MessagingService {
   async getBlockedUsers(userId: string) {
     const blocks = await this.userBlockRepository.find({
       where: { blockerId: userId },
-      relations: ['blocked'],
-      order: { createdAt: 'DESC' },
+      relations: ["blocked"],
+      order: { createdAt: "DESC" },
     });
 
     return blocks.map((block) => ({
@@ -422,9 +471,9 @@ export class MessagingService {
    */
   async isBlocked(userId1: string, userId2: string): Promise<boolean> {
     const block = await this.userBlockRepository
-      .createQueryBuilder('block')
+      .createQueryBuilder("block")
       .where(
-        '(block.blockerId = :userId1 AND block.blockedId = :userId2) OR (block.blockerId = :userId2 AND block.blockedId = :userId1)',
+        "(block.blockerId = :userId1 AND block.blockedId = :userId2) OR (block.blockerId = :userId2 AND block.blockedId = :userId1)",
         { userId1, userId2 },
       )
       .getOne();
@@ -436,7 +485,10 @@ export class MessagingService {
   // Private Helper Methods
   // ============================================================================
 
-  private sanitizeConversation(conversation: Conversation, currentUserId: string) {
+  private sanitizeConversation(
+    conversation: Conversation,
+    currentUserId: string,
+  ) {
     // Determine the other participant
     const otherParticipant =
       conversation.participant1Id === currentUserId

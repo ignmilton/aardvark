@@ -13,7 +13,7 @@ import {
   HttpStatus,
   Inject,
   forwardRef,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
@@ -21,9 +21,9 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
-} from '@nestjs/swagger';
-import { ModerationService } from './moderation.service';
-import { StoriesService } from '@/modules/stories/stories.service';
+} from "@nestjs/swagger";
+import { ModerationService } from "./moderation.service";
+import { StoriesService } from "@/modules/stories/stories.service";
 import {
   CreateReportDto,
   ResolveModerationDto,
@@ -39,18 +39,18 @@ import {
   BulkResolveDto,
   BulkAssignDto,
   BulkWarnDto,
-} from './dto/moderation.dto';
-import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '@/modules/auth/guards/roles.guard';
-import { Roles } from '@/modules/auth/decorators/roles.decorator';
-import { UserRole } from '@aardvark/shared';
+} from "./dto/moderation.dto";
+import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { RolesGuard } from "@/modules/auth/guards/roles.guard";
+import { Roles } from "@/modules/auth/decorators/roles.decorator";
+import { UserRole } from "@aardvark/shared";
 
 /**
  * Controller for content moderation, user reports, warnings, and bans.
  * Provides endpoints for both regular users (reporting) and admins (moderation actions).
  */
-@ApiTags('moderation')
-@Controller('moderation')
+@ApiTags("moderation")
+@Controller("moderation")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ModerationController {
@@ -64,11 +64,11 @@ export class ModerationController {
   // Reports - User Actions
   // ============================================================================
 
-  @Post('reports')
-  @ApiOperation({ summary: 'Submit a content report (authenticated users)' })
-  @ApiResponse({ status: 201, description: 'Report submitted successfully' })
-  @ApiResponse({ status: 400, description: 'Already reported this content' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @Post("reports")
+  @ApiOperation({ summary: "Submit a content report (authenticated users)" })
+  @ApiResponse({ status: 201, description: "Report submitted successfully" })
+  @ApiResponse({ status: 400, description: "Already reported this content" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
   async createReport(@Body() dto: CreateReportDto, @Request() req: any) {
     return this.moderationService.createReport(
       req.user.id,
@@ -83,27 +83,32 @@ export class ModerationController {
   // Reports - Admin Actions
   // ============================================================================
 
-  @Get('queue')
+  @Get("queue")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get moderation queue (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'Paginated list of reports' })
-  @ApiResponse({ status: 403, description: 'Forbidden - requires moderator role' })
+  @ApiOperation({ summary: "Get moderation queue (admin/moderator only)" })
+  @ApiResponse({ status: 200, description: "Paginated list of reports" })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - requires moderator role",
+  })
   async getReportQueue(@Query() query: ModerationQueueQuery) {
     return this.moderationService.getReportQueue(query);
   }
 
-  @Patch('reports/:id/assign')
+  @Patch("reports/:id/assign")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Assign report to moderator (admin/moderator only)' })
-  @ApiParam({ name: 'id', description: 'Report ID' })
-  @ApiResponse({ status: 200, description: 'Report assigned successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid request' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Report not found' })
+  @ApiOperation({
+    summary: "Assign report to moderator (admin/moderator only)",
+  })
+  @ApiParam({ name: "id", description: "Report ID" })
+  @ApiResponse({ status: 200, description: "Report assigned successfully" })
+  @ApiResponse({ status: 400, description: "Invalid request" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  @ApiResponse({ status: 404, description: "Report not found" })
   async assignReport(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() dto: AssignReportDto,
     @Request() req: any,
   ) {
@@ -112,17 +117,22 @@ export class ModerationController {
     return this.moderationService.assignReport(id, moderatorId);
   }
 
-  @Patch('reports/:id/resolve')
+  @Patch("reports/:id/resolve")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Resolve a report with action (admin/moderator only)' })
-  @ApiParam({ name: 'id', description: 'Report ID' })
-  @ApiResponse({ status: 200, description: 'Report resolved successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid request or report already resolved' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Report not found' })
+  @ApiOperation({
+    summary: "Resolve a report with action (admin/moderator only)",
+  })
+  @ApiParam({ name: "id", description: "Report ID" })
+  @ApiResponse({ status: 200, description: "Report resolved successfully" })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid request or report already resolved",
+  })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  @ApiResponse({ status: 404, description: "Report not found" })
   async resolveReport(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() dto: ResolveModerationDto,
     @Request() req: any,
   ) {
@@ -138,13 +148,13 @@ export class ModerationController {
   // Warnings
   // ============================================================================
 
-  @Post('warnings')
+  @Post("warnings")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Issue warning to user (admin/moderator only)' })
-  @ApiResponse({ status: 201, description: 'Warning issued successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiOperation({ summary: "Issue warning to user (admin/moderator only)" })
+  @ApiResponse({ status: 201, description: "Warning issued successfully" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  @ApiResponse({ status: 404, description: "User not found" })
   async issueWarning(@Body() dto: IssueWarningDto, @Request() req: any) {
     return this.moderationService.issueWarning(
       dto.userId,
@@ -155,14 +165,14 @@ export class ModerationController {
     );
   }
 
-  @Get('warnings/:userId')
+  @Get("warnings/:userId")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get user warnings (admin/moderator only)' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'List of user warnings' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getUserWarnings(@Param('userId') userId: string) {
+  @ApiOperation({ summary: "Get user warnings (admin/moderator only)" })
+  @ApiParam({ name: "userId", description: "User ID" })
+  @ApiResponse({ status: 200, description: "List of user warnings" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  async getUserWarnings(@Param("userId") userId: string) {
     return this.moderationService.getUserWarnings(userId);
   }
 
@@ -170,14 +180,14 @@ export class ModerationController {
   // Bans
   // ============================================================================
 
-  @Post('bans')
+  @Post("bans")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Issue ban to user (admin/moderator only)' })
-  @ApiResponse({ status: 201, description: 'Ban issued successfully' })
-  @ApiResponse({ status: 400, description: 'User already has active ban' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiOperation({ summary: "Issue ban to user (admin/moderator only)" })
+  @ApiResponse({ status: 201, description: "Ban issued successfully" })
+  @ApiResponse({ status: 400, description: "User already has active ban" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  @ApiResponse({ status: 404, description: "User not found" })
   async issueBan(@Body() dto: IssueBanDto, @Request() req: any) {
     let expiresAt: Date | undefined;
 
@@ -197,39 +207,39 @@ export class ModerationController {
     );
   }
 
-  @Delete('bans/:id')
+  @Delete("bans/:id")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Lift ban (admin/moderator only)' })
-  @ApiParam({ name: 'id', description: 'Ban ID' })
-  @ApiResponse({ status: 200, description: 'Ban lifted successfully' })
-  @ApiResponse({ status: 400, description: 'Ban already inactive' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Ban not found' })
-  async liftBan(@Param('id') id: string, @Request() req: any) {
+  @ApiOperation({ summary: "Lift ban (admin/moderator only)" })
+  @ApiParam({ name: "id", description: "Ban ID" })
+  @ApiResponse({ status: 200, description: "Ban lifted successfully" })
+  @ApiResponse({ status: 400, description: "Ban already inactive" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  @ApiResponse({ status: 404, description: "Ban not found" })
+  async liftBan(@Param("id") id: string, @Request() req: any) {
     return this.moderationService.liftBan(id, req.user.id);
   }
 
-  @Get('bans/:userId')
+  @Get("bans/:userId")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get user bans (admin/moderator only)' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'List of user bans' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getUserBans(@Param('userId') userId: string) {
+  @ApiOperation({ summary: "Get user bans (admin/moderator only)" })
+  @ApiParam({ name: "userId", description: "User ID" })
+  @ApiResponse({ status: 200, description: "List of user bans" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  async getUserBans(@Param("userId") userId: string) {
     return this.moderationService.getUserBans(userId);
   }
 
-  @Get('bans/:userId/status')
+  @Get("bans/:userId/status")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Check if user is banned (admin/moderator only)' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'Ban status' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async checkUserBanStatus(@Param('userId') userId: string) {
+  @ApiOperation({ summary: "Check if user is banned (admin/moderator only)" })
+  @ApiParam({ name: "userId", description: "User ID" })
+  @ApiResponse({ status: 200, description: "Ban status" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  async checkUserBanStatus(@Param("userId") userId: string) {
     return this.moderationService.isUserBanned(userId);
   }
 
@@ -237,22 +247,27 @@ export class ModerationController {
   // Moderation Logs & Stats
   // ============================================================================
 
-  @Get('logs')
+  @Get("logs")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get moderation audit logs (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'Paginated list of moderation logs' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({ summary: "Get moderation audit logs (admin/moderator only)" })
+  @ApiResponse({
+    status: 200,
+    description: "Paginated list of moderation logs",
+  })
+  @ApiResponse({ status: 403, description: "Forbidden" })
   async getModerationLogs(@Query() query: ModerationLogQuery) {
     return this.moderationService.getModerationLogs(query);
   }
 
-  @Get('stats')
+  @Get("stats")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get moderation dashboard statistics (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'Moderation statistics' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({
+    summary: "Get moderation dashboard statistics (admin/moderator only)",
+  })
+  @ApiResponse({ status: 200, description: "Moderation statistics" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
   async getModerationStats() {
     return this.moderationService.getModerationStats();
   }
@@ -261,12 +276,12 @@ export class ModerationController {
   // Content Flags (Auto-flagged content)
   // ============================================================================
 
-  @Get('flags')
+  @Get("flags")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get auto-flagged content (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'List of content flags' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({ summary: "Get auto-flagged content (admin/moderator only)" })
+  @ApiResponse({ status: 200, description: "List of content flags" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
   async getContentFlags(@Query() query: ModerationQueueQuery) {
     return this.moderationService.getContentFlags({
       page: query.page,
@@ -276,16 +291,16 @@ export class ModerationController {
     });
   }
 
-  @Patch('flags/:id/resolve')
+  @Patch("flags/:id/resolve")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Resolve content flag (admin/moderator only)' })
-  @ApiParam({ name: 'id', description: 'Flag ID' })
-  @ApiResponse({ status: 200, description: 'Flag resolved successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Flag not found' })
+  @ApiOperation({ summary: "Resolve content flag (admin/moderator only)" })
+  @ApiParam({ name: "id", description: "Flag ID" })
+  @ApiResponse({ status: 200, description: "Flag resolved successfully" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
+  @ApiResponse({ status: 404, description: "Flag not found" })
   async resolveContentFlag(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() dto: ResolveModerationDto,
     @Request() req: any,
   ) {
@@ -301,13 +316,13 @@ export class ModerationController {
   // Mutes (Feature restrictions)
   // ============================================================================
 
-  @Post('mutes')
+  @Post("mutes")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Issue mute to user (admin/moderator only)' })
-  @ApiResponse({ status: 201, description: 'Mute issued successfully' })
-  @ApiResponse({ status: 400, description: 'User already has active mute' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({ summary: "Issue mute to user (admin/moderator only)" })
+  @ApiResponse({ status: 201, description: "Mute issued successfully" })
+  @ApiResponse({ status: 400, description: "User already has active mute" })
+  @ApiResponse({ status: 403, description: "Forbidden" })
   async issueMute(@Body() dto: IssueMuteDto, @Request() req: any) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + dto.durationDays);
@@ -322,24 +337,24 @@ export class ModerationController {
     );
   }
 
-  @Delete('mutes/:id')
+  @Delete("mutes/:id")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Lift mute (admin/moderator only)' })
-  @ApiParam({ name: 'id', description: 'Mute ID' })
-  @ApiResponse({ status: 200, description: 'Mute lifted successfully' })
-  async liftMute(@Param('id') id: string, @Request() req: any) {
+  @ApiOperation({ summary: "Lift mute (admin/moderator only)" })
+  @ApiParam({ name: "id", description: "Mute ID" })
+  @ApiResponse({ status: 200, description: "Mute lifted successfully" })
+  async liftMute(@Param("id") id: string, @Request() req: any) {
     return this.moderationService.liftMute(id, req.user.id);
   }
 
-  @Get('mutes/:userId')
+  @Get("mutes/:userId")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get user mutes (admin/moderator only)' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'List of user mutes' })
-  async getUserMutes(@Param('userId') userId: string) {
+  @ApiOperation({ summary: "Get user mutes (admin/moderator only)" })
+  @ApiParam({ name: "userId", description: "User ID" })
+  @ApiResponse({ status: 200, description: "List of user mutes" })
+  async getUserMutes(@Param("userId") userId: string) {
     return this.moderationService.getUserMutes(userId);
   }
 
@@ -347,11 +362,11 @@ export class ModerationController {
   // Appeals
   // ============================================================================
 
-  @Post('appeals')
-  @ApiOperation({ summary: 'Submit ban appeal (banned users)' })
-  @ApiResponse({ status: 201, description: 'Appeal submitted successfully' })
-  @ApiResponse({ status: 400, description: 'Already have pending appeal' })
-  @ApiResponse({ status: 404, description: 'Ban not found' })
+  @Post("appeals")
+  @ApiOperation({ summary: "Submit ban appeal (banned users)" })
+  @ApiResponse({ status: 201, description: "Appeal submitted successfully" })
+  @ApiResponse({ status: 400, description: "Already have pending appeal" })
+  @ApiResponse({ status: 404, description: "Ban not found" })
   async createAppeal(@Body() dto: CreateAppealDto, @Request() req: any) {
     return this.moderationService.createAppeal(
       req.user.id,
@@ -361,30 +376,30 @@ export class ModerationController {
     );
   }
 
-  @Get('appeals/me')
-  @ApiOperation({ summary: 'Get my appeals' })
-  @ApiResponse({ status: 200, description: 'List of user appeals' })
+  @Get("appeals/me")
+  @ApiOperation({ summary: "Get my appeals" })
+  @ApiResponse({ status: 200, description: "List of user appeals" })
   async getMyAppeals(@Request() req: any) {
     return this.moderationService.getUserAppeals(req.user.id);
   }
 
-  @Get('appeals/queue')
+  @Get("appeals/queue")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get appeals queue (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'List of pending appeals' })
+  @ApiOperation({ summary: "Get appeals queue (admin/moderator only)" })
+  @ApiResponse({ status: 200, description: "List of pending appeals" })
   async getAppealsQueue(@Query() query: AppealsQueueQuery) {
     return this.moderationService.getAppealsQueue(query);
   }
 
-  @Patch('appeals/:id/review')
+  @Patch("appeals/:id/review")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Review appeal (admin/moderator only)' })
-  @ApiParam({ name: 'id', description: 'Appeal ID' })
-  @ApiResponse({ status: 200, description: 'Appeal reviewed successfully' })
+  @ApiOperation({ summary: "Review appeal (admin/moderator only)" })
+  @ApiParam({ name: "id", description: "Appeal ID" })
+  @ApiResponse({ status: 200, description: "Appeal reviewed successfully" })
   async reviewAppeal(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() dto: ReviewAppealDto,
     @Request() req: any,
   ) {
@@ -400,11 +415,11 @@ export class ModerationController {
   // Bulk Actions
   // ============================================================================
 
-  @Post('bulk/resolve')
+  @Post("bulk/resolve")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Bulk resolve reports (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'Reports resolved' })
+  @ApiOperation({ summary: "Bulk resolve reports (admin/moderator only)" })
+  @ApiResponse({ status: 200, description: "Reports resolved" })
   async bulkResolveReports(@Body() dto: BulkResolveDto, @Request() req: any) {
     return this.moderationService.bulkResolveReports(
       dto.reportIds,
@@ -414,21 +429,21 @@ export class ModerationController {
     );
   }
 
-  @Post('bulk/assign')
+  @Post("bulk/assign")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Bulk assign reports (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'Reports assigned' })
+  @ApiOperation({ summary: "Bulk assign reports (admin/moderator only)" })
+  @ApiResponse({ status: 200, description: "Reports assigned" })
   async bulkAssignReports(@Body() dto: BulkAssignDto, @Request() req: any) {
     const moderatorId = dto.moderatorId || req.user.id;
     return this.moderationService.bulkAssignReports(dto.reportIds, moderatorId);
   }
 
-  @Post('bulk/warn')
+  @Post("bulk/warn")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Bulk issue warnings (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'Warnings issued' })
+  @ApiOperation({ summary: "Bulk issue warnings (admin/moderator only)" })
+  @ApiResponse({ status: 200, description: "Warnings issued" })
   async bulkIssueWarnings(@Body() dto: BulkWarnDto, @Request() req: any) {
     return this.moderationService.bulkIssueWarnings(
       dto.userIds,
@@ -442,22 +457,24 @@ export class ModerationController {
   // Priority Queue
   // ============================================================================
 
-  @Get('queue/prioritized')
+  @Get("queue/prioritized")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get prioritized moderation queue (admin/moderator only)' })
-  @ApiResponse({ status: 200, description: 'Prioritized list of reports' })
+  @ApiOperation({
+    summary: "Get prioritized moderation queue (admin/moderator only)",
+  })
+  @ApiResponse({ status: 200, description: "Prioritized list of reports" })
   async getPrioritizedQueue(@Query() query: ModerationQueueQuery) {
     return this.moderationService.getPrioritizedReportQueue(query);
   }
 
-  @Get('users/:userId/strikes')
+  @Get("users/:userId/strikes")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get user strike count (admin/moderator only)' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'Strike count' })
-  async getUserStrikes(@Param('userId') userId: string) {
+  @ApiOperation({ summary: "Get user strike count (admin/moderator only)" })
+  @ApiParam({ name: "userId", description: "User ID" })
+  @ApiResponse({ status: 200, description: "Strike count" })
+  async getUserStrikes(@Param("userId") userId: string) {
     const count = await this.moderationService.getUserStrikeCount(userId);
     return { userId, strikeCount: count };
   }
@@ -466,73 +483,73 @@ export class ModerationController {
   // Story Moderation (Pre-publication Review)
   // ============================================================================
 
-  @Get('stories/queue')
+  @Get("stories/queue")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get stories pending moderation review' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Stories pending review' })
+  @ApiOperation({ summary: "Get stories pending moderation review" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiResponse({ status: 200, description: "Stories pending review" })
   async getStoryModerationQueue(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
   ) {
     return this.storiesService.findPendingReview(page || 1, limit || 20);
   }
 
-  @Get('stories/:id')
+  @Get("stories/:id")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get story details for moderation' })
-  @ApiParam({ name: 'id', description: 'Story ID' })
-  @ApiResponse({ status: 200, description: 'Story details retrieved' })
-  @ApiResponse({ status: 404, description: 'Story not found' })
-  async getStoryForModeration(@Param('id') id: string) {
+  @ApiOperation({ summary: "Get story details for moderation" })
+  @ApiParam({ name: "id", description: "Story ID" })
+  @ApiResponse({ status: 200, description: "Story details retrieved" })
+  @ApiResponse({ status: 404, description: "Story not found" })
+  async getStoryForModeration(@Param("id") id: string) {
     return this.storiesService.findOne(id);
   }
 
-  @Post('stories/:id/approve')
+  @Post("stories/:id/approve")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Approve a story for publication' })
-  @ApiParam({ name: 'id', description: 'Story ID' })
-  @ApiResponse({ status: 200, description: 'Story approved and published' })
-  @ApiResponse({ status: 403, description: 'Story not pending review' })
-  @ApiResponse({ status: 404, description: 'Story not found' })
+  @ApiOperation({ summary: "Approve a story for publication" })
+  @ApiParam({ name: "id", description: "Story ID" })
+  @ApiResponse({ status: 200, description: "Story approved and published" })
+  @ApiResponse({ status: 403, description: "Story not pending review" })
+  @ApiResponse({ status: 404, description: "Story not found" })
   async approveStory(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Request() req: any,
     @Body() body: { notes?: string },
   ) {
     return this.storiesService.approveStory(id, req.user.id, body.notes);
   }
 
-  @Post('stories/:id/reject')
+  @Post("stories/:id/reject")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Reject a story' })
-  @ApiParam({ name: 'id', description: 'Story ID' })
-  @ApiResponse({ status: 200, description: 'Story rejected' })
-  @ApiResponse({ status: 403, description: 'Story not pending review' })
-  @ApiResponse({ status: 404, description: 'Story not found' })
+  @ApiOperation({ summary: "Reject a story" })
+  @ApiParam({ name: "id", description: "Story ID" })
+  @ApiResponse({ status: 200, description: "Story rejected" })
+  @ApiResponse({ status: 403, description: "Story not pending review" })
+  @ApiResponse({ status: 404, description: "Story not found" })
   async rejectStory(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Request() req: any,
     @Body() body: { reason: string },
   ) {
     return this.storiesService.rejectStory(id, req.user.id, body.reason);
   }
 
-  @Post('stories/:id/request-changes')
+  @Post("stories/:id/request-changes")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Request changes on a story' })
-  @ApiParam({ name: 'id', description: 'Story ID' })
-  @ApiResponse({ status: 200, description: 'Changes requested' })
-  @ApiResponse({ status: 403, description: 'Story not pending review' })
-  @ApiResponse({ status: 404, description: 'Story not found' })
+  @ApiOperation({ summary: "Request changes on a story" })
+  @ApiParam({ name: "id", description: "Story ID" })
+  @ApiResponse({ status: 200, description: "Changes requested" })
+  @ApiResponse({ status: 403, description: "Story not pending review" })
+  @ApiResponse({ status: 404, description: "Story not found" })
   async requestStoryChanges(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Request() req: any,
     @Body() body: { notes: string },
   ) {

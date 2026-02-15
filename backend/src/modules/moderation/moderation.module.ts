@@ -1,9 +1,9 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
-import { ModerationController } from './moderation.controller';
-import { ModerationService } from './moderation.service';
-import { ContentFilterService } from './content-filter.service';
+import { Module, forwardRef } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { ConfigModule } from "@nestjs/config";
+import { ModerationController } from "./moderation.controller";
+import { ModerationService } from "./moderation.service";
+import { ContentFilterService } from "./content-filter.service";
 import {
   Report,
   ModerationLog,
@@ -13,8 +13,8 @@ import {
   User,
   BanAppeal,
   UserMute,
-} from '@/database/entities';
-import { StoriesModule } from '@/modules/stories/stories.module';
+} from "@/database/entities";
+import { StoriesModule } from "@/modules/stories/stories.module";
 
 /**
  * Moderation module providing content moderation, user reports,

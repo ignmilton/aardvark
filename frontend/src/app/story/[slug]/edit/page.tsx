@@ -184,7 +184,7 @@ export default function StoryEditorPage() {
 
     setSegments((prev) => [...prev, created]);
     return created;
-  }, [story, segments.length]);
+  }, [story]);
 
   const handleSegmentUpdate = useCallback(async (id: string, data: Partial<Segment>): Promise<void> => {
     const token = getToken();

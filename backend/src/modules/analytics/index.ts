@@ -6,16 +6,16 @@
  */
 
 // Module
-export { AnalyticsModule } from './analytics.module';
+export { AnalyticsModule } from "./analytics.module";
 
 // Service
-export { AnalyticsService } from './analytics.service';
+export { AnalyticsService } from "./analytics.service";
 
 // Controller
-export { AnalyticsController } from './analytics.controller';
+export { AnalyticsController } from "./analytics.controller";
 
 // Types
-export * from './analytics.types';
+export * from "./analytics.types";
 
 // DTOs
-export * from './dto';
+export * from "./dto";

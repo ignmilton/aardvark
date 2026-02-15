@@ -4,22 +4,24 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
   SubscribeMessage,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+} from "@nestjs/websockets";
+import { Server, Socket } from "socket.io";
+import { Logger } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 
 /**
  * WebSocket gateway for real-time notifications
  */
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
     credentials: true,
   },
-  namespace: '/notifications',
+  namespace: "/notifications",
 })
-export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -36,7 +38,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       // Extract token from handshake auth or query
       const token =
         client.handshake.auth?.token ||
-        client.handshake.headers?.authorization?.replace('Bearer ', '') ||
+        client.handshake.headers?.authorization?.replace("Bearer ", "") ||
         client.handshake.query?.token;
 
       if (!token) {
@@ -72,9 +74,11 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       client.join(`user:${userId}`);
 
       // Send connection confirmation
-      client.emit('connected', { userId, socketId: client.id });
+      client.emit("connected", { userId, socketId: client.id });
     } catch (error) {
-      this.logger.error(`Connection error for client ${client.id}: ${error.message}`);
+      this.logger.error(
+        `Connection error for client ${client.id}: ${error.message}`,
+      );
       client.disconnect();
     }
   }
@@ -111,7 +115,9 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     const userSockets = this.userConnections.get(userId);
 
     if (!userSockets || userSockets.size === 0) {
-      this.logger.debug(`User ${userId} has no active connections, skipping real-time notification`);
+      this.logger.debug(
+        `User ${userId} has no active connections, skipping real-time notification`,
+      );
       return;
     }
 
@@ -126,9 +132,9 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   /**
    * Handle ping/pong for connection health check
    */
-  @SubscribeMessage('ping')
-  handlePing(client: Socket): string {
-    return 'pong';
+  @SubscribeMessage("ping")
+  handlePing(_client: Socket): string {
+    return "pong";
   }
 
   /**

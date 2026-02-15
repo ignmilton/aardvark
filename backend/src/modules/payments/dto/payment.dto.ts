@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsUUID,
-  IsOptional,
-  IsUrl,
-  IsEnum,
-} from 'class-validator';
+import { IsString, IsUUID, IsOptional, IsUrl, IsEnum } from "class-validator";
 
 /**
  * DTO for creating a checkout session for credit purchase
@@ -50,8 +44,8 @@ export class CreateConnectAccountDto {
   @IsString()
   country: string;
 
-  @IsEnum(['individual', 'company'])
-  businessType: 'individual' | 'company';
+  @IsEnum(["individual", "company"])
+  businessType: "individual" | "company";
 
   @IsUrl()
   returnUrl: string;

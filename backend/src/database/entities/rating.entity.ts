@@ -8,45 +8,45 @@ import {
   Index,
   JoinColumn,
   Unique,
-} from 'typeorm';
-import { User } from './user.entity';
-import { Story } from './story.entity';
+} from "typeorm";
+import { User } from "./user.entity";
+import { Story } from "./story.entity";
 
 /**
  * Rating and review entity for story feedback.
  */
-@Entity('ratings')
-@Unique(['userId', 'storyId'])
+@Entity("ratings")
+@Unique(["userId", "storyId"])
 export class Rating {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   userId: string;
 
-  @ManyToOne(() => User, (user) => user.ratings, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, (user) => user.ratings, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @Index()
-  @Column('uuid')
+  @Column("uuid")
   storyId: string;
 
-  @ManyToOne(() => Story, (story) => story.ratings, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'storyId' })
+  @ManyToOne(() => Story, (story) => story.ratings, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "storyId" })
   story: Story;
 
-  @Column({ type: 'decimal', precision: 2, scale: 1 })
+  @Column({ type: "decimal", precision: 2, scale: 1 })
   rating: number;
 
-  @Column({ type: 'varchar', length: 200, nullable: true })
+  @Column({ type: "varchar", length: 200, nullable: true })
   reviewTitle: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   reviewText: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   reviewHtml: string | null;
 
   @Column({ default: 0 })
@@ -61,9 +61,9 @@ export class Rating {
   @Column({ default: false })
   isFeatured: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt: Date;
 }

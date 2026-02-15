@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
-import { AdsController } from './ads.controller';
-import { AdsService } from './ads.service';
-import { AdReward, User, Transaction } from '@/database/entities';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { ConfigModule } from "@nestjs/config";
+import { AdsController } from "./ads.controller";
+import { AdsService } from "./ads.service";
+import { AdReward, User, Transaction } from "@/database/entities";
 
 /**
  * Ads module for managing rewarded ads and credit rewards.

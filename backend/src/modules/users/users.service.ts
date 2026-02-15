@@ -4,9 +4,9 @@ import {
   ConflictException,
   ForbiddenException,
   Logger,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, Like, ILike } from 'typeorm';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, DataSource } from "typeorm";
 import {
   User,
   Follow,
@@ -17,9 +17,9 @@ import {
   Transaction,
   Notification,
   Message,
-} from '@/database/entities';
-import { UpdateUserDto, UserQueryDto } from './dto';
-import { UserRole, UserProfile, UserStats, UserBadge } from '@aardvark/shared';
+} from "@/database/entities";
+import { UpdateUserDto, UserQueryDto } from "./dto";
+import { UserRole, UserProfile, UserStats, UserBadge } from "@aardvark/shared";
 
 @Injectable()
 export class UsersService {
@@ -41,7 +41,7 @@ export class UsersService {
   async findById(id: string): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
     return user;
   }
@@ -52,7 +52,7 @@ export class UsersService {
   async findByUsername(username: string): Promise<User> {
     const user = await this.userRepository.findOne({ where: { username } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
     return user;
   }
@@ -67,14 +67,17 @@ export class UsersService {
   /**
    * Get public user profile
    */
-  async getProfile(username: string, currentUserId?: string): Promise<UserProfile & { isFollowing?: boolean }> {
+  async getProfile(
+    username: string,
+    currentUserId?: string,
+  ): Promise<UserProfile & { isFollowing?: boolean }> {
     const user = await this.userRepository.findOne({
       where: { username },
-      relations: ['stories', 'ratings'],
+      relations: ["stories", "ratings"],
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     const stats = await this.getUserStats(user.id);
@@ -111,11 +114,11 @@ export class UsersService {
   async getUserStats(userId: string): Promise<UserStats> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['stories', 'comments', 'segments'],
+      relations: ["stories", "comments", "segments"],
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Get follower counts
@@ -125,12 +128,22 @@ export class UsersService {
     ]);
 
     // Calculate total reads and ratings from stories
-    const publishedStories = user.stories?.filter((s) => s.publishedAt != null) || [];
-    const totalReads = publishedStories.reduce((sum, s) => sum + s.viewCount, 0);
-    const totalRatings = publishedStories.reduce((sum, s) => sum + s.ratingsCount, 0);
+    const publishedStories =
+      user.stories?.filter((s) => s.publishedAt != null) || [];
+    const totalReads = publishedStories.reduce(
+      (sum, s) => sum + s.viewCount,
+      0,
+    );
+    const totalRatings = publishedStories.reduce(
+      (sum, s) => sum + s.ratingsCount,
+      0,
+    );
     const averageRating =
       totalRatings > 0
-        ? publishedStories.reduce((sum, s) => sum + s.averageRating * s.ratingsCount, 0) / totalRatings
+        ? publishedStories.reduce(
+            (sum, s) => sum + s.averageRating * s.ratingsCount,
+            0,
+          ) / totalRatings
         : 0;
 
     // Calculate stories read from reader progress
@@ -147,7 +160,8 @@ export class UsersService {
       followersCount,
       followingCount,
       commentsCount: user.comments?.length || 0,
-      contributedBranches: user.segments?.filter((s) => s.storyId !== s.author?.id).length || 0,
+      contributedBranches:
+        user.segments?.filter((s) => s.storyId !== s.author?.id).length || 0,
     };
   }
 
@@ -159,40 +173,124 @@ export class UsersService {
     const earnedAt = user.createdAt;
 
     if (stats.storiesPublished >= 1) {
-      badges.push({ id: 'first-story', name: 'First Story', description: 'Published your first story', iconUrl: '/badges/first-story.svg', earnedAt, rarity: 'common' });
+      badges.push({
+        id: "first-story",
+        name: "First Story",
+        description: "Published your first story",
+        iconUrl: "/badges/first-story.svg",
+        earnedAt,
+        rarity: "common",
+      });
     }
     if (stats.storiesPublished >= 5) {
-      badges.push({ id: 'storyteller', name: 'Storyteller', description: 'Published 5 stories', iconUrl: '/badges/storyteller.svg', earnedAt, rarity: 'uncommon' });
+      badges.push({
+        id: "storyteller",
+        name: "Storyteller",
+        description: "Published 5 stories",
+        iconUrl: "/badges/storyteller.svg",
+        earnedAt,
+        rarity: "uncommon",
+      });
     }
     if (stats.storiesPublished >= 20) {
-      badges.push({ id: 'prolific-author', name: 'Prolific Author', description: 'Published 20 stories', iconUrl: '/badges/prolific-author.svg', earnedAt, rarity: 'rare' });
+      badges.push({
+        id: "prolific-author",
+        name: "Prolific Author",
+        description: "Published 20 stories",
+        iconUrl: "/badges/prolific-author.svg",
+        earnedAt,
+        rarity: "rare",
+      });
     }
     if (stats.storiesRead >= 10) {
-      badges.push({ id: 'avid-reader', name: 'Avid Reader', description: 'Completed 10 stories', iconUrl: '/badges/avid-reader.svg', earnedAt, rarity: 'uncommon' });
+      badges.push({
+        id: "avid-reader",
+        name: "Avid Reader",
+        description: "Completed 10 stories",
+        iconUrl: "/badges/avid-reader.svg",
+        earnedAt,
+        rarity: "uncommon",
+      });
     }
     if (stats.storiesRead >= 50) {
-      badges.push({ id: 'bookworm', name: 'Bookworm', description: 'Completed 50 stories', iconUrl: '/badges/bookworm.svg', earnedAt, rarity: 'rare' });
+      badges.push({
+        id: "bookworm",
+        name: "Bookworm",
+        description: "Completed 50 stories",
+        iconUrl: "/badges/bookworm.svg",
+        earnedAt,
+        rarity: "rare",
+      });
     }
     if (stats.totalReads >= 100) {
-      badges.push({ id: 'popular', name: 'Popular', description: 'Stories read 100 times total', iconUrl: '/badges/popular.svg', earnedAt, rarity: 'uncommon' });
+      badges.push({
+        id: "popular",
+        name: "Popular",
+        description: "Stories read 100 times total",
+        iconUrl: "/badges/popular.svg",
+        earnedAt,
+        rarity: "uncommon",
+      });
     }
     if (stats.totalReads >= 1000) {
-      badges.push({ id: 'famous', name: 'Famous', description: 'Stories read 1,000 times total', iconUrl: '/badges/famous.svg', earnedAt, rarity: 'epic' });
+      badges.push({
+        id: "famous",
+        name: "Famous",
+        description: "Stories read 1,000 times total",
+        iconUrl: "/badges/famous.svg",
+        earnedAt,
+        rarity: "epic",
+      });
     }
     if (stats.followersCount >= 10) {
-      badges.push({ id: 'influencer', name: 'Influencer', description: 'Gained 10 followers', iconUrl: '/badges/influencer.svg', earnedAt, rarity: 'uncommon' });
+      badges.push({
+        id: "influencer",
+        name: "Influencer",
+        description: "Gained 10 followers",
+        iconUrl: "/badges/influencer.svg",
+        earnedAt,
+        rarity: "uncommon",
+      });
     }
     if (stats.followersCount >= 100) {
-      badges.push({ id: 'celebrity', name: 'Celebrity', description: 'Gained 100 followers', iconUrl: '/badges/celebrity.svg', earnedAt, rarity: 'epic' });
+      badges.push({
+        id: "celebrity",
+        name: "Celebrity",
+        description: "Gained 100 followers",
+        iconUrl: "/badges/celebrity.svg",
+        earnedAt,
+        rarity: "epic",
+      });
     }
     if (stats.contributedBranches >= 5) {
-      badges.push({ id: 'collaborator', name: 'Collaborator', description: 'Contributed 5 branches to other stories', iconUrl: '/badges/collaborator.svg', earnedAt, rarity: 'uncommon' });
+      badges.push({
+        id: "collaborator",
+        name: "Collaborator",
+        description: "Contributed 5 branches to other stories",
+        iconUrl: "/badges/collaborator.svg",
+        earnedAt,
+        rarity: "uncommon",
+      });
     }
     if (stats.averageRating >= 4.5 && stats.totalRatings >= 10) {
-      badges.push({ id: 'acclaimed', name: 'Acclaimed', description: 'Average rating of 4.5+ with 10+ ratings', iconUrl: '/badges/acclaimed.svg', earnedAt, rarity: 'rare' });
+      badges.push({
+        id: "acclaimed",
+        name: "Acclaimed",
+        description: "Average rating of 4.5+ with 10+ ratings",
+        iconUrl: "/badges/acclaimed.svg",
+        earnedAt,
+        rarity: "rare",
+      });
     }
     if (user.isPremium) {
-      badges.push({ id: 'premium', name: 'Premium Member', description: 'Active premium subscriber', iconUrl: '/badges/premium.svg', earnedAt, rarity: 'rare' });
+      badges.push({
+        id: "premium",
+        name: "Premium Member",
+        description: "Active premium subscriber",
+        iconUrl: "/badges/premium.svg",
+        earnedAt,
+        rarity: "rare",
+      });
     }
 
     return badges;
@@ -230,50 +328,57 @@ export class UsersService {
    * Search users with pagination
    */
   async searchUsers(query: UserQueryDto) {
-    const { search, role, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const {
+      search,
+      role,
+      page = 1,
+      limit = 20,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = query;
 
-    const queryBuilder = this.userRepository.createQueryBuilder('user');
+    const queryBuilder = this.userRepository.createQueryBuilder("user");
 
     // Search filter
     if (search) {
       queryBuilder.andWhere(
-        '(user.username ILIKE :search OR user.displayName ILIKE :search)',
+        "(user.username ILIKE :search OR user.displayName ILIKE :search)",
         { search: `%${search}%` },
       );
     }
 
     // Role filter
     if (role) {
-      queryBuilder.andWhere('user.role = :role', { role });
+      queryBuilder.andWhere("user.role = :role", { role });
     }
 
     // Only active users
-    queryBuilder.andWhere('user.accountStatus = :status', { status: 'active' });
+    queryBuilder.andWhere("user.accountStatus = :status", { status: "active" });
 
     // SECURITY: Whitelist allowed sort columns to prevent SQL injection
     const allowedSortColumns: Record<string, string> = {
-      createdAt: 'user.createdAt',
-      updatedAt: 'user.updatedAt',
-      username: 'user.username',
-      displayName: 'user.displayName',
+      createdAt: "user.createdAt",
+      updatedAt: "user.updatedAt",
+      username: "user.username",
+      displayName: "user.displayName",
     };
-    const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const sortDirection = sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC";
 
     // Sorting
-    if (sortBy === 'followersCount') {
+    if (sortBy === "followersCount") {
       // Subquery for follower count
       queryBuilder
         .addSelect(
           (subQuery) =>
             subQuery
-              .select('COUNT(f.id)')
-              .from(Follow, 'f')
-              .where('f.followingId = user.id'),
-          'followerCount',
+              .select("COUNT(f.id)")
+              .from(Follow, "f")
+              .where("f.followingId = user.id"),
+          "followerCount",
         )
-        .orderBy('followerCount', sortDirection);
+        .orderBy("followerCount", sortDirection);
     } else {
-      const sortColumn = allowedSortColumns[sortBy] || 'user.createdAt';
+      const sortColumn = allowedSortColumns[sortBy] || "user.createdAt";
       queryBuilder.orderBy(sortColumn, sortDirection);
     }
 
@@ -299,13 +404,15 @@ export class UsersService {
    */
   async followUser(followerId: string, followingId: string): Promise<void> {
     if (followerId === followingId) {
-      throw new ForbiddenException('You cannot follow yourself');
+      throw new ForbiddenException("You cannot follow yourself");
     }
 
     // Check if target user exists
-    const targetUser = await this.userRepository.findOne({ where: { id: followingId } });
+    const targetUser = await this.userRepository.findOne({
+      where: { id: followingId },
+    });
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Check if already following
@@ -314,7 +421,7 @@ export class UsersService {
     });
 
     if (existingFollow) {
-      throw new ConflictException('Already following this user');
+      throw new ConflictException("Already following this user");
     }
 
     const follow = this.followRepository.create({ followerId, followingId });
@@ -330,7 +437,7 @@ export class UsersService {
     });
 
     if (!follow) {
-      throw new NotFoundException('Not following this user');
+      throw new NotFoundException("Not following this user");
     }
 
     await this.followRepository.remove(follow);
@@ -342,10 +449,10 @@ export class UsersService {
   async getFollowers(userId: string, page = 1, limit = 20) {
     const [follows, total] = await this.followRepository.findAndCount({
       where: { followingId: userId },
-      relations: ['follower'],
+      relations: ["follower"],
       skip: (page - 1) * limit,
       take: limit,
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
 
     return {
@@ -365,10 +472,10 @@ export class UsersService {
   async getFollowing(userId: string, page = 1, limit = 20) {
     const [follows, total] = await this.followRepository.findAndCount({
       where: { followerId: userId },
-      relations: ['following'],
+      relations: ["following"],
       skip: (page - 1) * limit,
       take: limit,
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
 
     return {
@@ -399,29 +506,31 @@ export class UsersService {
     userId: string,
     page = 1,
     limit = 10,
-    sortBy: 'createdAt' | 'updatedAt' | 'viewCount' = 'updatedAt',
-    status?: 'draft' | 'published',
+    sortBy: "createdAt" | "updatedAt" | "viewCount" = "updatedAt",
+    status?: "draft" | "published",
   ) {
     const storyRepo = this.dataSource.getRepository(Story);
 
-    const queryBuilder = storyRepo.createQueryBuilder('story')
-      .where('story.authorId = :userId', { userId });
+    const queryBuilder = storyRepo
+      .createQueryBuilder("story")
+      .where("story.authorId = :userId", { userId });
 
     // Filter by status
-    if (status === 'published') {
-      queryBuilder.andWhere('story.publishedAt IS NOT NULL');
-    } else if (status === 'draft') {
-      queryBuilder.andWhere('story.publishedAt IS NULL');
+    if (status === "published") {
+      queryBuilder.andWhere("story.publishedAt IS NOT NULL");
+    } else if (status === "draft") {
+      queryBuilder.andWhere("story.publishedAt IS NULL");
     }
 
     // SECURITY: Whitelist allowed sort columns to prevent SQL injection
     const allowedStorySortColumns: Record<string, string> = {
-      createdAt: 'story.createdAt',
-      updatedAt: 'story.updatedAt',
-      viewCount: 'story.viewCount',
+      createdAt: "story.createdAt",
+      updatedAt: "story.updatedAt",
+      viewCount: "story.viewCount",
     };
-    const storySortColumn = allowedStorySortColumns[sortBy] || 'story.updatedAt';
-    queryBuilder.orderBy(storySortColumn, 'DESC');
+    const storySortColumn =
+      allowedStorySortColumns[sortBy] || "story.updatedAt";
+    queryBuilder.orderBy(storySortColumn, "DESC");
 
     // Pagination
     const skip = (page - 1) * limit;
@@ -434,7 +543,7 @@ export class UsersService {
         id: s.id,
         title: s.title,
         slug: s.id, // Use ID as slug for URL routing
-        status: s.publishedAt ? 'published' : 'draft',
+        status: s.publishedAt ? "published" : "draft",
         viewCount: s.viewCount,
         ratingsCount: s.ratingsCount,
         averageRating: s.averageRating,
@@ -456,8 +565,12 @@ export class UsersService {
   async upgradeToAuthor(userId: string): Promise<User> {
     const user = await this.findById(userId);
 
-    if (user.role === UserRole.AUTHOR || user.role === UserRole.MODERATOR || user.role === UserRole.ADMIN) {
-      throw new ConflictException('User already has author privileges');
+    if (
+      user.role === UserRole.AUTHOR ||
+      user.role === UserRole.MODERATOR ||
+      user.role === UserRole.ADMIN
+    ) {
+      throw new ConflictException("User already has author privileges");
     }
 
     user.role = UserRole.AUTHOR;
@@ -494,45 +607,108 @@ export class UsersService {
       commentRepo.find({ where: { userId } }),
       ratingRepo.find({ where: { userId } }),
       this.progressRepository.find({ where: { userId } }),
-      transactionRepo.find({ where: { userId }, order: { createdAt: 'DESC' } }),
-      notificationRepo.find({ where: { userId }, order: { createdAt: 'DESC' }, take: 1000 }),
-      messageRepo.find({ where: { senderId: userId }, order: { createdAt: 'DESC' } }),
-      messageRepo.find({ where: { recipientId: userId }, order: { createdAt: 'DESC' } }),
-      this.followRepository.find({ where: { followingId: userId }, select: ['followerId', 'createdAt'] }),
-      this.followRepository.find({ where: { followerId: userId }, select: ['followingId', 'createdAt'] }),
+      transactionRepo.find({ where: { userId }, order: { createdAt: "DESC" } }),
+      notificationRepo.find({
+        where: { userId },
+        order: { createdAt: "DESC" },
+        take: 1000,
+      }),
+      messageRepo.find({
+        where: { senderId: userId },
+        order: { createdAt: "DESC" },
+      }),
+      messageRepo.find({
+        where: { recipientId: userId },
+        order: { createdAt: "DESC" },
+      }),
+      this.followRepository.find({
+        where: { followingId: userId },
+        select: ["followerId", "createdAt"],
+      }),
+      this.followRepository.find({
+        where: { followerId: userId },
+        select: ["followingId", "createdAt"],
+      }),
     ]);
 
     return {
       exportDate: new Date().toISOString(),
       profile: this.sanitizeUser(user),
-      stories: stories.map(({ id, title, description, status, createdAt, updatedAt }) => ({
-        id, title, description, status, createdAt, updatedAt,
-      })),
+      stories: stories.map(
+        ({ id, title, description, status, createdAt, updatedAt }) => ({
+          id,
+          title,
+          description,
+          status,
+          createdAt,
+          updatedAt,
+        }),
+      ),
       comments: comments.map(({ id, storyId, content, createdAt }) => ({
-        id, storyId, content, createdAt,
+        id,
+        storyId,
+        content,
+        createdAt,
       })),
-      ratings: ratings.map(({ id, storyId, rating, reviewText, createdAt }) => ({
-        id, storyId, rating, reviewText, createdAt,
-      })),
-      readingProgress: readingProgress.map(({ storyId, currentSegmentId, lastReadAt }) => ({
-        storyId, currentSegmentId, lastReadAt,
-      })),
-      transactions: transactions.map(({ id, type, amount, description, createdAt }) => ({
-        id, type, amount, description, createdAt,
-      })),
-      notifications: notifications.map(({ id, type, title, message, isRead, createdAt }) => ({
-        id, type, title, message, isRead, createdAt,
-      })),
+      ratings: ratings.map(
+        ({ id, storyId, rating, reviewText, createdAt }) => ({
+          id,
+          storyId,
+          rating,
+          reviewText,
+          createdAt,
+        }),
+      ),
+      readingProgress: readingProgress.map(
+        ({ storyId, currentSegmentId, lastReadAt }) => ({
+          storyId,
+          currentSegmentId,
+          lastReadAt,
+        }),
+      ),
+      transactions: transactions.map(
+        ({ id, type, amount, description, createdAt }) => ({
+          id,
+          type,
+          amount,
+          description,
+          createdAt,
+        }),
+      ),
+      notifications: notifications.map(
+        ({ id, type, title, message, isRead, createdAt }) => ({
+          id,
+          type,
+          title,
+          message,
+          isRead,
+          createdAt,
+        }),
+      ),
       messages: {
         sent: sentMessages.map(({ id, recipientId, content, createdAt }) => ({
-          id, recipientId, content, createdAt,
+          id,
+          recipientId,
+          content,
+          createdAt,
         })),
-        received: receivedMessages.map(({ id, senderId, content, createdAt }) => ({
-          id, senderId, content, createdAt,
-        })),
+        received: receivedMessages.map(
+          ({ id, senderId, content, createdAt }) => ({
+            id,
+            senderId,
+            content,
+            createdAt,
+          }),
+        ),
       },
-      followers: followers.map(({ followerId, createdAt }) => ({ followerId, createdAt })),
-      following: following.map(({ followingId, createdAt }) => ({ followingId, createdAt })),
+      followers: followers.map(({ followerId, createdAt }) => ({
+        followerId,
+        createdAt,
+      })),
+      following: following.map(({ followingId, createdAt }) => ({
+        followingId,
+        createdAt,
+      })),
     };
   }
 
@@ -568,7 +744,7 @@ export class UsersService {
       const storyRepo = manager.getRepository(Story);
       await storyRepo.update(
         { authorId: userId },
-        { authorId: null as any, status: 'hidden' as any },
+        { authorId: null as any, status: "hidden" as any },
       );
 
       // Delete the user account
@@ -582,7 +758,13 @@ export class UsersService {
    * Remove sensitive fields from user object
    */
   private sanitizeUser(user: User): Partial<User> {
-    const { passwordHash, emailVerificationToken, passwordResetToken, twoFactorSecret, ...sanitized } = user as any;
+    const {
+      passwordHash: _passwordHash,
+      emailVerificationToken: _emailVerificationToken,
+      passwordResetToken: _passwordResetToken,
+      twoFactorSecret: _twoFactorSecret,
+      ...sanitized
+    } = user as any;
     return sanitized;
   }
 }
