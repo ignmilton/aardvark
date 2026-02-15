@@ -454,7 +454,7 @@ describe("EarningsService", () => {
     });
 
     it("should update account status from Stripe", async () => {
-      accountRepo.findOne.mockResolvedValue(mockPayoutAccount as any);
+      accountRepo.findOne.mockResolvedValue({ ...mockPayoutAccount } as any);
       paymentsService.getConnectAccount.mockResolvedValue({
         charges_enabled: true,
         payouts_enabled: true,
@@ -475,7 +475,7 @@ describe("EarningsService", () => {
     });
 
     it("should set restricted status when requirements are due", async () => {
-      accountRepo.findOne.mockResolvedValue(mockPayoutAccount as any);
+      accountRepo.findOne.mockResolvedValue({ ...mockPayoutAccount } as any);
       paymentsService.getConnectAccount.mockResolvedValue({
         charges_enabled: false,
         payouts_enabled: false,
