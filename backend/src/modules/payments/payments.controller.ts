@@ -274,6 +274,9 @@ export class PaymentsController {
       throw new NotFoundException("No active subscription found");
     }
 
+    if (!userSub.stripeSubscriptionId) {
+      throw new NotFoundException("No Stripe subscription found. Mobile subscriptions must be canceled through their respective app store.");
+    }
     const subscription = await this.paymentsService.cancelSubscription(
       userSub.stripeSubscriptionId,
       dto.cancelImmediately,
@@ -312,6 +315,9 @@ export class PaymentsController {
       throw new NotFoundException("No cancelable subscription found");
     }
 
+    if (!userSub.stripeSubscriptionId) {
+      throw new NotFoundException("No Stripe subscription found. Mobile subscriptions must be managed through their respective app store.");
+    }
     const subscription = await this.paymentsService.resumeSubscription(
       userSub.stripeSubscriptionId,
     );

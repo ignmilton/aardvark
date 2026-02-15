@@ -280,17 +280,18 @@ export class Story {
 
 // Enums
 export enum CollaborationMode {
-  CLOSED = 'closed',           // Only author
-  INVITE_ONLY = 'invite_only', // Author invites collaborators
-  MODERATED = 'moderated',     // Anyone can submit, requires approval
-  OPEN = 'open'                // Wiki-style, anyone can edit
+  PRIVATE = 'private',         // Only the original author can write branches
+  MODERATED = 'moderated',     // Other users can submit branches for author approval
+  OPEN = 'open'                // Community can freely add branches
 }
 
 export enum StoryStatus {
   DRAFT = 'draft',
   PENDING_REVIEW = 'pending_review',
   PUBLISHED = 'published',
-  ARCHIVED = 'archived'
+  HIDDEN = 'hidden',
+  REMOVED = 'removed',
+  COMPLETED = 'completed'
 }
 
 export enum ModerationStatus {
@@ -778,7 +779,7 @@ export enum PayoutStatus {
 }
 ```
 
-#### 3.2.9 Segment Entity (Simplified - No State Variables)
+#### 3.2.9 Segment Entity
 ```typescript
 @Entity('story_segments')
 export class StorySegment {
@@ -788,10 +789,10 @@ export class StorySegment {
   @ManyToOne(() => Story, story => story.segments, { onDelete: 'CASCADE' })
   story: Story;
 
-  @Column()
+  @Column('uuid')
   storyId: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 200, nullable: true })
   title: string;
 
   @Column({ type: 'text' })
@@ -801,11 +802,11 @@ export class StorySegment {
   contentMarkdown: string;
 
   // Visual editor positioning
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: 'jsonb', default: { x: 0, y: 0 } })
   position: { x: number; y: number };
 
   // Segment relationships
-  @Column({ type: 'simple-array', nullable: true })
+  @Column('uuid', { array: true, default: [] })
   parentSegmentIds: string[];
 
   @Column({ default: false })
@@ -814,42 +815,31 @@ export class StorySegment {
   @Column({ default: false })
   isEnding: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   endingType: string; // 'good', 'bad', 'neutral', 'secret'
 
-  // Collaboration (for moderated mode)
-  @Column({
-    type: 'enum',
-    enum: ApprovalStatus,
-    default: ApprovalStatus.APPROVED
-  })
-  approvalStatus: ApprovalStatus;
+  // Analytics
+  @Column({ default: 0 })
+  readCount: number;
+
+  // Collaboration (for moderated/open stories)
+  @Column('uuid', { nullable: true })
+  submittedByUserId: string | null;
+
+  @Column('uuid', { nullable: true })
+  approvedByUserId: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  approvalStatus: 'pending' | 'approved' | 'rejected' | null;
 
   @Column({ type: 'text', nullable: true })
   rejectionReason: string;
-
-  // Contributor (if different from story author)
-  @ManyToOne(() => User, { nullable: true })
-  contributor: User;
-
-  @Column({ type: 'uuid', nullable: true })
-  contributorId: string;
-
-  // Analytics
-  @Column({ type: 'int', default: 0 })
-  viewCount: number;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-}
-
-export enum ApprovalStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected'
 }
 ```
 
@@ -869,19 +859,30 @@ export class Choice {
   @Column()
   choiceText: string;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'uuid' })
   nextSegmentId: string;
 
-  @ManyToOne(() => StorySegment, { nullable: true })
+  @ManyToOne(() => StorySegment, { onDelete: 'CASCADE' })
   nextSegment: StorySegment;
 
   // Display order
-  @Column({ type: 'int', default: 0 })
+  @Column({ default: 1 })
   order: number;
 
+  // Condition for showing this choice based on reader's state variables
+  @Column({ type: 'jsonb', nullable: true })
+  conditionJson: Record<string, unknown> | null;
+
+  // State effects applied when this choice is made
+  @Column({ type: 'jsonb', nullable: true })
+  stateEffects: Record<string, unknown> | null;
+
   // Analytics
-  @Column({ type: 'int', default: 0 })
+  @Column({ default: 0 })
   timesChosen: number;
+
+  @Column({ default: false })
+  isHidden: boolean;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -891,59 +892,77 @@ export class Choice {
 }
 ```
 
-#### 3.2.11 Reader Progress (Simplified)
+#### 3.2.11 Reader Progress
 ```typescript
 @Entity('reader_progress')
+@Unique(['userId', 'storyId'])
 export class ReaderProgress {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, { nullable: true })
-  user: User;
-
-  @Column({ type: 'uuid', nullable: true })
+  @Column('uuid')
   userId: string;
 
-  @ManyToOne(() => Story)
-  story: Story;
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  user: User;
 
-  @Column()
+  @Column('uuid')
   storyId: string;
 
+  @ManyToOne(() => Story, { onDelete: 'CASCADE' })
+  story: Story;
+
   // Current position
-  @Column({ type: 'uuid' })
+  @Column('uuid')
   currentSegmentId: string;
 
-  // History
-  @Column({ type: 'simple-array', nullable: true })
+  // All segments visited
+  @Column('uuid', { array: true, default: [] })
   visitedSegmentIds: string[];
 
-  @Column({ type: 'json', nullable: true })
+  // Choice history
+  @Column({ type: 'jsonb', default: [] })
   choiceHistory: { segmentId: string; choiceId: string; timestamp: Date }[];
 
-  // Bookmarks
-  @Column({ type: 'simple-array', nullable: true })
-  bookmarks: string[];
+  // State variables tracking reader decisions
+  @Column({ type: 'jsonb', default: {} })
+  stateVariables: Record<string, unknown>;
 
-  // Completion
+  // Reading statistics
+  @Column({ type: 'timestamptz' })
+  startedAt: Date;
+
+  @Column({ type: 'timestamptz' })
+  lastReadAt: Date;
+
+  @Column({ default: 0 })
+  totalReadTime: number;
+
   @Column({ default: false })
   isCompleted: boolean;
 
-  @Column({ nullable: true })
-  completedEndingType: string;
+  @Column({ type: 'timestamptz', nullable: true })
+  completedAt: Date | null;
+
+  @Column('uuid', { nullable: true })
+  reachedEndingId: string | null;
+
+  // Bookmarks
+  @Column({ type: 'jsonb', default: [] })
+  bookmarks: { segmentId: string; note: string; createdAt: Date }[];
 
   // Access tracking
   @Column({ default: false })
   hasPurchased: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
-  purchasedAt: Date;
+  @Column({ type: 'timestamptz', nullable: true })
+  purchasedAt: Date | null;
 
   @CreateDateColumn()
-  startedAt: Date;
+  createdAt: Date;
 
   @UpdateDateColumn()
-  lastReadAt: Date;
+  updatedAt: Date;
 }
 ```
 
