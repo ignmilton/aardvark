@@ -14,6 +14,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
   Inject,
 } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
@@ -465,7 +466,7 @@ export class PaymentsController {
       this.logger.error(
         "STRIPE_WEBHOOK_SECRET is not configured - rejecting webhook",
       );
-      return { received: false, error: "Webhook secret not configured" };
+      throw new InternalServerErrorException("Webhook processing unavailable");
     }
 
     const event = this.paymentsService.constructWebhookEvent(
@@ -554,6 +555,13 @@ export class PaymentsController {
         return;
       }
 
+      // Mark as processing BEFORE executing to prevent TOCTOU race condition
+      await this.cacheManager.set(
+        idempotencyKey,
+        true,
+        WEBHOOK_IDEMPOTENCY_TTL_MS,
+      );
+
       await this.creditsService.addCreditsFromPurchase(
         userId,
         bundleId,
@@ -563,12 +571,6 @@ export class PaymentsController {
         `Credits added for user ${userId} from bundle ${bundleId}`,
       );
 
-      // Mark as processed
-      await this.cacheManager.set(
-        idempotencyKey,
-        true,
-        WEBHOOK_IDEMPOTENCY_TTL_MS,
-      );
       return;
     }
 
@@ -869,7 +871,11 @@ export class PaymentsController {
     @Req() req: RawBodyRequest<Request>,
     @Headers("x-razorpay-signature") signature: string,
   ) {
-    const body = req.rawBody?.toString() || "";
+    if (!req.rawBody) {
+      return { received: false, error: "Missing request body" };
+    }
+
+    const body = req.rawBody.toString();
 
     if (!this.razorpayService.verifyWebhookSignature(body, signature)) {
       return { received: false, error: "Invalid signature" };

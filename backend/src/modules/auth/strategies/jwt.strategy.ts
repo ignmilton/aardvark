@@ -57,7 +57,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
-      select: ["id", "username", "role", "accountStatus"],
+      select: ["id", "username", "role", "accountStatus", "passwordChangedAt"],
     });
 
     if (!user) {
@@ -70,6 +70,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (user.accountStatus === AccountStatus.SUSPENDED) {
       throw new UnauthorizedException("Account is suspended");
+    }
+
+    // Reject tokens issued before the last password change
+    if (user.passwordChangedAt && payload.iat) {
+      const passwordChangedTimestamp = Math.floor(
+        user.passwordChangedAt.getTime() / 1000,
+      );
+      if (payload.iat < passwordChangedTimestamp) {
+        throw new UnauthorizedException(
+          "Token invalidated by password change",
+        );
+      }
     }
 
     return {

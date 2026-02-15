@@ -90,8 +90,19 @@ export class AuthController {
     const authHeader = req.headers?.authorization;
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.slice(7);
-      // Blacklist for remaining token lifetime (max 15 minutes for access tokens)
-      this.tokenBlacklistService.blacklistToken(token, 15 * 60);
+      // Decode token to get actual expiry time for precise blacklisting
+      try {
+        const decoded = JSON.parse(
+          Buffer.from(token.split(".")[1], "base64").toString(),
+        );
+        const remainingSeconds = decoded.exp
+          ? Math.max(0, decoded.exp - Math.floor(Date.now() / 1000))
+          : 15 * 60;
+        this.tokenBlacklistService.blacklistToken(token, remainingSeconds);
+      } catch {
+        // Fallback: blacklist for default access token lifetime
+        this.tokenBlacklistService.blacklistToken(token, 15 * 60);
+      }
     }
     return { message: "Logged out successfully" };
   }

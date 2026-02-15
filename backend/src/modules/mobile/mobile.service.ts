@@ -400,6 +400,20 @@ export class MobileService {
       productId: string;
     },
   ) {
+    // Prevent receipt replay: check if another user already claimed this subscription
+    const existingForOtherUser = await this.subscriptionRepo.findOne({
+      where: {
+        platformSubscriptionId: params.platformSubscriptionId,
+        platform: params.platform,
+      },
+    });
+    if (existingForOtherUser && existingForOtherUser.userId !== userId) {
+      this.logger.warn(
+        `Receipt replay attempt: subscription ${params.platformSubscriptionId} already belongs to another user, attempted by ${userId}`,
+      );
+      return;
+    }
+
     // Find existing mobile subscription for this user on this platform
     let subscription = await this.subscriptionRepo.findOne({
       where: {

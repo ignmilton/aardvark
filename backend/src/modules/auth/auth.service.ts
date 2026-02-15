@@ -336,6 +336,9 @@ export class AuthService {
 
     await this.userRepository.update(userId, {
       passwordHash: newPasswordHash,
+      // Invalidate existing sessions by updating passwordChangedAt;
+      // JWT strategy should reject tokens issued before this timestamp
+      passwordChangedAt: new Date(),
     });
   }
 

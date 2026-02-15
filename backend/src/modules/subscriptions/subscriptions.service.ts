@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, DataSource } from "typeorm";
 import {
   Subscription,
   SubscriptionPlan,
@@ -32,6 +32,7 @@ export class SubscriptionsService {
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
     private readonly paymentsService: PaymentsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -299,26 +300,36 @@ export class SubscriptionsService {
   }
 
   /**
-   * Award monthly bonus credits for premium subscribers
+   * Award monthly bonus credits for premium subscribers.
+   * Uses pessimistic locking to prevent race conditions from concurrent webhooks.
    */
   private async awardMonthlyCredits(userId: string): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) return;
+    await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const txRepo = manager.getRepository(Transaction);
 
-    const newBalance =
-      user.creditsBalance + PREMIUM_BENEFITS.monthlyBonusCredits;
+      // Lock user row to prevent concurrent balance updates
+      const user = await userRepo.findOne({
+        where: { id: userId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!user) return;
 
-    await this.userRepository.update(userId, { creditsBalance: newBalance });
+      const newBalance =
+        user.creditsBalance + PREMIUM_BENEFITS.monthlyBonusCredits;
 
-    const transaction = this.transactionRepository.create({
-      userId,
-      type: TransactionType.SUBSCRIPTION_CREDIT,
-      amount: PREMIUM_BENEFITS.monthlyBonusCredits,
-      balance: newBalance,
-      description: "Monthly Premium bonus credits",
+      await userRepo.update(userId, { creditsBalance: newBalance });
+
+      const transaction = txRepo.create({
+        userId,
+        type: TransactionType.SUBSCRIPTION_CREDIT,
+        amount: PREMIUM_BENEFITS.monthlyBonusCredits,
+        balance: newBalance,
+        description: "Monthly Premium bonus credits",
+      });
+
+      await txRepo.save(transaction);
     });
-
-    await this.transactionRepository.save(transaction);
   }
 
   /**

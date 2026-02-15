@@ -122,11 +122,14 @@ export class User {
   @Column({ type: "varchar", nullable: true })
   lastLoginIp: string | null;
 
-  @Column({ default: 0 })
+  @Column({ default: 0, select: false })
   loginAttempts: number;
 
-  @Column({ type: "timestamptz", nullable: true })
+  @Column({ type: "timestamptz", nullable: true, select: false })
   lockoutUntil: Date | null;
+
+  @Column({ type: "timestamptz", nullable: true, select: false })
+  passwordChangedAt: Date | null;
 
   // Stripe integration
   @Column({ type: "varchar", nullable: true })

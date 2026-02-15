@@ -289,7 +289,7 @@ export class SubscriptionsController {
       return res.json({ received: true });
     } catch (err) {
       this.logger.error(`Stripe webhook error: ${err.message}`);
-      return res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: "Webhook processing failed" });
     }
   }
 
