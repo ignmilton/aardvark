@@ -19,7 +19,9 @@ import { createKeyv } from "@keyv/redis";
         // Use Redis if configured, otherwise use in-memory cache
         if (redisHost) {
           const redisPassword = configService.get<string>("REDIS_PASSWORD");
-          const auth = redisPassword ? `:${redisPassword}@` : "";
+          const auth = redisPassword
+            ? `:${encodeURIComponent(redisPassword)}@`
+            : "";
           const redisUrl = `redis://${auth}${redisHost}:${redisPort}`;
 
           return {
