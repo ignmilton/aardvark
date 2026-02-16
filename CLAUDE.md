@@ -66,43 +66,45 @@ npm run docker:down          # Stop Docker services
 Key directories:
 ```
 frontend/src/
-├── app/            # Next.js App Router pages (23+ routes)
-├── components/     # React components (18 subdirectories: ui/, editor/, reader/, story/, admin/, layout/, providers/, payments/, a11y/, pwa/, seo/, ...)
+├── app/            # Next.js App Router pages (29 routes across 23 unique paths)
+├── components/     # React components (16 subdirectories: ui/, editor/, reader/, story/, admin/, layout/, providers/, payments/, a11y/, pwa/, seo/, ads/, home/, i18n/, recommendations/, submissions/)
 ├── lib/            # Utilities (api.ts, seo.ts, sanitize.ts, utils.ts, performance.ts)
-├── hooks/          # Custom React hooks
+├── hooks/          # Custom React hooks (11 hooks: admin-analytics, keyboard-nav, moderation, offline-reading, pull-to-refresh, push-notifications, pwa-install, swipe-gestures, translations, user-management)
 ├── i18n/           # Internationalization
 └── styles/         # Global CSS / Tailwind
 ```
 
 ### Backend (`backend/`)
 
-- **Framework:** NestJS 11, modular monolith (33 feature modules)
-- **Database:** PostgreSQL 16 via TypeORM (30 entities in `src/database/entities/`)
+- **Framework:** NestJS 11, modular monolith (31 feature modules)
+- **Database:** PostgreSQL 16 via TypeORM (29 entities in `src/database/entities/`)
 - **Cache:** Redis via cache-manager + ioredis
 - **Search:** Elasticsearch 8.11 with PostgreSQL full-text fallback
 - **Auth:** Passport.js (local + JWT strategies), refresh tokens
 - **Real-time:** Socket.io for notifications and live updates
-- **Payments:** Stripe (global) + Razorpay (India)
+- **Payments:** Stripe (global). Razorpay (India) is configured in `.env.example` but not yet implemented
 - **AI:** OpenAI integration for writing companion
-- **API docs:** Swagger via NestJS decorators
+- **API docs:** Swagger via NestJS decorators (disabled in production)
+- **API prefix:** `/api/v1` with URI-based versioning
+- **Rate limiting:** ThrottlerModule with global ThrottlerGuard
 
 Key directories:
 ```
 backend/src/
-├── main.ts             # Bootstrap (security headers, CORS, compression)
-├── app.module.ts       # Root module registering all 33 feature modules
-├── modules/            # Feature modules (auth, users, stories, segments, choices, progress, comments, ratings, credits, subscriptions, payments, earnings, search, moderation, notifications, messaging, forum, websocket, ai-companion, analytics, branch-submissions, ...)
+├── main.ts             # Bootstrap (Helmet, CORS, compression, validation pipe, Swagger, rate limiting)
+├── app.module.ts       # Root module registering all 31 feature modules
+├── modules/            # Feature modules: ads, ai, ai-companion, analytics, auth, branch-submissions, choices, collections, comments, credits, earnings, featured, forum, health, impressions, messaging, mobile, moderation, notifications, payments, progress, ratings, reading-lists, search, segments, stories, subscriptions, tags, upload, users, websocket
 ├── database/
-│   ├── entities/       # 30 TypeORM entities
-│   ├── migrations/     # TypeORM migrations
-│   ├── seeds/          # Database seeding
+│   ├── entities/       # 29 TypeORM entities
+│   ├── migrations/     # TypeORM migrations (empty — not yet generated)
+│   ├── seeds/          # Database seeding (run-seed.ts runner only)
 │   └── data-source.ts  # TypeORM data source config
 ├── common/
 │   ├── filters/        # HTTP exception filter
 │   ├── interceptors/   # Transform & logging interceptors
-│   ├── cache/          # Redis cache service
+│   ├── cache/          # Redis cache module
 │   └── mail/           # Email service (Nodemailer/SendGrid)
-└── config/             # Configuration management
+└── config/             # configuration.ts + database.config.ts
 ```
 
 Module pattern: each module follows `feature.module.ts` + `feature.controller.ts` + `feature.service.ts` + `dtos/` folder.
@@ -164,16 +166,16 @@ Files: `types/` (story, user, common, monetization, moderation, social, forum, m
 ### Unit Tests
 
 - **Framework:** Jest 29
-- **Backend tests:** `*.spec.ts` files alongside source or in `__tests__/` directories (107 tests, 6 suites)
+- **Backend tests:** `*.spec.ts` files alongside source (7 test files covering auth, credits, earnings, moderation, payments, subscriptions)
 - **Frontend tests:** `*.spec.ts` / `*.spec.tsx` using `@testing-library/react` and `jest-environment-jsdom`
 - **Run:** `npm run test` (all) or `npm run test --workspace=backend` / `npm run test --workspace=frontend`
 
 ### E2E Tests
 
 - **Framework:** Playwright 1.40
-- **Location:** `frontend/e2e/`
+- **Location:** `frontend/e2e/` (7 test files: accessibility, auth, home, moderation, payment-checkout, search, stories)
 - **Browsers:** Chromium, Firefox, WebKit + mobile viewports (Pixel 5, iPhone 13)
-- **Features:** Auth state setup, screenshot on failure, video retention
+- **Features:** Auth state setup (`auth.setup.ts`), screenshot on failure, video retention
 - **Run:** `npm run test:e2e`
 
 ### Test file pattern
@@ -212,7 +214,7 @@ Copy `.env.example` to `.env` and configure. Key sections:
 - **Search:** `ELASTICSEARCH_NODE`
 - **Auth:** `JWT_SECRET`, `JWT_REFRESH_SECRET`
 - **Storage:** S3-compatible (MinIO for dev, AWS S3 for prod)
-- **Payments:** `STRIPE_SECRET_KEY`, `RAZORPAY_KEY_ID`
+- **Payments:** `STRIPE_SECRET_KEY` (Razorpay vars exist in `.env.example` but package not installed)
 - **AI:** `OPENAI_API_KEY`
 - **Email:** SMTP config (MailHog for dev)
 
@@ -251,8 +253,19 @@ Required Node.js >= 20.0.0, npm >= 10.0.0.
 2. Export from `shared/src/types/index.ts` and `shared/src/index.ts`
 3. Both frontend and backend can import via `@aardvark/shared`
 
+## Notable Implementation Gaps
+
+These items are documented or configured but not fully implemented yet:
+
+- **Razorpay payment gateway:** Referenced in `.env.example` but the `razorpay` npm package is not installed in the backend
+- **Database migrations:** The `migrations/` directory exists but contains no migration files (only `.gitkeep`)
+- **Database seeds:** Only the `run-seed.ts` runner exists; no actual seed data files
+- **Frontend `stores/` and `services/` directories:** Aliases defined in `frontend/tsconfig.json` but the directories don't exist
+
 ## Pre-commit Hooks
 
 Husky + lint-staged runs on staged files:
 - `*.{ts,tsx}` — ESLint fix + Prettier
 - `*.{json,md}` — Prettier
+
+Note: The `.husky/` directory is created at `npm install` time via the `prepare` script and is not checked into git.
