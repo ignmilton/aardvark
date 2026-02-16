@@ -98,6 +98,7 @@ export class RazorpayService {
   private readonly keySecret: string;
   private readonly webhookSecret: string;
   private readonly baseUrl = "https://api.razorpay.com/v1";
+  private readonly enabled: boolean;
 
   constructor(
     private readonly configService: ConfigService,
@@ -112,21 +113,44 @@ export class RazorpayService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    const keyId = this.configService.get<string>("RAZORPAY_KEY_ID");
-    const keySecret = this.configService.get<string>("RAZORPAY_KEY_SECRET");
-    const webhookSecret = this.configService.get<string>(
-      "RAZORPAY_WEBHOOK_SECRET",
-    );
+    const keyId = this.configService.get<string>("razorpay.keyId") || this.configService.get<string>("RAZORPAY_KEY_ID");
+    const keySecret = this.configService.get<string>("razorpay.keySecret") || this.configService.get<string>("RAZORPAY_KEY_SECRET");
+    const webhookSecret = this.configService.get<string>("razorpay.webhookSecret") || this.configService.get<string>("RAZORPAY_WEBHOOK_SECRET");
 
     if (!keyId || !keySecret || !webhookSecret) {
-      throw new Error(
-        "Razorpay credentials not configured. Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET environment variables.",
+      this.logger.warn(
+        "Razorpay credentials not configured. UPI payments will be unavailable. " +
+        "Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET to enable.",
       );
+      this.keyId = "";
+      this.keySecret = "";
+      this.webhookSecret = "";
+      this.enabled = false;
+      return;
     }
 
     this.keyId = keyId;
     this.keySecret = keySecret;
     this.webhookSecret = webhookSecret;
+    this.enabled = true;
+  }
+
+  /**
+   * Check if Razorpay is configured and available
+   */
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  /**
+   * Throw if Razorpay is not configured
+   */
+  private ensureEnabled(): void {
+    if (!this.enabled) {
+      throw new BadRequestException(
+        "UPI payments are not available. Razorpay is not configured.",
+      );
+    }
   }
 
   /**
@@ -186,6 +210,8 @@ export class RazorpayService {
     userId: string,
     bundleId: string,
   ): Promise<{ order: UPIPaymentOrder; razorpayKeyId: string }> {
+    this.ensureEnabled();
+
     const bundle = await this.bundleRepository.findOne({
       where: { id: bundleId, isActive: true, currency: "inr" },
     });
@@ -241,14 +267,16 @@ export class RazorpayService {
     razorpayPaymentId: string,
     razorpaySignature: string,
   ): Promise<UPIPaymentOrder> {
-    // Verify signature
+    this.ensureEnabled();
+
+    // Verify signature using constant-time comparison to prevent timing attacks
     const body = razorpayOrderId + "|" + razorpayPaymentId;
     const expectedSignature = crypto
       .createHmac("sha256", this.keySecret)
       .update(body)
       .digest("hex");
 
-    if (expectedSignature !== razorpaySignature) {
+    if (!this.safeCompare(expectedSignature, razorpaySignature)) {
       throw new BadRequestException("Invalid payment signature");
     }
 
@@ -279,6 +307,7 @@ export class RazorpayService {
    * Get payment details
    */
   async getPayment(paymentId: string): Promise<RazorpayPayment> {
+    this.ensureEnabled();
     return this.makeRequest<RazorpayPayment>(`/payments/${paymentId}`);
   }
 
@@ -289,6 +318,7 @@ export class RazorpayService {
     paymentId: string,
     amount: number,
   ): Promise<RazorpayPayment> {
+    this.ensureEnabled();
     return this.makeRequest<RazorpayPayment>(
       `/payments/${paymentId}/capture`,
       "POST",
@@ -347,6 +377,8 @@ export class RazorpayService {
     upiVpa: string,
     accountHolderName: string,
   ): Promise<AuthorPayoutAccount> {
+    this.ensureEnabled();
+
     // Validate UPI VPA format (basic validation)
     const upiRegex = /^[\w.-]+@[\w]+$/;
     if (!upiRegex.test(upiVpa)) {
@@ -410,6 +442,8 @@ export class RazorpayService {
     amountInPaise: number,
     narration: string = "Aardvark author earnings payout",
   ): Promise<Payout> {
+    this.ensureEnabled();
+
     if (amountInPaise < MIN_UPI_PAYOUT_AMOUNT_PAISE) {
       throw new BadRequestException(
         `Minimum payout amount is ₹${MIN_UPI_PAYOUT_AMOUNT_PAISE / 100}`,
@@ -523,12 +557,24 @@ export class RazorpayService {
    * Verify webhook signature
    */
   verifyWebhookSignature(body: string, signature: string): boolean {
+    if (!this.enabled) return false;
     const expectedSignature = crypto
       .createHmac("sha256", this.webhookSecret)
       .update(body)
       .digest("hex");
 
-    return expectedSignature === signature;
+    return this.safeCompare(expectedSignature, signature);
+  }
+
+  /**
+   * Constant-time string comparison to prevent timing attacks on HMAC verification.
+   */
+  private safeCompare(a: string, b: string): boolean {
+    try {
+      return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -626,6 +672,7 @@ export class RazorpayService {
    * Get Razorpay key ID for frontend
    */
   getKeyId(): string {
+    this.ensureEnabled();
     return this.keyId;
   }
 }

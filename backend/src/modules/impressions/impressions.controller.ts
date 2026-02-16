@@ -9,6 +9,7 @@ import {
   Request,
   Headers,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   ApiTags,
   ApiOperation,
@@ -43,6 +44,7 @@ export class ImpressionsController {
    */
   @Post()
   @UseGuards(OptionalJwtAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @ApiOperation({ summary: "Record a story impression (view/read)" })
   @ApiResponse({ status: 201, description: "Impression recorded" })
   async recordImpression(

@@ -185,7 +185,8 @@ export class FeaturedService {
    * Get featured by placement for public display
    */
   async getByPlacement(placement: FeaturedPlacement, limit: number = 10) {
-    return this.getActive(placement).then((items) => items.slice(0, limit));
+    const items = await this.getActive(placement);
+    return items.slice(0, limit);
   }
 
   /**

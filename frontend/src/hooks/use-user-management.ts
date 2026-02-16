@@ -1,11 +1,14 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import type {
   User,
   UserWarning,
   UserBan,
+  BanType,
+  BanScope,
   IssueWarningDto,
   IssueBanDto,
   PaginatedResponse,
@@ -136,4 +139,38 @@ export function useLiftBan(token?: string) {
       queryClient.invalidateQueries({ queryKey: ['moderationStats'] });
     },
   });
+}
+
+/**
+ * Convenience hook combining user list, search, warn, and ban actions
+ * for use in the admin users page.
+ */
+export function useUserManagement() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+  const [search, setSearch] = useState('');
+  const { data, isLoading } = useUserList({ search }, token);
+  const warnMutation = useIssueWarning(token);
+  const banMutation = useIssueBan(token);
+
+  const users = data?.items;
+
+  const searchUsers = useCallback((query: string) => {
+    setSearch(query);
+  }, []);
+
+  const warnUser = useCallback(async (userId: string, reason: string) => {
+    await warnMutation.mutateAsync({ userId, reason });
+  }, [warnMutation]);
+
+  const banUser = useCallback(async (
+    userId: string,
+    type: BanType,
+    scope: BanScope,
+    reason: string,
+    durationDays?: number,
+  ) => {
+    await banMutation.mutateAsync({ userId, type, scope, reason, durationDays });
+  }, [banMutation]);
+
+  return { users, isLoading, searchUsers, warnUser, banUser };
 }

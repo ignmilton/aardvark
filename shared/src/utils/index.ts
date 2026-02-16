@@ -114,13 +114,16 @@ export function formatDate(date: Date, options?: Intl.DateTimeFormatOptions): st
 }
 
 /**
- * Generate a random ID string
+ * Generate a random ID string using a cryptographically secure RNG.
+ * Works in both Node.js (>=15) and browsers via the Web Crypto API.
  */
 export function generateId(length: number = 12): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const randomValues = new Uint8Array(length);
+  globalThis.crypto.getRandomValues(randomValues);
   let result = '';
   for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars[randomValues[i] % chars.length];
   }
   return result;
 }
@@ -280,18 +283,4 @@ export function stringToColor(str: string): string {
 
   const hue = hash % 360;
   return `hsl(${hue}, 70%, 50%)`;
-}
-
-/**
- * Sanitize HTML to prevent XSS (basic version - use DOMPurify in browser)
- */
-export function sanitizeHtml(html: string): string {
-  const dangerousTags = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
-  const onHandlers = /\s*on\w+\s*=\s*["'][^"']*["']/gi;
-  const jsUrls = /javascript:/gi;
-
-  return html
-    .replace(dangerousTags, '')
-    .replace(onHandlers, '')
-    .replace(jsUrls, '');
 }

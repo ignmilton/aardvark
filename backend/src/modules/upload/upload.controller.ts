@@ -6,6 +6,7 @@ import {
   UploadedFile,
   BadRequestException,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   ApiTags,
   ApiOperation,
@@ -25,6 +26,7 @@ export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
   @Post("image")
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: "Upload an image file" })
   @ApiConsumes("multipart/form-data")
   @ApiBody({
@@ -56,6 +58,7 @@ export class UploadController {
   }
 
   @Post("document")
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: "Upload a document file" })
   @ApiConsumes("multipart/form-data")
   @ApiBody({

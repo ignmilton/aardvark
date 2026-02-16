@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import type {
+  ModerationAction,
   ModerationQueueItem,
   ModerationQueueQuery,
   ModerationStats,
@@ -207,4 +208,25 @@ export function useLiftBan(token?: string) {
       queryClient.invalidateQueries({ queryKey: ['adminStats'] });
     },
   });
+}
+
+/**
+ * Convenience hook combining moderation queue, reports, and actions
+ * for use in admin moderation and reports pages.
+ */
+export function useModeration() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+  const { data: queueData, isLoading } = useModerationQueue({}, token);
+  const resolveReportMutation = useResolveReport(token);
+
+  const queue = queueData?.items;
+  const reports = queueData?.items;
+
+  const resolveReport = async (reportId: string, action: ModerationAction, reason: string) => {
+    await resolveReportMutation.mutateAsync({ reportId, data: { action, reason } });
+  };
+
+  const resolveItem = resolveReport;
+
+  return { queue, reports, isLoading, resolveReport, resolveItem };
 }

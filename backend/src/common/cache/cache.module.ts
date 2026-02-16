@@ -1,7 +1,7 @@
 import { Module, Global } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CacheModule as NestCacheModule } from "@nestjs/cache-manager";
-import { redisStore } from "cache-manager-redis-yet";
+import { createKeyv } from "@keyv/redis";
 
 /**
  * Global cache module with Redis support.
@@ -18,15 +18,15 @@ import { redisStore } from "cache-manager-redis-yet";
 
         // Use Redis if configured, otherwise use in-memory cache
         if (redisHost) {
+          const redisPassword = configService.get<string>("REDIS_PASSWORD");
+          const auth = redisPassword
+            ? `:${encodeURIComponent(redisPassword)}@`
+            : "";
+          const redisUrl = `redis://${auth}${redisHost}:${redisPort}`;
+
           return {
-            store: await redisStore({
-              socket: {
-                host: redisHost,
-                port: redisPort,
-              },
-              password: configService.get<string>("REDIS_PASSWORD"),
-              ttl: 60 * 1000, // Default TTL: 60 seconds
-            }),
+            stores: [createKeyv(redisUrl)],
+            ttl: 60 * 1000, // Default TTL: 60 seconds
           };
         }
 

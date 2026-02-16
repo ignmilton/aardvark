@@ -8,16 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye } from 'lucide-react';
-import type { Report, ModerationAction } from '@aardvark/shared';
+import type { ModerationQueueItem, ModerationAction } from '@aardvark/shared';
 
 export default function AdminReportsPage() {
   const { reports, isLoading, resolveReport } = useModeration();
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ModerationQueueItem | null>(null);
 
   const handleResolve = async (action: ModerationAction, reason: string) => {
-    if (selectedReport) {
-      await resolveReport(selectedReport.id, action, reason);
-      setSelectedReport(null);
+    if (selectedItem) {
+      await resolveReport(selectedItem.id, action, reason);
+      setSelectedItem(null);
     }
   };
 
@@ -25,7 +25,7 @@ export default function AdminReportsPage() {
     <AdminLayout
       title="Reports"
       description="Manage user-submitted reports"
-      pendingReports={reports?.filter((r: Report) => r.status === 'pending').length ?? 0}
+      pendingReports={reports?.filter((r: ModerationQueueItem) => r.status === 'pending').length ?? 0}
     >
       <div className="space-y-4">
         {isLoading ? (
@@ -33,30 +33,30 @@ export default function AdminReportsPage() {
         ) : reports?.length === 0 ? (
           <p className="text-muted-foreground">No reports to review</p>
         ) : (
-          reports?.map((report: Report) => (
-            <Card key={report.id}>
+          reports?.map((item: ModerationQueueItem) => (
+            <Card key={item.id}>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base">{report.reason}</CardTitle>
+                <CardTitle className="text-base">{item.source.replace(/_/g, ' ')}</CardTitle>
                 <Badge
                   variant={
-                    report.status === 'pending'
+                    item.status === 'pending'
                       ? 'default'
-                      : report.status === 'resolved'
+                      : item.status === 'approved'
                         ? 'secondary'
                         : 'outline'
                   }
                 >
-                  {report.status}
+                  {item.status}
                 </Badge>
               </CardHeader>
               <CardContent className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {report.contentType} reported
+                  {item.contentType} reported
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedReport(report)}
+                  onClick={() => setSelectedItem(item)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   Review
@@ -68,9 +68,9 @@ export default function AdminReportsPage() {
       </div>
 
       <ReportDetailModal
-        report={selectedReport ?? undefined}
-        isOpen={!!selectedReport}
-        onClose={() => setSelectedReport(null)}
+        queueItem={selectedItem ?? undefined}
+        isOpen={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
         onResolve={handleResolve}
       />
     </AdminLayout>

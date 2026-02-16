@@ -88,6 +88,14 @@ export default () => ({
     premiumYearlyPriceId: process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID,
   },
 
+  // Razorpay configuration (UPI payments for India)
+  razorpay: {
+    keyId: process.env.RAZORPAY_KEY_ID,
+    keySecret: process.env.RAZORPAY_KEY_SECRET,
+    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
+    accountNumber: process.env.RAZORPAY_ACCOUNT_NUMBER,
+  },
+
   // OpenAI configuration
   openai: {
     apiKey: process.env.OPENAI_API_KEY,

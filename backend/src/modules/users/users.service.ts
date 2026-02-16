@@ -302,16 +302,19 @@ export class UsersService {
   async updateProfile(userId: string, updateDto: UpdateUserDto): Promise<User> {
     const user = await this.findById(userId);
 
-    // Merge preferences if provided
+    // Explicit field assignment to prevent mass assignment of sensitive fields
+    // (role, creditsBalance, accountStatus, etc.)
+    if (updateDto.displayName !== undefined) user.displayName = updateDto.displayName;
+    if (updateDto.bio !== undefined) user.bio = updateDto.bio;
+    if (updateDto.websiteUrl !== undefined) user.websiteUrl = updateDto.websiteUrl;
+    if (updateDto.socialLinks !== undefined) user.socialLinks = updateDto.socialLinks;
     if (updateDto.preferences) {
       user.preferences = {
         ...user.preferences,
         ...updateDto.preferences,
       };
-      delete updateDto.preferences;
     }
 
-    Object.assign(user, updateDto);
     return this.userRepository.save(user);
   }
 
