@@ -85,3 +85,40 @@ export function usePlatformAnalytics(
     enabled: !!token,
   });
 }
+
+/**
+ * Convenience hook combining platform analytics and admin stats
+ * for use in admin dashboard and analytics pages.
+ */
+export function useAdminAnalytics() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+  const { data: analytics, isLoading: analyticsLoading } = usePlatformAnalytics('week', token);
+  const { data: adminStats, isLoading: statsLoading } = useAdminStats(token);
+
+  const isLoading = analyticsLoading || statsLoading;
+
+  const stats = analytics ? {
+    dailyActiveUsers: analytics.users.active24h,
+    newStories7d: analytics.content.storiesPublishedThisWeek,
+    engagementRate: analytics.engagement.completionRate,
+    revenue30d: analytics.revenue.revenueThisMonth,
+    topStories: [] as { id: string; title: string; views: number }[],
+    totalUsers: analytics.users.total,
+    activeAuthors: analytics.users.byRole?.author ?? 0,
+    premiumUsers: analytics.revenue.activeSubscriptions,
+    newUsers7d: analytics.users.newThisWeek,
+    totalStories: analytics.content.totalStories,
+    pendingReports: adminStats?.moderation.pendingReports ?? 0,
+    totalViews: analytics.engagement.totalReads,
+    totalRevenue: analytics.revenue.totalRevenue,
+  } : undefined;
+
+  const trends = analytics ? {
+    dailyActiveUsers: undefined as { value: number; label: string } | undefined,
+    newStories: undefined as { value: number; label: string } | undefined,
+    engagement: undefined as { value: number; label: string } | undefined,
+    revenue: undefined as { value: number; label: string } | undefined,
+  } : undefined;
+
+  return { stats, trends, isLoading };
+}

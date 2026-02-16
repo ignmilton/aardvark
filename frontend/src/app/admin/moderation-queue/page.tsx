@@ -5,7 +5,6 @@ import { AdminLayout } from '@/components/admin/admin-layout';
 import { ModerationQueueItemComponent } from '@/components/admin/moderation-queue-item';
 import { ReportDetailModal } from '@/components/admin/report-detail-modal';
 import { useModeration } from '@/hooks/use-moderation';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ModerationQueueItem, ModerationAction } from '@aardvark/shared';
 
@@ -76,7 +75,7 @@ export default function ModerationQueuePage() {
         </TabsContent>
         <TabsContent value="users" className="space-y-4 mt-4">
           {queue
-            ?.filter((item: ModerationQueueItem) => item.contentType === 'user')
+            ?.filter((item: ModerationQueueItem) => item.contentType === 'user_profile')
             .map((item: ModerationQueueItem) => (
               <ModerationQueueItemComponent
                 key={item.id}

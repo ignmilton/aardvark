@@ -85,7 +85,7 @@ export default function AdminUsersPage() {
               </TableCell>
             </TableRow>
           ) : (
-            users?.map((user: { id: string; username: string; email: string; role: string; status: string; createdAt: string }) => (
+            users?.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.username}</TableCell>
                 <TableCell>{user.email}</TableCell>
@@ -94,9 +94,9 @@ export default function AdminUsersPage() {
                 </TableCell>
                 <TableCell>
                   <Badge
-                    variant={user.status === 'active' ? 'default' : 'destructive'}
+                    variant={user.accountStatus === 'active' ? 'default' : 'destructive'}
                   >
-                    {user.status}
+                    {user.accountStatus}
                   </Badge>
                 </TableCell>
                 <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>

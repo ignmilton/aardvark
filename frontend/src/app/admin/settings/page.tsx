@@ -4,7 +4,7 @@ import { AdminLayout } from '@/components/admin/admin-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Settings, DollarSign, Shield, Bell } from 'lucide-react';
+import { DollarSign, Shield, Bell } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   return (
