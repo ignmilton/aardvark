@@ -286,7 +286,11 @@ export function stringToColor(str: string): string {
 }
 
 /**
- * Sanitize HTML to prevent XSS (basic version - use DOMPurify in browser)
+ * Sanitize HTML to prevent XSS (basic regex version).
+ *
+ * @deprecated This regex-based sanitizer is easily bypassed and should NOT be
+ * used for security-sensitive contexts. Use `sanitize-html` (npm) on the
+ * backend or `DOMPurify` on the frontend instead.
  */
 export function sanitizeHtml(html: string): string {
   const dangerousTags = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;

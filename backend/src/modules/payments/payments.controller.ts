@@ -17,6 +17,7 @@ import {
   InternalServerErrorException,
   Inject,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Cache } from "cache-manager";
 import { ConfigService } from "@nestjs/config";
@@ -81,6 +82,7 @@ export class PaymentsController {
    */
   @Post("checkout/credits")
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async createCreditCheckout(
     @Req() req: any,
     @Body() dto: CreateCreditCheckoutDto,
@@ -125,6 +127,7 @@ export class PaymentsController {
    */
   @Post("checkout/subscription")
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async createSubscriptionCheckout(
     @Req() req: any,
     @Body() dto: CreateSubscriptionCheckoutDto,
@@ -346,6 +349,7 @@ export class PaymentsController {
    */
   @Post("connect/account")
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async createConnectAccount(
     @Req() req: any,
     @Body() dto: CreateConnectAccountDto,
@@ -686,6 +690,7 @@ export class PaymentsController {
    */
   @Post("upi/order")
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async createUPIOrder(@Req() req: any, @Body() dto: CreateUPIOrderDto) {
     const userId = req.user.id;
 
@@ -713,6 +718,7 @@ export class PaymentsController {
    */
   @Post("upi/verify")
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async verifyUPIPayment(@Req() req: any, @Body() dto: VerifyUPIPaymentDto) {
     const userId = req.user.id;
 
@@ -773,6 +779,7 @@ export class PaymentsController {
    */
   @Post("upi/payout-account")
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async setupUPIPayoutAccount(
     @Req() req: any,
     @Body() dto: SetupUPIPayoutAccountDto,
@@ -827,6 +834,7 @@ export class PaymentsController {
    */
   @Post("upi/payout")
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async requestUPIPayout(@Req() req: any, @Body() dto: RequestUPIPayoutDto) {
     const authorId = req.user.id;
     if (!dto.amount) {
