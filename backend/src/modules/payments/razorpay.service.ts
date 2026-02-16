@@ -269,14 +269,14 @@ export class RazorpayService {
   ): Promise<UPIPaymentOrder> {
     this.ensureEnabled();
 
-    // Verify signature
+    // Verify signature using constant-time comparison to prevent timing attacks
     const body = razorpayOrderId + "|" + razorpayPaymentId;
     const expectedSignature = crypto
       .createHmac("sha256", this.keySecret)
       .update(body)
       .digest("hex");
 
-    if (expectedSignature !== razorpaySignature) {
+    if (!this.safeCompare(expectedSignature, razorpaySignature)) {
       throw new BadRequestException("Invalid payment signature");
     }
 
@@ -563,7 +563,18 @@ export class RazorpayService {
       .update(body)
       .digest("hex");
 
-    return expectedSignature === signature;
+    return this.safeCompare(expectedSignature, signature);
+  }
+
+  /**
+   * Constant-time string comparison to prevent timing attacks on HMAC verification.
+   */
+  private safeCompare(a: string, b: string): boolean {
+    try {
+      return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+    } catch {
+      return false;
+    }
   }
 
   /**

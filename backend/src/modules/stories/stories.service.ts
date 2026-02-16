@@ -255,7 +255,19 @@ export class StoriesService {
       throw new ForbiddenException("You can only edit your own stories");
     }
 
-    Object.assign(story, updateDto);
+    // Explicit field assignment to prevent mass assignment of sensitive fields
+    // (authorId, viewCount, averageRating, moderationStatus, etc.)
+    if (updateDto.title !== undefined) story.title = updateDto.title;
+    if (updateDto.description !== undefined) story.description = updateDto.description;
+    if (updateDto.synopsis !== undefined) story.synopsis = updateDto.synopsis;
+    if (updateDto.coverImageUrl !== undefined) story.coverImageUrl = updateDto.coverImageUrl;
+    if (updateDto.category !== undefined) story.category = updateDto.category;
+    if (updateDto.tags !== undefined) story.tags = updateDto.tags;
+    if (updateDto.contentWarnings !== undefined) story.contentWarnings = updateDto.contentWarnings;
+    if (updateDto.collaborationMode !== undefined) story.collaborationMode = updateDto.collaborationMode;
+    if (updateDto.status !== undefined) story.status = updateDto.status;
+    if (updateDto.isPremium !== undefined) story.isPremium = updateDto.isPremium;
+    if (updateDto.creditCost !== undefined) story.creditCost = updateDto.creditCost;
 
     return this.storyRepository.save(story);
   }
