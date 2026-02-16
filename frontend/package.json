@@ -67,7 +67,6 @@
     "next-themes": "^0.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-flow-renderer": "^10.3.17",
     "react-hook-form": "^7.49.2",
     "react-hot-toast": "^2.4.1",
     "react-intersection-observer": "^9.5.3",
