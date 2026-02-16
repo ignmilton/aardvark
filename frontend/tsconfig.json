@@ -44,12 +44,6 @@
       "@/utils/*": [
         "./src/utils/*"
       ],
-      "@/stores/*": [
-        "./src/stores/*"
-      ],
-      "@/services/*": [
-        "./src/services/*"
-      ],
       "@aardvark/shared": [
         "../shared/src"
       ]

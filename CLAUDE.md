@@ -82,7 +82,7 @@ frontend/src/
 - **Search:** Elasticsearch 8.11 with PostgreSQL full-text fallback
 - **Auth:** Passport.js (local + JWT strategies), refresh tokens
 - **Real-time:** Socket.io for notifications and live updates
-- **Payments:** Stripe (global). Razorpay (India) is configured in `.env.example` but not yet implemented
+- **Payments:** Stripe (global) + Razorpay (India, UPI — uses native `fetch`, no npm package needed; gracefully disabled when unconfigured)
 - **AI:** OpenAI integration for writing companion
 - **API docs:** Swagger via NestJS decorators (disabled in production)
 - **API prefix:** `/api/v1` with URI-based versioning
@@ -96,8 +96,8 @@ backend/src/
 ├── modules/            # Feature modules: ads, ai, ai-companion, analytics, auth, branch-submissions, choices, collections, comments, credits, earnings, featured, forum, health, impressions, messaging, mobile, moderation, notifications, payments, progress, ratings, reading-lists, search, segments, stories, subscriptions, tags, upload, users, websocket
 ├── database/
 │   ├── entities/       # 29 TypeORM entities
-│   ├── migrations/     # TypeORM migrations (empty — not yet generated)
-│   ├── seeds/          # Database seeding (run-seed.ts runner only)
+│   ├── migrations/     # TypeORM migrations (initial schema migration + generate new with `npx typeorm migration:generate`)
+│   ├── seeds/          # Database seeding (users, tags, credit bundles, subscription plans)
 │   └── data-source.ts  # TypeORM data source config
 ├── common/
 │   ├── filters/        # HTTP exception filter
@@ -214,7 +214,7 @@ Copy `.env.example` to `.env` and configure. Key sections:
 - **Search:** `ELASTICSEARCH_NODE`
 - **Auth:** `JWT_SECRET`, `JWT_REFRESH_SECRET`
 - **Storage:** S3-compatible (MinIO for dev, AWS S3 for prod)
-- **Payments:** `STRIPE_SECRET_KEY` (Razorpay vars exist in `.env.example` but package not installed)
+- **Payments:** `STRIPE_SECRET_KEY`, `RAZORPAY_KEY_ID` (optional, for UPI in India)
 - **AI:** `OPENAI_API_KEY`
 - **Email:** SMTP config (MailHog for dev)
 
@@ -252,15 +252,6 @@ Required Node.js >= 20.0.0, npm >= 10.0.0.
 1. Add types to the appropriate file in `shared/src/types/`
 2. Export from `shared/src/types/index.ts` and `shared/src/index.ts`
 3. Both frontend and backend can import via `@aardvark/shared`
-
-## Notable Implementation Gaps
-
-These items are documented or configured but not fully implemented yet:
-
-- **Razorpay payment gateway:** Referenced in `.env.example` but the `razorpay` npm package is not installed in the backend
-- **Database migrations:** The `migrations/` directory exists but contains no migration files (only `.gitkeep`)
-- **Database seeds:** Only the `run-seed.ts` runner exists; no actual seed data files
-- **Frontend `stores/` and `services/` directories:** Aliases defined in `frontend/tsconfig.json` but the directories don't exist
 
 ## Pre-commit Hooks
 

@@ -1,8 +1,14 @@
 import { DataSource } from "typeorm";
 import * as bcrypt from "bcrypt";
 import dataSource from "../data-source";
-import { User, Tag } from "../entities";
-import { UserRole, AccountStatus, SubscriptionStatus } from "@aardvark/shared";
+import { User, Tag, CreditBundle, SubscriptionPlan } from "../entities";
+import {
+  UserRole,
+  AccountStatus,
+  SubscriptionStatus,
+  SubscriptionTier,
+  SubscriptionInterval,
+} from "@aardvark/shared";
 
 const SALT_ROUNDS = 12;
 
@@ -174,6 +180,123 @@ async function seed(ds: DataSource) {
   const tagEntities = tagsData.map((t) => tagRepo.create(t as any));
   const savedTags = await tagRepo.save(tagEntities as any);
   console.log(`  Created ${savedTags.length} tags`);
+
+  // --- Credit Bundles ---
+  console.log("Creating credit bundles...");
+  const bundleRepo = ds.getRepository(CreditBundle);
+
+  const bundlesData = [
+    {
+      name: "Starter Pack",
+      credits: 100,
+      priceInCents: 499,
+      currency: "usd",
+      stripePriceId: "price_starter_100",
+      bonusCredits: 0,
+      isPopular: false,
+      isActive: true,
+    },
+    {
+      name: "Popular Pack",
+      credits: 500,
+      priceInCents: 1999,
+      currency: "usd",
+      stripePriceId: "price_popular_500",
+      bonusCredits: 50,
+      isPopular: true,
+      isActive: true,
+    },
+    {
+      name: "Value Pack",
+      credits: 1000,
+      priceInCents: 3499,
+      currency: "usd",
+      stripePriceId: "price_value_1000",
+      bonusCredits: 150,
+      isPopular: false,
+      isActive: true,
+    },
+    {
+      name: "Starter Pack (INR)",
+      credits: 100,
+      priceInCents: 39900,
+      currency: "inr",
+      stripePriceId: "price_starter_100_inr",
+      bonusCredits: 0,
+      isPopular: false,
+      isActive: true,
+    },
+    {
+      name: "Popular Pack (INR)",
+      credits: 500,
+      priceInCents: 159900,
+      currency: "inr",
+      stripePriceId: "price_popular_500_inr",
+      bonusCredits: 50,
+      isPopular: true,
+      isActive: true,
+    },
+    {
+      name: "Value Pack (INR)",
+      credits: 1000,
+      priceInCents: 279900,
+      currency: "inr",
+      stripePriceId: "price_value_1000_inr",
+      bonusCredits: 150,
+      isPopular: false,
+      isActive: true,
+    },
+  ];
+
+  const bundleEntities = bundlesData.map((b) => bundleRepo.create(b));
+  const savedBundles = await bundleRepo.save(bundleEntities);
+  console.log(`  Created ${savedBundles.length} credit bundles`);
+
+  // --- Subscription Plans ---
+  console.log("Creating subscription plans...");
+  const planRepo = ds.getRepository(SubscriptionPlan);
+
+  const plansData = [
+    {
+      tier: SubscriptionTier.PREMIUM,
+      interval: SubscriptionInterval.MONTHLY,
+      name: "Premium Monthly",
+      description: "Ad-free experience, unlimited premium stories, and 100 bonus credits monthly.",
+      priceInCents: 999,
+      currency: "usd",
+      stripePriceId: "price_premium_monthly",
+      features: [
+        "Ad-free reading experience",
+        "Unlimited access to premium stories",
+        "100 bonus credits every month",
+        "Priority support",
+        "Early access to new features",
+      ],
+      isActive: true,
+    },
+    {
+      tier: SubscriptionTier.PREMIUM,
+      interval: SubscriptionInterval.YEARLY,
+      name: "Premium Yearly",
+      description: "Everything in Premium Monthly — save 17% with annual billing.",
+      priceInCents: 9999,
+      currency: "usd",
+      stripePriceId: "price_premium_yearly",
+      features: [
+        "Ad-free reading experience",
+        "Unlimited access to premium stories",
+        "100 bonus credits every month",
+        "Priority support",
+        "Early access to new features",
+        "Save 17% vs monthly",
+      ],
+      isActive: true,
+    },
+  ];
+
+  const planEntities = plansData.map((p) => planRepo.create(p));
+  const savedPlans = await planRepo.save(planEntities);
+  console.log(`  Created ${savedPlans.length} subscription plans`);
 
   console.log("\n✅ Seed completed successfully!");
   console.log("\n📝 Note: No sample stories created per design spec.");
