@@ -284,21 +284,3 @@ export function stringToColor(str: string): string {
   const hue = hash % 360;
   return `hsl(${hue}, 70%, 50%)`;
 }
-
-/**
- * Sanitize HTML to prevent XSS (basic regex version).
- *
- * @deprecated This regex-based sanitizer is easily bypassed and should NOT be
- * used for security-sensitive contexts. Use `sanitize-html` (npm) on the
- * backend or `DOMPurify` on the frontend instead.
- */
-export function sanitizeHtml(html: string): string {
-  const dangerousTags = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
-  const onHandlers = /\s*on\w+\s*=\s*["'][^"']*["']/gi;
-  const jsUrls = /javascript:/gi;
-
-  return html
-    .replace(dangerousTags, '')
-    .replace(onHandlers, '')
-    .replace(jsUrls, '');
-}
