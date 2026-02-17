@@ -67,11 +67,12 @@ export class CollectionsService {
   async findAll(query: CollectionQueryDto) {
     const {
       page = 1,
-      limit = 20,
+      limit: rawLimit = 20,
       search,
       sortBy = "createdAt",
       sortOrder = "desc",
     } = query;
+    const limit = Math.min(Math.max(1, rawLimit), 100);
 
     const qb = this.collectionRepo
       .createQueryBuilder("collection")

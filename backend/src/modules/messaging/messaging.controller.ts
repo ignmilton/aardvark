@@ -26,6 +26,7 @@ import {
   BlockUserDto,
 } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("messages")
 @Controller("messages")
@@ -39,7 +40,7 @@ export class MessagingController {
   @ApiResponse({ status: 200, description: "List of conversations" })
   async getConversations(
     @Query() query: ConversationQueryDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.messagingService.getConversations(req.user.id, query);
   }
@@ -56,7 +57,7 @@ export class MessagingController {
   async getConversationMessages(
     @Param("id") conversationId: string,
     @Query() query: MessageQueryDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.messagingService.getMessages(
       req.user.id,
@@ -66,13 +67,14 @@ export class MessagingController {
   }
 
   @Post("send")
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Send a message to a user" })
-  @ApiResponse({ status: 201, description: "Message sent successfully" })
+  @ApiResponse({ status: 200, description: "Message sent successfully" })
   @ApiResponse({ status: 400, description: "Invalid request" })
   @ApiResponse({ status: 403, description: "Cannot send message to this user" })
   async sendMessage(
     @Body() sendMessageDto: SendMessageDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.messagingService.sendMessage(req.user.id, sendMessageDto);
   }
@@ -84,7 +86,7 @@ export class MessagingController {
   @ApiResponse({ status: 200, description: "Messages marked as read" })
   @ApiResponse({ status: 404, description: "Conversation not found" })
   @ApiResponse({ status: 403, description: "Not authorized" })
-  async markAsRead(@Param("id") conversationId: string, @Request() req: any) {
+  async markAsRead(@Param("id") conversationId: string, @Request() req: AuthenticatedRequest) {
     await this.messagingService.markAsRead(req.user.id, conversationId);
     return { message: "Messages marked as read" };
   }
@@ -99,7 +101,7 @@ export class MessagingController {
     status: 403,
     description: "Not authorized to delete this message",
   })
-  async deleteMessage(@Param("id") messageId: string, @Request() req: any) {
+  async deleteMessage(@Param("id") messageId: string, @Request() req: AuthenticatedRequest) {
     await this.messagingService.deleteMessage(req.user.id, messageId);
   }
 
@@ -112,7 +114,7 @@ export class MessagingController {
   @ApiResponse({ status: 403, description: "Not authorized" })
   async archiveConversation(
     @Param("id") conversationId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     await this.messagingService.archiveConversation(
       req.user.id,
@@ -126,7 +128,7 @@ export class MessagingController {
   @ApiOperation({ summary: "Block a user" })
   @ApiResponse({ status: 200, description: "User blocked" })
   @ApiResponse({ status: 400, description: "User already blocked" })
-  async blockUser(@Body() blockUserDto: BlockUserDto, @Request() req: any) {
+  async blockUser(@Body() blockUserDto: BlockUserDto, @Request() req: AuthenticatedRequest) {
     await this.messagingService.blockUser(req.user.id, blockUserDto);
     return { message: "User blocked successfully" };
   }
@@ -137,7 +139,7 @@ export class MessagingController {
   @ApiParam({ name: "userId", description: "Blocked user ID" })
   @ApiResponse({ status: 200, description: "User unblocked" })
   @ApiResponse({ status: 404, description: "Block not found" })
-  async unblockUser(@Param("userId") blockedId: string, @Request() req: any) {
+  async unblockUser(@Param("userId") blockedId: string, @Request() req: AuthenticatedRequest) {
     await this.messagingService.unblockUser(req.user.id, blockedId);
     return { message: "User unblocked successfully" };
   }
@@ -145,7 +147,7 @@ export class MessagingController {
   @Get("blocked")
   @ApiOperation({ summary: "Get list of blocked users" })
   @ApiResponse({ status: 200, description: "List of blocked users" })
-  async getBlockedUsers(@Request() req: any) {
+  async getBlockedUsers(@Request() req: AuthenticatedRequest) {
     return this.messagingService.getBlockedUsers(req.user.id);
   }
 }

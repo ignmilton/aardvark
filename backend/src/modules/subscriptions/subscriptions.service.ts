@@ -266,9 +266,7 @@ export class SubscriptionsService {
     const newPeriodStart = new Date(
       stripeSubscription.current_period_start * 1000,
     );
-    const newPeriodEnd = new Date(
-      stripeSubscription.current_period_end * 1000,
-    );
+    const newPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
 
     // Check if the billing period actually advanced (true renewal vs status-only update)
     const periodAdvanced =
@@ -283,10 +281,7 @@ export class SubscriptionsService {
     await this.subscriptionRepository.save(subscription);
 
     // Only award monthly credits when period actually advances
-    if (
-      periodAdvanced &&
-      subscription.plan.tier === SubscriptionTier.PREMIUM
-    ) {
+    if (periodAdvanced && subscription.plan.tier === SubscriptionTier.PREMIUM) {
       await this.awardMonthlyCredits(subscription.userId);
     }
   }

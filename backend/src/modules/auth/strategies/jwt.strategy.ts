@@ -78,13 +78,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         user.passwordChangedAt.getTime() / 1000,
       );
       if (payload.iat < passwordChangedTimestamp) {
-        throw new UnauthorizedException(
-          "Token invalidated by password change",
-        );
+        throw new UnauthorizedException("Token invalidated by password change");
       }
     }
 
     return {
+      id: payload.sub,
       userId: payload.sub,
       username: payload.username,
       role: payload.role,

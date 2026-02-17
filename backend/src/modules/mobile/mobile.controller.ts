@@ -7,6 +7,8 @@ import {
   Query,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import {
@@ -16,6 +18,7 @@ import {
   ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import { MobileService } from "./mobile.service";
 import {
   RegisterPushTokenDto,
@@ -47,7 +50,7 @@ export class MobileController {
   @Get("sync")
   @ApiOperation({ summary: "Get updates since last sync for offline reading" })
   @ApiResponse({ status: 200, description: "Sync data retrieved" })
-  async getSync(@Request() req: any, @Query() query: SyncRequestDto) {
+  async getSync(@Request() req: AuthenticatedRequest, @Query() query: SyncRequestDto) {
     return this.mobileService.syncProgress(req.user.id, query);
   }
 
@@ -56,9 +59,10 @@ export class MobileController {
    * Used to sync progress made while offline
    */
   @Post("sync")
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Upload offline reading progress" })
   @ApiResponse({ status: 200, description: "Progress synced" })
-  async uploadSync(@Request() req: any, @Body() dto: SyncProgressDto) {
+  async uploadSync(@Request() req: AuthenticatedRequest, @Body() dto: SyncProgressDto) {
     return this.mobileService.uploadProgress(req.user.id, dto.progress);
   }
 
@@ -70,10 +74,11 @@ export class MobileController {
    * Register a push notification token
    */
   @Post("push-token")
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Register push notification token" })
   @ApiResponse({ status: 200, description: "Token registered" })
   async registerPushToken(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: RegisterPushTokenDto,
   ) {
     return this.mobileService.registerPushToken(req.user.id, dto);
@@ -86,7 +91,7 @@ export class MobileController {
   @ApiOperation({ summary: "Unregister push notification token" })
   @ApiResponse({ status: 200, description: "Token unregistered" })
   async unregisterPushToken(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() body: { token: string },
   ) {
     return this.mobileService.unregisterPushToken(req.user.id, body.token);
@@ -98,7 +103,7 @@ export class MobileController {
   @Get("push-settings")
   @ApiOperation({ summary: "Get push notification settings" })
   @ApiResponse({ status: 200, description: "Settings retrieved" })
-  async getPushSettings(@Request() req: any) {
+  async getPushSettings(@Request() req: AuthenticatedRequest) {
     return this.mobileService.getPushSettings(req.user.id);
   }
 
@@ -110,11 +115,12 @@ export class MobileController {
    * Verify iOS App Store receipt
    */
   @Post("verify-ios")
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: "Verify iOS App Store receipt" })
   @ApiResponse({ status: 200, description: "Verification result" })
   async verifyIosReceipt(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: VerifyIosReceiptDto,
   ) {
     return this.mobileService.verifyIosReceipt(req.user.id, dto);
@@ -124,11 +130,12 @@ export class MobileController {
    * Verify Android Google Play receipt
    */
   @Post("verify-android")
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: "Verify Android Google Play receipt" })
   @ApiResponse({ status: 200, description: "Verification result" })
   async verifyAndroidReceipt(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: VerifyAndroidReceiptDto,
   ) {
     return this.mobileService.verifyAndroidReceipt(req.user.id, dto);

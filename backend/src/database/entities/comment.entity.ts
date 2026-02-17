@@ -16,6 +16,7 @@ import { Story } from "./story.entity";
  * Comment entity for threaded discussions on stories.
  */
 @Entity("comments")
+@Index(["storyId", "isDeleted", "createdAt"])
 export class Comment {
   @PrimaryGeneratedColumn("uuid")
   id: string;

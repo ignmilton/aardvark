@@ -257,7 +257,7 @@ export class CreditsService {
 
       // Create author earning (derive author share from total minus fee to avoid rounding loss)
       const platformFee = Math.floor(
-        story.creditCost * PLATFORM_FEE_PERCENTAGE,
+        story.creditCost * (PLATFORM_FEE_PERCENTAGE / 100),
       );
       const authorEarning = story.creditCost - platformFee;
 
@@ -339,8 +339,9 @@ export class CreditsService {
 
       const savedTx = await txRepo.save(transaction);
 
-      // Create author earning (tips have lower platform fee)
-      const platformFee = Math.floor(dto.amount * 0.1); // 10% on tips
+      // Create author earning (tips have a reduced platform fee of 10%)
+      const TIP_FEE_RATE = 0.1;
+      const platformFee = Math.floor(dto.amount * TIP_FEE_RATE);
       const authorEarning = dto.amount - platformFee;
 
       const earning = earningRepo.create({

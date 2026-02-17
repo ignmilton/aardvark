@@ -32,6 +32,7 @@ import { Tag } from "./tag.entity";
  * creating branching narratives.
  */
 @Entity("stories")
+@Index(["status", "category", "viewCount"])
 export class Story {
   @PrimaryGeneratedColumn("uuid")
   id: string;

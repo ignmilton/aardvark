@@ -11,10 +11,10 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 
-// Request body size limits
-const JSON_LIMIT = "10mb";
-const URL_ENCODED_LIMIT = "10mb";
-const RAW_LIMIT = "10mb";
+// Request body size limits — keep low to mitigate DoS via large payloads
+const JSON_LIMIT = "2mb";
+const URL_ENCODED_LIMIT = "2mb";
+const RAW_LIMIT = "2mb";
 
 /**
  * Bootstrap the NestJS application with all required middleware,
@@ -50,6 +50,7 @@ async function bootstrap() {
         ? {
             directives: {
               defaultSrc: ["'self'"],
+              // TODO: Replace 'unsafe-inline' with nonce-based CSP once SSR nonce injection is set up
               scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
               styleSrc: [
                 "'self'",
@@ -123,7 +124,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: true,
+        enableImplicitConversion: false,
       },
       disableErrorMessages: isProduction,
     }),

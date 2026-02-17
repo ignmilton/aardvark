@@ -8,6 +8,8 @@ import {
   UseGuards,
   Request,
   Headers,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import {
@@ -28,6 +30,7 @@ import {
   RevenueQueryDto,
   CalculateRevenueDto,
 } from "./dto";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 /**
  * Controller for impression tracking and revenue management.
@@ -45,11 +48,12 @@ export class ImpressionsController {
   @Post()
   @UseGuards(OptionalJwtAuthGuard)
   @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Record a story impression (view/read)" })
   @ApiResponse({ status: 201, description: "Impression recorded" })
   async recordImpression(
     @Body() dto: RecordImpressionDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Headers("user-agent") userAgent?: string,
     @Headers("x-forwarded-for") forwardedFor?: string,
     @Headers("x-real-ip") realIp?: string,
@@ -104,7 +108,7 @@ export class ImpressionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get author revenue records" })
   @ApiResponse({ status: 200, description: "Revenue records retrieved" })
-  async getRevenue(@Request() req: any, @Query() query: RevenueQueryDto) {
+  async getRevenue(@Request() req: AuthenticatedRequest, @Query() query: RevenueQueryDto) {
     return this.impressionsService.getAuthorRevenue(req.user.id, query);
   }
 
@@ -116,7 +120,7 @@ export class ImpressionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get revenue summary for dashboard" })
   @ApiResponse({ status: 200, description: "Summary retrieved" })
-  async getRevenueSummary(@Request() req: any) {
+  async getRevenueSummary(@Request() req: AuthenticatedRequest) {
     const summary = await this.impressionsService.getRevenueSummary(
       req.user.id,
     );
@@ -144,6 +148,7 @@ export class ImpressionsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Calculate revenue for a period (admin)" })
   @ApiResponse({ status: 200, description: "Revenue calculated" })
   async calculateRevenue(@Body() dto: CalculateRevenueDto) {

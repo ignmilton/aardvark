@@ -35,6 +35,7 @@ import {
   User,
   Transaction,
 } from "@entities";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import {
   CreateCreditCheckoutDto,
   CreateSubscriptionCheckoutDto,
@@ -82,13 +83,14 @@ export class PaymentsController {
    */
   @Post("checkout/credits")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async createCreditCheckout(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CreateCreditCheckoutDto,
   ) {
     const userId = req.user.id;
-    const email = req.user.email;
+    const email = req.user.email as string;
 
     // Get bundle details from database
     const bundle = await this.bundleRepository.findOne({
@@ -127,13 +129,14 @@ export class PaymentsController {
    */
   @Post("checkout/subscription")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async createSubscriptionCheckout(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CreateSubscriptionCheckoutDto,
   ) {
     const userId = req.user.id;
-    const email = req.user.email;
+    const email = req.user.email as string;
 
     // Get plan details from database
     const plan = await this.planRepository.findOne({
@@ -173,9 +176,10 @@ export class PaymentsController {
    */
   @Post("setup-intent")
   @UseGuards(JwtAuthGuard)
-  async createSetupIntent(@Req() req: any, @Body() _dto: CreateSetupIntentDto) {
+  @HttpCode(HttpStatus.OK)
+  async createSetupIntent(@Req() req: AuthenticatedRequest, @Body() _dto: CreateSetupIntentDto) {
     const userId = req.user.id;
-    const email = req.user.email;
+    const email = req.user.email as string;
 
     const customer = await this.paymentsService.getOrCreateCustomer(
       userId,
@@ -199,9 +203,9 @@ export class PaymentsController {
    */
   @Get("payment-methods")
   @UseGuards(JwtAuthGuard)
-  async listPaymentMethods(@Req() req: any) {
+  async listPaymentMethods(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
-    const email = req.user.email;
+    const email = req.user.email as string;
 
     const customer = await this.paymentsService.getOrCreateCustomer(
       userId,
@@ -236,11 +240,11 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async deletePaymentMethod(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param("id") paymentMethodId: string,
   ) {
     const userId = req.user.id;
-    const email = req.user.email;
+    const email = req.user.email as string;
 
     // Verify the payment method belongs to the user's customer
     const customer = await this.paymentsService.getOrCreateCustomer(
@@ -267,8 +271,9 @@ export class PaymentsController {
    */
   @Post("subscription/cancel")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   async cancelSubscription(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CancelSubscriptionDto,
   ) {
     const userSub = await this.subscriptionRepository.findOne({
@@ -279,7 +284,9 @@ export class PaymentsController {
     }
 
     if (!userSub.stripeSubscriptionId) {
-      throw new NotFoundException("No Stripe subscription found. Mobile subscriptions must be canceled through their respective app store.");
+      throw new NotFoundException(
+        "No Stripe subscription found. Mobile subscriptions must be canceled through their respective app store.",
+      );
     }
     const subscription = await this.paymentsService.cancelSubscription(
       userSub.stripeSubscriptionId,
@@ -310,7 +317,8 @@ export class PaymentsController {
    */
   @Post("subscription/resume")
   @UseGuards(JwtAuthGuard)
-  async resumeSubscription(@Req() req: any) {
+  @HttpCode(HttpStatus.OK)
+  async resumeSubscription(@Req() req: AuthenticatedRequest) {
     const userSub = await this.subscriptionRepository.findOne({
       where: { userId: req.user.id },
       order: { createdAt: "DESC" },
@@ -320,7 +328,9 @@ export class PaymentsController {
     }
 
     if (!userSub.stripeSubscriptionId) {
-      throw new NotFoundException("No Stripe subscription found. Mobile subscriptions must be managed through their respective app store.");
+      throw new NotFoundException(
+        "No Stripe subscription found. Mobile subscriptions must be managed through their respective app store.",
+      );
     }
     const subscription = await this.paymentsService.resumeSubscription(
       userSub.stripeSubscriptionId,
@@ -349,13 +359,14 @@ export class PaymentsController {
    */
   @Post("connect/account")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async createConnectAccount(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CreateConnectAccountDto,
   ) {
     const userId = req.user.id;
-    const email = req.user.email;
+    const email = req.user.email as string;
 
     const account = await this.paymentsService.createConnectAccount(
       userId,
@@ -385,8 +396,9 @@ export class PaymentsController {
    */
   @Post("connect/onboarding-link")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   async getConnectOnboardingLink(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() body: { returnUrl: string; refreshUrl: string },
   ) {
     const user = await this.userRepository.findOne({
@@ -418,7 +430,7 @@ export class PaymentsController {
    */
   @Get("connect/status")
   @UseGuards(JwtAuthGuard)
-  async getConnectStatus(@Req() req: any) {
+  async getConnectStatus(@Req() req: AuthenticatedRequest) {
     const user = await this.userRepository.findOne({
       where: { id: req.user.id },
     });
@@ -690,8 +702,9 @@ export class PaymentsController {
    */
   @Post("upi/order")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async createUPIOrder(@Req() req: any, @Body() dto: CreateUPIOrderDto) {
+  async createUPIOrder(@Req() req: AuthenticatedRequest, @Body() dto: CreateUPIOrderDto) {
     const userId = req.user.id;
 
     const { order, razorpayKeyId } = await this.razorpayService.createOrder(
@@ -718,8 +731,9 @@ export class PaymentsController {
    */
   @Post("upi/verify")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async verifyUPIPayment(@Req() req: any, @Body() dto: VerifyUPIPaymentDto) {
+  async verifyUPIPayment(@Req() req: AuthenticatedRequest, @Body() dto: VerifyUPIPaymentDto) {
     const userId = req.user.id;
 
     const order = await this.razorpayService.verifyPayment(
@@ -779,9 +793,10 @@ export class PaymentsController {
    */
   @Post("upi/payout-account")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async setupUPIPayoutAccount(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: SetupUPIPayoutAccountDto,
   ) {
     const authorId = req.user.id;
@@ -810,7 +825,7 @@ export class PaymentsController {
    */
   @Get("upi/payout-account")
   @UseGuards(JwtAuthGuard)
-  async getUPIPayoutAccount(@Req() req: any) {
+  async getUPIPayoutAccount(@Req() req: AuthenticatedRequest) {
     const account = await this.razorpayService.getAuthorPayoutAccount(
       req.user.id,
     );
@@ -834,8 +849,9 @@ export class PaymentsController {
    */
   @Post("upi/payout")
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async requestUPIPayout(@Req() req: any, @Body() dto: RequestUPIPayoutDto) {
+  async requestUPIPayout(@Req() req: AuthenticatedRequest, @Body() dto: RequestUPIPayoutDto) {
     const authorId = req.user.id;
     if (!dto.amount) {
       throw new BadRequestException("Amount is required for UPI payout");
@@ -866,7 +882,7 @@ export class PaymentsController {
    */
   @Get("upi/payouts")
   @UseGuards(JwtAuthGuard)
-  async getUPIPayoutHistory(@Req() req: any) {
+  async getUPIPayoutHistory(@Req() req: AuthenticatedRequest) {
     const payouts = await this.razorpayService.getPayoutHistory(req.user.id);
     return {
       success: true,

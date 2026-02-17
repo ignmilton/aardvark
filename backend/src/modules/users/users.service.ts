@@ -304,10 +304,13 @@ export class UsersService {
 
     // Explicit field assignment to prevent mass assignment of sensitive fields
     // (role, creditsBalance, accountStatus, etc.)
-    if (updateDto.displayName !== undefined) user.displayName = updateDto.displayName;
+    if (updateDto.displayName !== undefined)
+      user.displayName = updateDto.displayName;
     if (updateDto.bio !== undefined) user.bio = updateDto.bio;
-    if (updateDto.websiteUrl !== undefined) user.websiteUrl = updateDto.websiteUrl;
-    if (updateDto.socialLinks !== undefined) user.socialLinks = updateDto.socialLinks;
+    if (updateDto.websiteUrl !== undefined)
+      user.websiteUrl = updateDto.websiteUrl;
+    if (updateDto.socialLinks !== undefined)
+      user.socialLinks = updateDto.socialLinks;
     if (updateDto.preferences) {
       user.preferences = {
         ...user.preferences,

@@ -8,11 +8,14 @@ import {
   UseGuards,
   BadRequestException,
   Inject,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Cache } from "cache-manager";
 import { randomBytes } from "crypto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import { CreditsService } from "./credits.service";
 import {
   UnlockStoryDto,
@@ -42,7 +45,7 @@ export class CreditsController {
    * GET /credits/balance
    */
   @Get("balance")
-  async getBalance(@Req() req: any) {
+  async getBalance(@Req() req: AuthenticatedRequest) {
     const balance = await this.creditsService.getBalance(req.user.id);
     return { success: true, data: balance };
   }
@@ -53,7 +56,7 @@ export class CreditsController {
    */
   @Get("transactions")
   async getTransactions(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query() query: TransactionHistoryQueryDto,
   ) {
     const result = await this.creditsService.getTransactionHistory(
@@ -99,7 +102,7 @@ export class CreditsController {
    * GET /credits/unlock-status?storyId=xxx
    */
   @Get("unlock-status")
-  async checkUnlockStatus(@Req() req: any, @Query("storyId") storyId: string) {
+  async checkUnlockStatus(@Req() req: AuthenticatedRequest, @Query("storyId") storyId: string) {
     const unlocked = await this.creditsService.isStoryUnlocked(
       req.user.id,
       storyId,
@@ -112,7 +115,8 @@ export class CreditsController {
    * POST /credits/unlock-story
    */
   @Post("unlock-story")
-  async unlockStory(@Req() req: any, @Body() dto: UnlockStoryDto) {
+  @HttpCode(HttpStatus.OK)
+  async unlockStory(@Req() req: AuthenticatedRequest, @Body() dto: UnlockStoryDto) {
     const transaction = await this.creditsService.unlockStory(req.user.id, dto);
     return {
       success: true,
@@ -128,7 +132,8 @@ export class CreditsController {
    * POST /credits/tip
    */
   @Post("tip")
-  async tipAuthor(@Req() req: any, @Body() dto: TipAuthorDto) {
+  @HttpCode(HttpStatus.OK)
+  async tipAuthor(@Req() req: AuthenticatedRequest, @Body() dto: TipAuthorDto) {
     const transaction = await this.creditsService.tipAuthor(req.user.id, dto);
     return {
       success: true,
@@ -144,7 +149,8 @@ export class CreditsController {
    * POST /credits/daily-bonus
    */
   @Post("daily-bonus")
-  async claimDailyBonus(@Req() req: any) {
+  @HttpCode(HttpStatus.OK)
+  async claimDailyBonus(@Req() req: AuthenticatedRequest) {
     const transaction = await this.creditsService.claimDailyBonus(req.user.id);
     return {
       success: true,
@@ -163,7 +169,8 @@ export class CreditsController {
    * POST /credits/ad-session
    */
   @Post("ad-session")
-  async startAdSession(@Req() req: any) {
+  @HttpCode(HttpStatus.OK)
+  async startAdSession(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
 
     // Check daily ad limit before starting new session
@@ -233,8 +240,9 @@ export class CreditsController {
    * POST /credits/ad-reward
    */
   @Post("ad-reward")
+  @HttpCode(HttpStatus.OK)
   async rewardAdWatch(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: AdWatchRewardDto & { sessionToken?: string },
   ) {
     const userId = req.user.id;

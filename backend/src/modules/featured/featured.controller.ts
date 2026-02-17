@@ -25,6 +25,7 @@ import { RolesGuard } from "@/modules/auth/guards/roles.guard";
 import { Roles } from "@/modules/auth/decorators/roles.decorator";
 import { Public } from "@/modules/auth/decorators/public.decorator";
 import { UserRole } from "@aardvark/shared";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import { FeaturedService } from "./featured.service";
 import {
   CreateFeaturedContentDto,
@@ -123,7 +124,7 @@ export class FeaturedController {
   @ApiOperation({ summary: "Create featured content (admin)" })
   @ApiResponse({ status: 201, description: "Featured content created" })
   @ApiResponse({ status: 400, description: "Invalid input" })
-  async create(@Request() req: any, @Body() dto: CreateFeaturedContentDto) {
+  async create(@Request() req: AuthenticatedRequest, @Body() dto: CreateFeaturedContentDto) {
     return this.featuredService.create(req.user.id, dto);
   }
 
@@ -165,6 +166,7 @@ export class FeaturedController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Toggle featured content active status (admin)" })
   @ApiParam({ name: "id", description: "Featured content ID" })
   @ApiResponse({ status: 200, description: "Status toggled" })

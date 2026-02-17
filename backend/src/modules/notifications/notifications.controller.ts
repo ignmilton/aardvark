@@ -28,6 +28,7 @@ import {
   PushUnsubscribeDto,
 } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("notifications")
 @Controller("notifications")
@@ -44,7 +45,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: "List of notifications" })
   async getUserNotifications(
     @Query() query: NotificationQueryDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.notificationsService.getUserNotifications(req.user.id, query);
   }
@@ -52,7 +53,7 @@ export class NotificationsController {
   @Get("unread-count")
   @ApiOperation({ summary: "Get unread notification count" })
   @ApiResponse({ status: 200, description: "Unread notification count" })
-  async getUnreadCount(@Request() req: any) {
+  async getUnreadCount(@Request() req: AuthenticatedRequest) {
     const count = await this.notificationsService.getUnreadCount(req.user.id);
     return { count };
   }
@@ -65,7 +66,7 @@ export class NotificationsController {
     status: 403,
     description: "Not authorized to mark these notifications",
   })
-  async markAsRead(@Body() markReadDto: MarkReadDto, @Request() req: any) {
+  async markAsRead(@Body() markReadDto: MarkReadDto, @Request() req: AuthenticatedRequest) {
     await this.notificationsService.markAsRead(
       req.user.id,
       markReadDto.notificationIds,
@@ -77,7 +78,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Mark all notifications as read" })
   @ApiResponse({ status: 200, description: "All notifications marked as read" })
-  async markAllAsRead(@Request() req: any) {
+  async markAllAsRead(@Request() req: AuthenticatedRequest) {
     await this.notificationsService.markAllAsRead(req.user.id);
     return { success: true };
   }
@@ -88,7 +89,7 @@ export class NotificationsController {
   @ApiParam({ name: "id", description: "Notification ID" })
   @ApiResponse({ status: 204, description: "Notification deleted" })
   @ApiResponse({ status: 404, description: "Notification not found" })
-  async deleteNotification(@Param("id") id: string, @Request() req: any) {
+  async deleteNotification(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.notificationsService.deleteNotification(req.user.id, id);
   }
 
@@ -96,7 +97,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Subscribe to push notifications" })
   @ApiResponse({ status: 200, description: "Push subscription registered" })
-  async pushSubscribe(@Body() dto: PushSubscribeDto, @Request() req: any) {
+  async pushSubscribe(@Body() dto: PushSubscribeDto, @Request() req: AuthenticatedRequest) {
     await this.pushNotificationService.subscribe(
       req.user.id,
       dto.endpoint,
@@ -111,7 +112,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Unsubscribe from push notifications" })
   @ApiResponse({ status: 200, description: "Push subscription removed" })
-  async pushUnsubscribe(@Body() dto: PushUnsubscribeDto, @Request() req: any) {
+  async pushUnsubscribe(@Body() dto: PushUnsubscribeDto, @Request() req: AuthenticatedRequest) {
     await this.pushNotificationService.unsubscribe(req.user.id, dto.endpoint);
     return { success: true };
   }

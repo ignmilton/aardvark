@@ -28,6 +28,7 @@ import {
 } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "@/modules/auth/guards/optional-jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("segments")
 @Controller("segments")
@@ -41,7 +42,7 @@ export class SegmentsController {
   @ApiResponse({ status: 201, description: "Segment created successfully" })
   @ApiResponse({ status: 403, description: "Not allowed to create segment" })
   @ApiResponse({ status: 404, description: "Story not found" })
-  async create(@Body() createDto: CreateSegmentDto, @Request() req: any) {
+  async create(@Body() createDto: CreateSegmentDto, @Request() req: AuthenticatedRequest) {
     return this.segmentsService.create(createDto, req.user.id);
   }
 
@@ -91,7 +92,7 @@ export class SegmentsController {
   async bulkUpdatePositions(
     @Param("storyId") storyId: string,
     @Body() dto: BulkUpdatePositionsDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     await this.segmentsService.bulkUpdatePositions(storyId, dto, req.user.id);
     return { message: "Positions updated successfully" };
@@ -107,7 +108,7 @@ export class SegmentsController {
     description: "Registration required to continue reading",
   })
   @ApiResponse({ status: 404, description: "Segment not found" })
-  async findById(@Param("id") id: string, @Request() req: any) {
+  async findById(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     const segment = await this.segmentsService.findById(id);
 
     // Guest users can only read the root segment (first chapter)
@@ -131,7 +132,7 @@ export class SegmentsController {
   async update(
     @Param("id") id: string,
     @Body() updateDto: UpdateSegmentDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.segmentsService.update(id, updateDto, req.user.id);
   }
@@ -145,7 +146,7 @@ export class SegmentsController {
   @ApiResponse({ status: 204, description: "Segment deleted" })
   @ApiResponse({ status: 403, description: "Not allowed to delete segment" })
   @ApiResponse({ status: 404, description: "Segment not found" })
-  async delete(@Param("id") id: string, @Request() req: any) {
+  async delete(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.segmentsService.delete(id, req.user.id);
   }
 
@@ -161,7 +162,7 @@ export class SegmentsController {
   async addParentConnection(
     @Param("id") id: string,
     @Param("parentId") parentId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.segmentsService.addParentConnection(id, parentId, req.user.id);
   }
@@ -177,7 +178,7 @@ export class SegmentsController {
   async removeParentConnection(
     @Param("id") id: string,
     @Param("parentId") parentId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.segmentsService.removeParentConnection(
       id,
@@ -194,7 +195,7 @@ export class SegmentsController {
   @ApiParam({ name: "id", description: "Segment ID" })
   @ApiResponse({ status: 200, description: "Segment approved" })
   @ApiResponse({ status: 403, description: "Not authorized to approve" })
-  async approveSegment(@Param("id") id: string, @Request() req: any) {
+  async approveSegment(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.segmentsService.approveSegment(id, req.user.id);
   }
 
@@ -209,7 +210,7 @@ export class SegmentsController {
   async rejectSegment(
     @Param("id") id: string,
     @Body("reason") reason: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.segmentsService.rejectSegment(id, req.user.id, reason);
   }

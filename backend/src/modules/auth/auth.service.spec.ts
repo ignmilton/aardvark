@@ -13,6 +13,7 @@ import { AuthService } from "./auth.service";
 import { User } from "@/database/entities";
 import { UserRole, AccountStatus } from "@aardvark/shared";
 import { MailService } from "@/common/mail/mail.service";
+import { TokenBlacklistService } from "./token-blacklist.service";
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -79,6 +80,13 @@ describe("AuthService", () => {
             sendEmailVerification: jest.fn().mockResolvedValue(true),
             send: jest.fn().mockResolvedValue(true),
             isConfigured: jest.fn().mockReturnValue(true),
+          },
+        },
+        {
+          provide: TokenBlacklistService,
+          useValue: {
+            blacklistToken: jest.fn().mockResolvedValue(undefined),
+            isBlacklisted: jest.fn().mockResolvedValue(false),
           },
         },
       ],
@@ -353,6 +361,25 @@ describe("AuthService", () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it("should throw BadRequestException for banned user", async () => {
+      const futureDate = new Date();
+      futureDate.setHours(futureDate.getHours() + 1);
+
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        accountStatus: AccountStatus.BANNED,
+        passwordResetToken: "valid-token",
+        passwordResetExpires: futureDate,
+      } as User);
+
+      await expect(
+        service.resetPassword("valid-token", "NewPassword123!"),
+      ).rejects.toThrow(BadRequestException);
+
+      // Ensure the password was NOT updated
+      expect(userRepository.update).not.toHaveBeenCalled();
+    });
+
     it("should successfully reset password with valid token", async () => {
       const futureDate = new Date();
       futureDate.setHours(futureDate.getHours() + 1);
@@ -445,9 +472,9 @@ describe("AuthService", () => {
     it("should throw UnauthorizedException if user not found", async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.getCurrentUser("nonexistent"),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.getCurrentUser("nonexistent")).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 

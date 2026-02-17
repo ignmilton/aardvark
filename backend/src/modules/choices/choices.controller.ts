@@ -21,6 +21,7 @@ import {
 import { ChoicesService } from "./choices.service";
 import { CreateChoiceDto, UpdateChoiceDto, ReorderChoicesDto } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("choices")
 @Controller("choices")
@@ -38,7 +39,7 @@ export class ChoicesController {
   })
   @ApiResponse({ status: 403, description: "Not allowed to create choice" })
   @ApiResponse({ status: 404, description: "Segment not found" })
-  async create(@Body() createDto: CreateChoiceDto, @Request() req: any) {
+  async create(@Body() createDto: CreateChoiceDto, @Request() req: AuthenticatedRequest) {
     return this.choicesService.create(createDto, req.user.id);
   }
 
@@ -77,7 +78,7 @@ export class ChoicesController {
   async reorderChoices(
     @Param("segmentId") segmentId: string,
     @Body() dto: ReorderChoicesDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.choicesService.reorderChoices(segmentId, dto, req.user.id);
   }
@@ -103,7 +104,7 @@ export class ChoicesController {
   async update(
     @Param("id") id: string,
     @Body() updateDto: UpdateChoiceDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.choicesService.update(id, updateDto, req.user.id);
   }
@@ -117,7 +118,7 @@ export class ChoicesController {
   @ApiResponse({ status: 204, description: "Choice deleted" })
   @ApiResponse({ status: 403, description: "Not allowed to delete" })
   @ApiResponse({ status: 404, description: "Choice not found" })
-  async delete(@Param("id") id: string, @Request() req: any) {
+  async delete(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.choicesService.delete(id, req.user.id);
   }
 

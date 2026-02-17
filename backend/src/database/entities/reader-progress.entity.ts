@@ -18,6 +18,7 @@ import { Story } from "./story.entity";
  */
 @Entity("reader_progress")
 @Unique(["userId", "storyId"])
+@Index(["userId", "lastReadAt"])
 export class ReaderProgress {
   @PrimaryGeneratedColumn("uuid")
   id: string;

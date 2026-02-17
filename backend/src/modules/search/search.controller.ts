@@ -28,6 +28,7 @@ import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
 import { RolesGuard } from "@/modules/auth/guards/roles.guard";
 import { Roles } from "@/modules/auth/decorators/roles.decorator";
 import { UserRole, TagType } from "@aardvark/shared";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("search")
 @Controller("search")
@@ -137,7 +138,7 @@ export class SearchController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get user search history" })
   @ApiResponse({ status: 200, description: "Recent search history" })
-  async getSearchHistory(@Request() req: any, @Query("limit") limit?: number) {
+  async getSearchHistory(@Request() req: AuthenticatedRequest, @Query("limit") limit?: number) {
     return this.searchService.getSearchHistory(req.user.id, limit || 20);
   }
 
@@ -147,7 +148,7 @@ export class SearchController {
   @ApiOperation({ summary: "Get user frequent searches" })
   @ApiResponse({ status: 200, description: "Most frequent searches" })
   async getFrequentSearches(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query("limit") limit?: number,
   ) {
     return this.searchService.getFrequentSearches(req.user.id, limit || 10);
@@ -166,7 +167,7 @@ export class SearchController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Delete a search history entry" })
   @ApiResponse({ status: 204, description: "Search history entry deleted" })
-  async deleteSearchHistory(@Request() req: any, @Param("id") id: string) {
+  async deleteSearchHistory(@Request() req: AuthenticatedRequest, @Param("id") id: string) {
     await this.searchService.deleteSearchHistory(req.user.id, id);
   }
 
@@ -176,7 +177,7 @@ export class SearchController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Clear all search history" })
   @ApiResponse({ status: 204, description: "All search history cleared" })
-  async clearSearchHistory(@Request() req: any) {
+  async clearSearchHistory(@Request() req: AuthenticatedRequest) {
     await this.searchService.clearSearchHistory(req.user.id);
   }
 }

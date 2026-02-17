@@ -22,6 +22,7 @@ import {
 import { RatingsService } from "./ratings.service";
 import { CreateRatingDto, UpdateRatingDto, RatingQueryDto } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("ratings")
 @Controller("ratings")
@@ -35,7 +36,7 @@ export class RatingsController {
   @ApiResponse({ status: 201, description: "Rating created" })
   @ApiResponse({ status: 404, description: "Story not found" })
   @ApiResponse({ status: 409, description: "Already rated this story" })
-  async create(@Body() createDto: CreateRatingDto, @Request() req: any) {
+  async create(@Body() createDto: CreateRatingDto, @Request() req: AuthenticatedRequest) {
     return this.ratingsService.create(createDto, req.user.id);
   }
 
@@ -71,7 +72,7 @@ export class RatingsController {
   @ApiOperation({ summary: "Get current user rating for a story" })
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiResponse({ status: 200, description: "User rating or null" })
-  async getUserRating(@Param("storyId") storyId: string, @Request() req: any) {
+  async getUserRating(@Param("storyId") storyId: string, @Request() req: AuthenticatedRequest) {
     const rating = await this.ratingsService.getUserRating(
       storyId,
       req.user.id,
@@ -99,7 +100,7 @@ export class RatingsController {
   async update(
     @Param("id") id: string,
     @Body() updateDto: UpdateRatingDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.ratingsService.update(id, updateDto, req.user.id);
   }
@@ -113,7 +114,7 @@ export class RatingsController {
   @ApiResponse({ status: 204, description: "Rating deleted" })
   @ApiResponse({ status: 403, description: "Not authorized to delete" })
   @ApiResponse({ status: 404, description: "Rating not found" })
-  async delete(@Param("id") id: string, @Request() req: any) {
+  async delete(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.ratingsService.delete(id, req.user.id);
   }
 
@@ -124,7 +125,7 @@ export class RatingsController {
   @ApiOperation({ summary: "Mark a review as helpful" })
   @ApiParam({ name: "id", description: "Rating ID" })
   @ApiResponse({ status: 200, description: "Marked as helpful" })
-  async markHelpful(@Param("id") id: string, @Request() req: any) {
+  async markHelpful(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.ratingsService.markHelpful(id, req.user.id);
     return { message: "Marked as helpful" };
   }

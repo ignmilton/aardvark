@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsInt,
   IsString,
+  IsBoolean,
   Min,
   Max,
   MaxLength,
@@ -64,10 +65,13 @@ export class AdWatchRewardDto {
   @IsString()
   adUnitId: string;
 
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   duration: number;
 
+  @Type(() => Boolean)
+  @IsBoolean()
   completed: boolean;
 }
 

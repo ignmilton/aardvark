@@ -19,6 +19,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { ForgotPasswordDto, ResetPasswordDto } from "./dto/reset-password.dto";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 /**
  * Authentication controller handling registration, login,
@@ -85,20 +86,30 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({ summary: "Logout current user" })
-  async logout(@Request() req: any) {
+  async logout(@Request() req: AuthenticatedRequest) {
     // Extract token and add to blacklist so it can't be reused
+    // JwtAuthGuard ensures auth header is present, so this branch always executes
     const authHeader = req.headers?.authorization;
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.slice(7);
-      // Decode token to get actual expiry time for precise blacklisting
       try {
-        const decoded = JSON.parse(
-          Buffer.from(token.split(".")[1], "base64").toString(),
-        );
-        const remainingSeconds = decoded.exp
-          ? Math.max(0, decoded.exp - Math.floor(Date.now() / 1000))
-          : 15 * 60;
-        await this.tokenBlacklistService.blacklistToken(token, remainingSeconds);
+        const parts = token.split(".");
+        if (parts.length !== 3) {
+          // Malformed JWT — blacklist with default TTL
+          await this.tokenBlacklistService.blacklistToken(token, 15 * 60);
+        } else {
+          const decoded = JSON.parse(
+            Buffer.from(parts[1], "base64url").toString(),
+          );
+          const remainingSeconds =
+            typeof decoded.exp === "number"
+              ? Math.max(0, decoded.exp - Math.floor(Date.now() / 1000))
+              : 15 * 60;
+          await this.tokenBlacklistService.blacklistToken(
+            token,
+            remainingSeconds,
+          );
+        }
       } catch {
         // Fallback: blacklist for default access token lifetime
         await this.tokenBlacklistService.blacklistToken(token, 15 * 60);

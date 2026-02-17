@@ -343,9 +343,9 @@ describe("SubscriptionsService", () => {
     it("should throw NotFoundException if no active subscription", async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.cancelSubscription("user-123"),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.cancelSubscription("user-123")).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it("should throw BadRequestException for mobile subscriptions", async () => {
@@ -355,9 +355,9 @@ describe("SubscriptionsService", () => {
         platform: "ios",
       } as any);
 
-      await expect(
-        service.cancelSubscription("user-123"),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.cancelSubscription("user-123")).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it("should cancel subscription at period end by default", async () => {
@@ -366,9 +366,15 @@ describe("SubscriptionsService", () => {
         status: "active",
         cancel_at_period_end: true,
       };
-      subscriptionRepo.findOne.mockResolvedValue({ ...mockSubscription } as any);
-      paymentsService.cancelSubscription.mockResolvedValue(canceledStripe as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+      } as any);
+      paymentsService.cancelSubscription.mockResolvedValue(
+        canceledStripe as any,
+      );
+      subscriptionRepo.save.mockImplementation((s) =>
+        Promise.resolve(s as any),
+      );
 
       const result = await service.cancelSubscription("user-123", false);
 
@@ -386,9 +392,15 @@ describe("SubscriptionsService", () => {
         status: "canceled",
         cancel_at_period_end: false,
       };
-      subscriptionRepo.findOne.mockResolvedValue({ ...mockSubscription } as any);
-      paymentsService.cancelSubscription.mockResolvedValue(canceledStripe as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+      } as any);
+      paymentsService.cancelSubscription.mockResolvedValue(
+        canceledStripe as any,
+      );
+      subscriptionRepo.save.mockImplementation((s) =>
+        Promise.resolve(s as any),
+      );
 
       await service.cancelSubscription("user-123", true);
 
@@ -409,9 +421,9 @@ describe("SubscriptionsService", () => {
     it("should throw BadRequestException if no subscription to resume", async () => {
       subscriptionRepo.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.resumeSubscription("user-123"),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.resumeSubscription("user-123")).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it("should throw BadRequestException if subscription not active with cancelAtPeriodEnd", async () => {
@@ -421,9 +433,9 @@ describe("SubscriptionsService", () => {
         cancelAtPeriodEnd: false, // not canceling
       } as any);
 
-      await expect(
-        service.resumeSubscription("user-123"),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.resumeSubscription("user-123")).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it("should throw BadRequestException for mobile subscriptions", async () => {
@@ -434,9 +446,9 @@ describe("SubscriptionsService", () => {
         platform: "android",
       } as any);
 
-      await expect(
-        service.resumeSubscription("user-123"),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.resumeSubscription("user-123")).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it("should resume a canceled subscription successfully", async () => {
@@ -446,7 +458,9 @@ describe("SubscriptionsService", () => {
         canceledAt: new Date(),
       } as any);
       paymentsService.resumeSubscription.mockResolvedValue({} as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+      subscriptionRepo.save.mockImplementation((s) =>
+        Promise.resolve(s as any),
+      );
 
       const result = await service.resumeSubscription("user-123");
 
@@ -478,8 +492,13 @@ describe("SubscriptionsService", () => {
         plan: mockPlan,
       } as any);
       paymentsService.getSubscription.mockResolvedValue(renewedStripe as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
-      userRepo.findOne.mockResolvedValue({ id: "user-123", creditsBalance: 100 } as any);
+      subscriptionRepo.save.mockImplementation((s) =>
+        Promise.resolve(s as any),
+      );
+      userRepo.findOne.mockResolvedValue({
+        id: "user-123",
+        creditsBalance: 100,
+      } as any);
       transactionRepo.create.mockReturnValue({} as any);
       transactionRepo.save.mockResolvedValue({} as any);
 
@@ -502,8 +521,12 @@ describe("SubscriptionsService", () => {
     });
 
     it("should mark subscription as canceled and downgrade user", async () => {
-      subscriptionRepo.findOne.mockResolvedValue({ ...mockSubscription } as any);
-      subscriptionRepo.save.mockImplementation((s) => Promise.resolve(s as any));
+      subscriptionRepo.findOne.mockResolvedValue({
+        ...mockSubscription,
+      } as any);
+      subscriptionRepo.save.mockImplementation((s) =>
+        Promise.resolve(s as any),
+      );
 
       await service.handleExpiration("sub_stripe_123");
 

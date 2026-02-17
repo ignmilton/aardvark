@@ -50,6 +50,8 @@ export const databaseConfig = (
     retryDelay: 1000,
 
     // Cache configuration (TypeORM query cache)
+    // TODO: Switch to Redis-backed cache (type: "ioredis") for better performance
+    // and to avoid extra database writes for cache entries.
     cache: {
       type: "database",
       tableName: "query_result_cache",

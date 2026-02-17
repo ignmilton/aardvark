@@ -19,6 +19,7 @@ import {
 } from "@aardvark/shared";
 import { User } from "@/database/entities";
 import { MailService } from "@/common/mail/mail.service";
+import { TokenBlacklistService } from "./token-blacklist.service";
 
 /**
  * Authentication service handling user registration, login,
@@ -38,6 +39,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
   ) {}
 
   /**
@@ -52,10 +54,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      if (existingUser.username === username) {
-        throw new ConflictException("Username already taken");
-      }
-      throw new ConflictException("Email already registered");
+      throw new ConflictException(
+        "Account already exists with this username or email",
+      );
     }
 
     // Hash password
@@ -243,9 +244,7 @@ export class AuthService {
    * Implements token rotation: issues a new refresh token each time
    * to limit the window of compromise for stolen refresh tokens.
    */
-  async refreshToken(
-    refreshTokenStr: string,
-  ): Promise<{
+  async refreshToken(refreshTokenStr: string): Promise<{
     accessToken: string;
     refreshToken: string;
     expiresIn: number;
@@ -274,9 +273,19 @@ export class AuthService {
         throw new UnauthorizedException("Account has been deactivated");
       }
 
+      // Blacklist the old refresh token to prevent reuse
+      const refreshExpSeconds = this.parseExpirationToSeconds(
+        this.configService.get("jwt.refreshExpiration", "7d"),
+      );
+      await this.tokenBlacklistService.blacklistToken(
+        refreshTokenStr,
+        refreshExpSeconds,
+      );
+
       // Token rotation: generate new access + refresh token pair
       return this.generateTokens(user);
-    } catch {
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException("Invalid refresh token");
     }
   }
@@ -372,10 +381,20 @@ export class AuthService {
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { passwordResetToken: token },
-      select: ["id", "passwordResetToken", "passwordResetExpires"],
+      select: [
+        "id",
+        "passwordResetToken",
+        "passwordResetExpires",
+        "accountStatus",
+      ],
     });
 
     if (!user) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    // Prevent banned users from resetting password
+    if (user.accountStatus === AccountStatus.BANNED) {
       throw new BadRequestException("Invalid or expired reset token");
     }
 

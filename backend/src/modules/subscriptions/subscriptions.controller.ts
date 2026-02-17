@@ -10,6 +10,7 @@ import {
   UseGuards,
   Logger,
   HttpCode,
+  HttpStatus,
   Inject,
 } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
@@ -22,6 +23,7 @@ import { SubscriptionsService } from "./subscriptions.service";
 import { PaymentsService } from "@/modules/payments/payments.service";
 import { RazorpayService } from "@/modules/payments/razorpay.service";
 import { CreateSubscriptionDto, CancelSubscriptionDto } from "./dto";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 const WEBHOOK_IDEMPOTENCY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -69,7 +71,7 @@ export class SubscriptionsController {
    */
   @UseGuards(JwtAuthGuard)
   @Get("status")
-  async getStatus(@Req() req: any) {
+  async getStatus(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     const status =
       await this.subscriptionsService.getSubscriptionStatus(userId);
@@ -99,7 +101,7 @@ export class SubscriptionsController {
    */
   @UseGuards(JwtAuthGuard)
   @Get("premium")
-  async checkPremium(@Req() req: any) {
+  async checkPremium(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     const isPremium = await this.subscriptionsService.isPremium(userId);
     return {
@@ -114,15 +116,15 @@ export class SubscriptionsController {
    */
   @UseGuards(JwtAuthGuard)
   @Post("subscribe")
-  async subscribe(@Req() req: any, @Body() dto: CreateSubscriptionDto) {
+  async subscribe(@Req() req: AuthenticatedRequest, @Body() dto: CreateSubscriptionDto) {
     const userId = req.user.id;
     const user = req.user;
 
     // Get or create Stripe customer
     const customer = await this.paymentsService.getOrCreateCustomer(
       userId,
-      user.email,
-      user.displayName || user.username,
+      user.email as string,
+      (user.displayName || user.username) as string,
     );
 
     // Get the plan to get its Stripe price ID
@@ -161,7 +163,8 @@ export class SubscriptionsController {
    */
   @UseGuards(JwtAuthGuard)
   @Post("cancel")
-  async cancel(@Req() req: any, @Body() dto: CancelSubscriptionDto) {
+  @HttpCode(HttpStatus.OK)
+  async cancel(@Req() req: AuthenticatedRequest, @Body() dto: CancelSubscriptionDto) {
     const userId = req.user.id;
     const subscription = await this.subscriptionsService.cancelSubscription(
       userId,
@@ -183,7 +186,8 @@ export class SubscriptionsController {
    */
   @UseGuards(JwtAuthGuard)
   @Post("resume")
-  async resume(@Req() req: any) {
+  @HttpCode(HttpStatus.OK)
+  async resume(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     const subscription =
       await this.subscriptionsService.resumeSubscription(userId);
@@ -202,7 +206,7 @@ export class SubscriptionsController {
    */
   @UseGuards(JwtAuthGuard)
   @Get("history")
-  async getHistory(@Req() req: any) {
+  async getHistory(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     const history = await this.subscriptionsService.getHistory(userId);
     return {

@@ -28,6 +28,7 @@ export class PaymentsService {
       );
     }
     this.stripe = new Stripe(stripeKey, {
+      // TODO: Upgrade stripe SDK to latest and update apiVersion accordingly
       apiVersion: "2023-10-16",
     });
   }
