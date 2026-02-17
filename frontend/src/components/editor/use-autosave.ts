@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 const AUTOSAVE_INTERVAL_MS = 30000; // Save every 30 seconds
 const DRAFT_PREFIX = 'aardvark_draft_';
@@ -64,6 +65,10 @@ export function useAutosave(
       if (Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
         localStorage.removeItem(key);
         return null;
+      }
+      // Sanitize HTML content loaded from localStorage to prevent XSS
+      if (draft.contentHtml) {
+        draft.contentHtml = sanitizeHtml(draft.contentHtml);
       }
       return draft;
     } catch {

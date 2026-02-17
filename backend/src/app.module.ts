@@ -25,7 +25,6 @@ import { AICompanionModule } from "./modules/ai-companion/ai-companion.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { MessagingModule } from "./modules/messaging/messaging.module";
 import { ForumModule } from "./modules/forum/forum.module";
-import { WebsocketModule } from "./modules/websocket/websocket.module";
 import { HealthModule } from "./modules/health/health.module";
 import { TagsModule } from "./modules/tags/tags.module";
 import { ReadingListsModule } from "./modules/reading-lists/reading-lists.module";
@@ -107,7 +106,6 @@ import { databaseConfig } from "./config/database.config";
     AnalyticsModule,
     MessagingModule,
     ForumModule,
-    WebsocketModule,
     HealthModule,
     TagsModule,
     ReadingListsModule,

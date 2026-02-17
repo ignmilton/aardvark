@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
+import { getAuthToken, getSessionScope } from '@/lib/auth-token';
 import type {
   ModerationStats,
   PlatformHealthMetrics,
@@ -57,8 +58,9 @@ export interface PlatformAnalytics {
  * Hook for fetching admin dashboard stats
  */
 export function useAdminStats(token?: string) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['adminStats'],
+    queryKey: ['adminStats', scope],
     queryFn: () =>
       fetchApi<{
         moderation: ModerationStats;
@@ -76,8 +78,9 @@ export function usePlatformAnalytics(
   period: 'day' | 'week' | 'month' | 'year' = 'day',
   token?: string
 ) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['platformAnalytics', period],
+    queryKey: ['platformAnalytics', period, scope],
     queryFn: () =>
       fetchApi<PlatformAnalytics>(`/admin/analytics?period=${period}`, {
         token,
@@ -91,7 +94,7 @@ export function usePlatformAnalytics(
  * for use in admin dashboard and analytics pages.
  */
 export function useAdminAnalytics() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+  const token = getAuthToken();
   const { data: analytics, isLoading: analyticsLoading } = usePlatformAnalytics('week', token);
   const { data: adminStats, isLoading: statsLoading } = useAdminStats(token);
 

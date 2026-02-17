@@ -383,7 +383,9 @@ export class MobileService {
   }
 
   /**
-   * Create or update a mobile-originated subscription
+   * Create or update a mobile-originated subscription.
+   * Uses a transaction with pessimistic locking to prevent
+   * race conditions and receipt replay attacks.
    */
   private async createOrUpdateMobileSubscription(
     userId: string,
@@ -395,67 +397,75 @@ export class MobileService {
       productId: string;
     },
   ) {
-    // Prevent receipt replay: check if another user already claimed this subscription
-    const existingForOtherUser = await this.subscriptionRepo.findOne({
-      where: {
-        platformSubscriptionId: params.platformSubscriptionId,
-        platform: params.platform,
-      },
-    });
-    if (existingForOtherUser && existingForOtherUser.userId !== userId) {
-      this.logger.warn(
-        `Receipt replay attempt: subscription ${params.platformSubscriptionId} already belongs to another user, attempted by ${userId}`,
-      );
-      return;
-    }
+    await this.subscriptionRepo.manager.transaction(async (manager) => {
+      const subRepo = manager.getRepository(Subscription);
 
-    // Find existing mobile subscription for this user on this platform
-    let subscription = await this.subscriptionRepo.findOne({
-      where: {
-        userId,
-        platform: params.platform,
-      },
-    });
-
-    // Find an active plan to associate with
-    const plan = await this.planRepo.findOne({
-      where: { isActive: true },
-      order: { priceInCents: "DESC" },
-    });
-
-    if (!plan) {
-      this.logger.warn(
-        `No active subscription plan found for mobile subscription (user: ${userId})`,
-      );
-      return;
-    }
-
-    if (subscription) {
-      subscription.platformSubscriptionId = params.platformSubscriptionId;
-      subscription.currentPeriodStart = params.currentPeriodStart;
-      subscription.currentPeriodEnd = params.currentPeriodEnd;
-      subscription.status = "active";
-      subscription.cancelAtPeriodEnd = false;
-      subscription.canceledAt = null;
-    } else {
-      subscription = this.subscriptionRepo.create({
-        userId,
-        planId: plan.id,
-        platform: params.platform,
-        platformSubscriptionId: params.platformSubscriptionId,
-        stripeSubscriptionId: null,
-        stripeCustomerId: null,
-        status: "active",
-        currentPeriodStart: params.currentPeriodStart,
-        currentPeriodEnd: params.currentPeriodEnd,
-        cancelAtPeriodEnd: false,
+      // Prevent receipt replay: check if another user already claimed this subscription
+      // Use pessimistic write lock to prevent race condition between check and insert
+      const existingForOtherUser = await subRepo.findOne({
+        where: {
+          platformSubscriptionId: params.platformSubscriptionId,
+          platform: params.platform,
+        },
+        lock: { mode: "pessimistic_write" },
       });
-    }
+      if (existingForOtherUser && existingForOtherUser.userId !== userId) {
+        this.logger.warn(
+          `Receipt replay attempt: subscription ${params.platformSubscriptionId} already belongs to another user, attempted by ${userId}`,
+        );
+        throw new BadRequestException("Receipt has already been verified by another account");
+      }
 
-    await this.subscriptionRepo.save(subscription);
-    this.logger.log(
-      `Mobile subscription activated for user ${userId} via ${params.platform}`,
-    );
+      // Find existing mobile subscription for this user on this platform
+      let subscription = await subRepo.findOne({
+        where: {
+          userId,
+          platform: params.platform,
+        },
+        lock: { mode: "pessimistic_write" },
+      });
+
+      // Find an active plan to associate with
+      const planRepo = manager.getRepository(SubscriptionPlan);
+      const plan = await planRepo.findOne({
+        where: { isActive: true },
+        order: { priceInCents: "DESC" },
+      });
+
+      if (!plan) {
+        this.logger.warn(
+          `No active subscription plan found for mobile subscription (user: ${userId})`,
+        );
+        return;
+      }
+
+      if (subscription) {
+        subscription.platformSubscriptionId = params.platformSubscriptionId;
+        subscription.currentPeriodStart = params.currentPeriodStart;
+        subscription.currentPeriodEnd = params.currentPeriodEnd;
+        subscription.status = "active";
+        subscription.cancelAtPeriodEnd = false;
+        subscription.canceledAt = null;
+      } else {
+        subscription = subRepo.create({
+          userId,
+          planId: plan.id,
+          platform: params.platform,
+          platformSubscriptionId: params.platformSubscriptionId,
+          stripeSubscriptionId: null,
+          stripeCustomerId: null,
+          status: "active",
+          currentPeriodStart: params.currentPeriodStart,
+          currentPeriodEnd: params.currentPeriodEnd,
+          cancelAtPeriodEnd: false,
+        });
+      }
+
+      await subRepo.save(subscription);
+      this.logger.log(
+        `Mobile subscription activated for user ${userId} via ${params.platform}`,
+      );
+    });
   }
 
   /**

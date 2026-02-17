@@ -8,6 +8,7 @@ import {
   IsBoolean,
   Min,
   Max,
+  ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
@@ -46,6 +47,7 @@ export class CreateReportDto {
   @ApiPropertyOptional({ type: [String], description: "URLs or text evidence" })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(10)
   @IsString({ each: true })
   evidence?: string[];
 }
@@ -457,6 +459,7 @@ export class AppealsQueueQuery {
 export class BulkResolveDto {
   @ApiProperty({ description: "Report IDs to resolve" })
   @IsArray()
+  @ArrayMaxSize(100)
   @IsUUID("4", { each: true })
   reportIds: string[];
 
@@ -476,6 +479,7 @@ export class BulkResolveDto {
 export class BulkAssignDto {
   @ApiProperty({ description: "Report IDs to assign" })
   @IsArray()
+  @ArrayMaxSize(100)
   @IsUUID("4", { each: true })
   reportIds: string[];
 
@@ -491,6 +495,7 @@ export class BulkAssignDto {
 export class BulkWarnDto {
   @ApiProperty({ description: "User IDs to warn" })
   @IsArray()
+  @ArrayMaxSize(100)
   @IsUUID("4", { each: true })
   userIds: string[];
 

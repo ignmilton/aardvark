@@ -439,7 +439,8 @@ export class SearchService implements OnModuleInit {
   }
 
   /**
-   * Autocomplete suggestions
+   * Autocomplete suggestions.
+   * Filters out banned/suspended users from user autocomplete results.
    */
   async autocomplete(dto: AutocompleteDto) {
     if (!this.isConnected) {
@@ -449,34 +450,57 @@ export class SearchService implements OnModuleInit {
     const index = dto.type === "user" ? USERS_INDEX : STORIES_INDEX;
 
     try {
-      const result = await this.client.search({
-        index,
-        body: {
-          suggest: {
-            story_suggest: {
-              prefix: dto.prefix,
-              completion: {
-                field: "suggest",
-                size: dto.limit,
-                fuzzy: {
-                  fuzziness: "AUTO",
-                },
+      const body: any = {
+        suggest: {
+          story_suggest: {
+            prefix: dto.prefix,
+            completion: {
+              field: "suggest",
+              size: dto.limit,
+              fuzzy: {
+                fuzziness: "AUTO",
               },
             },
           },
         },
+      };
+
+      // Filter out banned/suspended users from autocomplete
+      if (dto.type === "user") {
+        body.suggest.story_suggest.completion.contexts = undefined;
+        // Use a filtered suggestion with must_not for banned users
+        body.query = {
+          bool: {
+            must_not: [
+              { terms: { "accountStatus.keyword": ["banned", "suspended"] } },
+            ],
+          },
+        };
+      }
+
+      const result = await this.client.search({
+        index,
+        body,
       });
 
       const suggestions =
         (result.suggest as any)?.story_suggest?.[0]?.options || [];
 
       return {
-        suggestions: suggestions.map((s: any) => ({
-          text: s.text,
-          id: s._source.id,
-          ...(dto.type === "story" && { category: s._source.category }),
-          ...(dto.type === "user" && { username: s._source.username }),
-        })),
+        suggestions: suggestions
+          .filter((s: any) => {
+            // Additional safety: filter out banned/suspended users on the server side
+            if (dto.type === "user" && s._source?.accountStatus) {
+              return !["banned", "suspended"].includes(s._source.accountStatus);
+            }
+            return true;
+          })
+          .map((s: any) => ({
+            text: s.text,
+            id: s._source.id,
+            ...(dto.type === "story" && { category: s._source.category }),
+            ...(dto.type === "user" && { username: s._source.username }),
+          })),
       };
     } catch (error) {
       this.logger.error("Autocomplete failed", error);

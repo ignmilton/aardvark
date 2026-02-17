@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
+import { getAuthToken, getSessionScope } from '@/lib/auth-token';
 import type {
   User,
   UserWarning,
@@ -31,8 +32,9 @@ export interface UserListQuery {
  * Hook for fetching user list with pagination and filtering
  */
 export function useUserList(query: UserListQuery = {}, token?: string) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['userList', query],
+    queryKey: ['userList', query, scope],
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(query).forEach(([key, value]) => {
@@ -52,8 +54,9 @@ export function useUserList(query: UserListQuery = {}, token?: string) {
  * Hook for fetching warnings for a specific user
  */
 export function useUserWarnings(userId: string, token?: string) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['userWarnings', userId],
+    queryKey: ['userWarnings', userId, scope],
     queryFn: () =>
       fetchApi<UserWarning[]>(`/admin/users/${userId}/warnings`, {
         token,
@@ -66,8 +69,9 @@ export function useUserWarnings(userId: string, token?: string) {
  * Hook for fetching bans for a specific user
  */
 export function useUserBans(userId: string, token?: string) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['userBans', userId],
+    queryKey: ['userBans', userId, scope],
     queryFn: () =>
       fetchApi<UserBan[]>(`/admin/users/${userId}/bans`, {
         token,
@@ -146,7 +150,7 @@ export function useLiftBan(token?: string) {
  * for use in the admin users page.
  */
 export function useUserManagement() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+  const token = getAuthToken();
   const [search, setSearch] = useState('');
   const { data, isLoading } = useUserList({ search }, token);
   const warnMutation = useIssueWarning(token);

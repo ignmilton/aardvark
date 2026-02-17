@@ -6,6 +6,7 @@ import {
   IsArray,
   ValidateNested,
   IsDateString,
+  ArrayMaxSize,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
@@ -39,6 +40,7 @@ export class SyncRequestDto {
   @ApiPropertyOptional({ description: "Story IDs to sync progress for" })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsUUID("4", { each: true })
   storyIds?: string[];
 }
@@ -54,6 +56,7 @@ export class OfflineProgressDto {
 
   @ApiProperty({ description: "Visited segment IDs" })
   @IsArray()
+  @ArrayMaxSize(500)
   @IsUUID("4", { each: true })
   visitedSegmentIds: string[];
 
@@ -77,6 +80,7 @@ export class SyncProgressDto {
     type: [OfflineProgressDto],
   })
   @IsArray()
+  @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => OfflineProgressDto)
   progress: OfflineProgressDto[];

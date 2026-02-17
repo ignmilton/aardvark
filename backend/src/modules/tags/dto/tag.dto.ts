@@ -5,11 +5,13 @@ import {
   IsEnum,
   IsInt,
   IsBoolean,
+  IsUUID,
   Min,
   Max,
   MaxLength,
   MinLength,
   Matches,
+  ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
@@ -34,12 +36,13 @@ export class CreateTagDto {
 
   @ApiPropertyOptional({ description: "Parent tag ID for hierarchical tags" })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   parentTagId?: string;
 
   @ApiPropertyOptional({ description: "Synonyms for this tag", type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
   synonyms?: string[];
 
@@ -71,12 +74,13 @@ export class UpdateTagDto {
 
   @ApiPropertyOptional({ description: "Parent tag ID" })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   parentTagId?: string;
 
   @ApiPropertyOptional({ description: "Synonyms", type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
   synonyms?: string[];
 
@@ -155,13 +159,14 @@ export class TagQueryDto {
 export class AddTagsToStoryDto {
   @ApiProperty({ description: "Tag IDs to add", type: [String] })
   @IsArray()
-  @IsString({ each: true })
+  @ArrayMaxSize(50)
+  @IsUUID("4", { each: true })
   tagIds: string[];
 }
 
 export class RemoveTagFromStoryDto {
   @ApiProperty({ description: "Tag ID to remove" })
-  @IsString()
+  @IsUUID()
   tagId: string;
 }
 
@@ -188,7 +193,8 @@ export class TagSuggestDto {
 export class BulkTagActionDto {
   @ApiProperty({ description: "Tag IDs", type: [String] })
   @IsArray()
-  @IsString({ each: true })
+  @ArrayMaxSize(100)
+  @IsUUID("4", { each: true })
   tagIds: string[];
 
   @ApiProperty({
@@ -200,7 +206,7 @@ export class BulkTagActionDto {
 
   @ApiPropertyOptional({ description: "Target tag ID for merge action" })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   targetTagId?: string;
 }
 
