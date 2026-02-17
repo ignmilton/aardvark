@@ -307,6 +307,22 @@ The Socket.io adapter is configured in `main.ts` but there's no WebSocket gatewa
 
 ---
 
+## Cross-Document Discrepancies
+
+The following inconsistencies between design docs, prior reports, and the codebase should be resolved:
+
+1. **Production Readiness Report (Jan 29) claims 100/100** — but the Code Review (Feb 17, 19 days later) found 58 issues including 5 critical. The 100/100 claim is misleading even after fixes since several items remain deferred.
+
+2. **Production Architecture Section 10 contradicts Section 8** — Section 8 says `conditionJson`, `stateEffects`, and `stateVariables` are **retained** (actively used for branching). Section 10 (Migration Plan) says to "Remove state-related columns." Section 8 was corrected but Section 10 was not updated. **Action needed: update Section 10.**
+
+3. **Test coverage claims conflict** — Production Readiness Report claims 100/100 for test coverage with 107 tests across 7 files. Code Review found ratings service had only 1/10 methods tested (since fixed to 60 tests). The design document targets 80%+ code coverage. With 12 test files across 31 modules, realistic coverage is likely 40-60%, not 100%.
+
+4. **Security scoring conflict** — Production Readiness Report claims Security 100/100, but within the same document's table header it shows 95/100. The Code Review found 5 critical security issues (all now fixed) and several medium-severity items still deferred.
+
+5. **Design Document specifies 16 tables; implementation has 29 entities** — This reflects organic feature growth (collections, featured content, impressions, ad rewards, ban appeals, mutes, etc.) but the original design document hasn't been updated to reflect the expanded scope.
+
+---
+
 ## Overall Assessment
 
 | Category | Score | Notes |
