@@ -113,14 +113,20 @@ export class RazorpayService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    const keyId = this.configService.get<string>("razorpay.keyId") || this.configService.get<string>("RAZORPAY_KEY_ID");
-    const keySecret = this.configService.get<string>("razorpay.keySecret") || this.configService.get<string>("RAZORPAY_KEY_SECRET");
-    const webhookSecret = this.configService.get<string>("razorpay.webhookSecret") || this.configService.get<string>("RAZORPAY_WEBHOOK_SECRET");
+    const keyId =
+      this.configService.get<string>("razorpay.keyId") ||
+      this.configService.get<string>("RAZORPAY_KEY_ID");
+    const keySecret =
+      this.configService.get<string>("razorpay.keySecret") ||
+      this.configService.get<string>("RAZORPAY_KEY_SECRET");
+    const webhookSecret =
+      this.configService.get<string>("razorpay.webhookSecret") ||
+      this.configService.get<string>("RAZORPAY_WEBHOOK_SECRET");
 
     if (!keyId || !keySecret || !webhookSecret) {
       this.logger.warn(
         "Razorpay credentials not configured. UPI payments will be unavailable. " +
-        "Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET to enable.",
+          "Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET to enable.",
       );
       this.keyId = "";
       this.keySecret = "";
@@ -571,7 +577,10 @@ export class RazorpayService {
    */
   private safeCompare(a: string, b: string): boolean {
     try {
-      return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+      return crypto.timingSafeEqual(
+        Buffer.from(a, "hex"),
+        Buffer.from(b, "hex"),
+      );
     } catch {
       return false;
     }

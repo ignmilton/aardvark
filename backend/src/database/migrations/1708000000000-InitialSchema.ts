@@ -29,9 +29,7 @@ export class InitialSchema1708000000000 implements MigrationInterface {
     await queryRunner.query("SET session_replication_role = replica");
 
     for (const { tablename } of tables) {
-      await queryRunner.query(
-        `DROP TABLE IF EXISTS "${tablename}" CASCADE`,
-      );
+      await queryRunner.query(`DROP TABLE IF EXISTS "${tablename}" CASCADE`);
     }
 
     await queryRunner.query("SET session_replication_role = DEFAULT");

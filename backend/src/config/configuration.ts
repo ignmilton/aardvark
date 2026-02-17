@@ -109,14 +109,14 @@ export default () => ({
     max: parseInt(process.env.RATE_LIMIT_MAX || "100", 10),
   },
 
-  // Feature flags
+  // Feature flags — all use opt-in (=== "true") for consistent, safe defaults
   features: {
     nsfwContent: process.env.FEATURE_NSFW_CONTENT === "true",
-    aiCompanion: process.env.FEATURE_AI_COMPANION !== "false",
-    premiumSubscriptions: process.env.FEATURE_PREMIUM_SUBSCRIPTIONS !== "false",
-    adRewards: process.env.FEATURE_AD_REWARDS !== "false",
-    forum: process.env.FEATURE_FORUM !== "false",
-    messaging: process.env.FEATURE_MESSAGING !== "false",
+    aiCompanion: process.env.FEATURE_AI_COMPANION === "true",
+    premiumSubscriptions: process.env.FEATURE_PREMIUM_SUBSCRIPTIONS === "true",
+    adRewards: process.env.FEATURE_AD_REWARDS === "true",
+    forum: process.env.FEATURE_FORUM === "true",
+    messaging: process.env.FEATURE_MESSAGING === "true",
   },
 
   // CORS configuration

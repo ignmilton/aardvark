@@ -102,7 +102,7 @@ export function CreditBundles({ onPurchaseSuccess }: CreditBundlesProps) {
         // Validate redirect URL to prevent open redirect attacks
         try {
           const url = new URL(data.data.url);
-          if (url.protocol === 'https:' && url.hostname.endsWith('.stripe.com')) {
+          if (url.protocol === 'https:' && url.hostname === 'checkout.stripe.com') {
             window.location.href = data.data.url;
           } else {
             console.error('Invalid checkout URL received');

@@ -13,6 +13,7 @@ import { AuthService } from "./auth.service";
 import { User } from "@/database/entities";
 import { UserRole, AccountStatus } from "@aardvark/shared";
 import { MailService } from "@/common/mail/mail.service";
+import { TokenBlacklistService } from "./token-blacklist.service";
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -79,6 +80,13 @@ describe("AuthService", () => {
             sendEmailVerification: jest.fn().mockResolvedValue(true),
             send: jest.fn().mockResolvedValue(true),
             isConfigured: jest.fn().mockReturnValue(true),
+          },
+        },
+        {
+          provide: TokenBlacklistService,
+          useValue: {
+            blacklistToken: jest.fn().mockResolvedValue(undefined),
+            isBlacklisted: jest.fn().mockResolvedValue(false),
           },
         },
       ],
@@ -445,9 +453,9 @@ describe("AuthService", () => {
     it("should throw UnauthorizedException if user not found", async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.getCurrentUser("nonexistent"),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.getCurrentUser("nonexistent")).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 

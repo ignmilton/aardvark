@@ -13,6 +13,17 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 interface FetchOptions extends RequestInit {
   token?: string;
 }
@@ -61,7 +72,11 @@ async function fetchApi<T>(endpoint: string, options: FetchOptions = {}): Promis
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || `HTTP error ${response.status}`);
+    throw new ApiError(
+      error.message || `HTTP error ${response.status}`,
+      response.status,
+      error.error,
+    );
   }
 
   return response.json();

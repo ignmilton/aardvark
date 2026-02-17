@@ -7,6 +7,7 @@ import {
   IsEnum,
   ValidateNested,
   MaxLength,
+  ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
@@ -128,5 +129,6 @@ export class SegmentQueryDto {
 export class BulkUpdatePositionsDto {
   @ApiProperty({ description: "Array of segment positions" })
   @IsArray()
+  @ArrayMaxSize(500)
   positions: { segmentId: string; x: number; y: number }[];
 }

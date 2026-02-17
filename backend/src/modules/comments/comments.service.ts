@@ -199,22 +199,37 @@ export class CommentsService {
       .take(limit)
       .getManyAndCount();
 
-    // Load replies for each root comment (limited to first 3)
-    const commentsWithReplies = await Promise.all(
-      rootComments.map(async (comment) => {
-        const replies = await this.commentRepository.find({
-          where: { parentCommentId: comment.id, isDeleted: false },
-          relations: ["user"],
-          order: { createdAt: "ASC" },
-          take: 3,
-        });
-        return {
-          ...this.sanitizeComment(comment),
-          replies: replies.map((r) => this.sanitizeComment(r)),
-          hasMoreReplies: comment.repliesCount > 3,
-        };
-      }),
-    );
+    // Batch-load replies for all root comments to avoid N+1 queries
+    const rootCommentIds = rootComments.map((c) => c.id);
+    let allReplies: Comment[] = [];
+    if (rootCommentIds.length > 0) {
+      allReplies = await this.commentRepository
+        .createQueryBuilder("reply")
+        .leftJoinAndSelect("reply.user", "user")
+        .where("reply.parentCommentId IN (:...ids)", { ids: rootCommentIds })
+        .andWhere("reply.isDeleted = :isDeleted", { isDeleted: false })
+        .orderBy("reply.createdAt", "ASC")
+        .getMany();
+    }
+
+    // Group replies by parent and take first 3
+    const repliesByParent = new Map<string, Comment[]>();
+    for (const reply of allReplies) {
+      const existing = repliesByParent.get(reply.parentCommentId!) || [];
+      if (existing.length < 3) {
+        existing.push(reply);
+      }
+      repliesByParent.set(reply.parentCommentId!, existing);
+    }
+
+    const commentsWithReplies = rootComments.map((comment) => {
+      const replies = repliesByParent.get(comment.id) || [];
+      return {
+        ...this.sanitizeComment(comment),
+        replies: replies.map((r) => this.sanitizeComment(r)),
+        hasMoreReplies: comment.repliesCount > 3,
+      };
+    });
 
     return {
       data: commentsWithReplies,

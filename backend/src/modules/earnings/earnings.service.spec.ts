@@ -433,9 +433,11 @@ describe("EarningsService", () => {
         groupBy: jest.fn().mockReturnThis(),
         addGroupBy: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          { storyId: "story-1", title: null, amount: "1000" },
-        ]),
+        getRawMany: jest
+          .fn()
+          .mockResolvedValue([
+            { storyId: "story-1", title: null, amount: "1000" },
+          ]),
       });
 
       const result = await service.getEarningsByStory("author-123", "all_time");
@@ -464,7 +466,9 @@ describe("EarningsService", () => {
 
       await service.updateAccountStatus("acct_123");
 
-      expect(paymentsService.getConnectAccount).toHaveBeenCalledWith("acct_123");
+      expect(paymentsService.getConnectAccount).toHaveBeenCalledWith(
+        "acct_123",
+      );
       expect(accountRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           chargesEnabled: true,
@@ -504,7 +508,9 @@ describe("EarningsService", () => {
           }
           if (entity === Payout) {
             return {
-              findOne: jest.fn().mockResolvedValue({ id: "payout-pending", status: "pending" }),
+              findOne: jest
+                .fn()
+                .mockResolvedValue({ id: "payout-pending", status: "pending" }),
             };
           }
           return {};
@@ -528,8 +534,12 @@ describe("EarningsService", () => {
           if (entity === Payout) {
             return {
               findOne: jest.fn().mockResolvedValue(null),
-              create: jest.fn().mockImplementation((data) => ({ id: "payout-new", ...data })),
-              save: jest.fn().mockImplementation((data) => Promise.resolve(data)),
+              create: jest
+                .fn()
+                .mockImplementation((data) => ({ id: "payout-new", ...data })),
+              save: jest
+                .fn()
+                .mockImplementation((data) => Promise.resolve(data)),
               createQueryBuilder: jest.fn().mockReturnValue({
                 select: jest.fn().mockReturnThis(),
                 where: jest.fn().mockReturnThis(),

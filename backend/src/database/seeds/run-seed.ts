@@ -261,7 +261,8 @@ async function seed(ds: DataSource) {
       tier: SubscriptionTier.PREMIUM,
       interval: SubscriptionInterval.MONTHLY,
       name: "Premium Monthly",
-      description: "Ad-free experience, unlimited premium stories, and 100 bonus credits monthly.",
+      description:
+        "Ad-free experience, unlimited premium stories, and 100 bonus credits monthly.",
       priceInCents: 999,
       currency: "usd",
       stripePriceId: "price_premium_monthly",
@@ -278,7 +279,8 @@ async function seed(ds: DataSource) {
       tier: SubscriptionTier.PREMIUM,
       interval: SubscriptionInterval.YEARLY,
       name: "Premium Yearly",
-      description: "Everything in Premium Monthly — save 17% with annual billing.",
+      description:
+        "Everything in Premium Monthly — save 17% with annual billing.",
       priceInCents: 9999,
       currency: "usd",
       stripePriceId: "price_premium_yearly",

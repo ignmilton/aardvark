@@ -436,10 +436,9 @@ describe("CreditsService", () => {
         type: TransactionType.CREDIT_PURCHASE,
       });
 
-      expect(mockQb.andWhere).toHaveBeenCalledWith(
-        "tx.type = :type",
-        { type: TransactionType.CREDIT_PURCHASE },
-      );
+      expect(mockQb.andWhere).toHaveBeenCalledWith("tx.type = :type", {
+        type: TransactionType.CREDIT_PURCHASE,
+      });
     });
 
     it("should cap limit to 100", async () => {

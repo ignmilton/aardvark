@@ -156,7 +156,12 @@ export class UploadService {
         bytes[5] === 0x74 &&
         bytes[6] === 0x79 &&
         bytes[7] === 0x70;
-      const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+      const brand = String.fromCharCode(
+        bytes[8],
+        bytes[9],
+        bytes[10],
+        bytes[11],
+      );
       if (!ftyp || (brand !== "avif" && brand !== "avis")) {
         throw new BadRequestException(
           "File content does not match its declared type. Possible file spoofing detected.",

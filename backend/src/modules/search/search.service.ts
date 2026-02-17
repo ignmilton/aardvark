@@ -111,8 +111,7 @@ export class SearchService implements OnModuleInit {
       await this.initializeIndices();
     } catch (error) {
       this.logger.error(
-        `Failed to connect to Elasticsearch: ${error.message}. Search will fall back to database queries. ` +
-          `Ensure Elasticsearch is running at ${this.configService.get("elasticsearch.node", "http://localhost:9200")}.`,
+        `Failed to connect to Elasticsearch: ${error.message}. Search will fall back to database queries.`,
       );
       this.isConnected = false;
     }
@@ -260,7 +259,8 @@ export class SearchService implements OnModuleInit {
       return this.fallbackSearchStories(dto);
     }
 
-    const { query, page = 1, limit = 20 } = dto;
+    const { query, page = 1, limit: rawLimit = 20 } = dto;
+    const limit = Math.min(Math.max(1, rawLimit), 100);
     const from = (page - 1) * limit;
 
     // Build query
@@ -396,7 +396,8 @@ export class SearchService implements OnModuleInit {
       return this.fallbackSearchUsers(dto);
     }
 
-    const { query, page = 1, limit = 20 } = dto;
+    const { query, page = 1, limit: rawLimit = 20 } = dto;
+    const limit = Math.min(Math.max(1, rawLimit), 100);
     const from = (page - 1) * limit;
 
     try {
@@ -522,7 +523,7 @@ export class SearchService implements OnModuleInit {
         index: STORIES_INDEX,
         id: story.id,
         body: doc,
-        refresh: true,
+        refresh: false,
       });
     } catch (error) {
       this.logger.error(`Failed to index story ${story.id}`, error);
@@ -539,7 +540,7 @@ export class SearchService implements OnModuleInit {
       await this.client.delete({
         index: STORIES_INDEX,
         id: storyId,
-        refresh: true,
+        refresh: false,
       });
     } catch (error) {
       this.logger.error(`Failed to remove story ${storyId} from index`, error);
@@ -575,7 +576,7 @@ export class SearchService implements OnModuleInit {
         index: USERS_INDEX,
         id: user.id,
         body: doc,
-        refresh: true,
+        refresh: false,
       });
     } catch (error) {
       this.logger.error(`Failed to index user ${user.id}`, error);
@@ -590,21 +591,33 @@ export class SearchService implements OnModuleInit {
       return { indexed: 0, failed: 0 };
     }
 
-    const stories = await this.storyRepository.find({
-      where: { status: StoryStatus.PUBLISHED },
-      relations: ["author"],
-    });
-
     let indexed = 0;
     let failed = 0;
+    const batchSize = 100;
+    let offset = 0;
 
-    for (const story of stories) {
-      try {
-        await this.indexStory(story);
-        indexed++;
-      } catch {
-        failed++;
+    // Process in batches to avoid loading all records into memory
+    while (true) {
+      const stories = await this.storyRepository.find({
+        where: { status: StoryStatus.PUBLISHED },
+        relations: ["author"],
+        skip: offset,
+        take: batchSize,
+        order: { createdAt: "ASC" },
+      });
+
+      if (stories.length === 0) break;
+
+      for (const story of stories) {
+        try {
+          await this.indexStory(story);
+          indexed++;
+        } catch {
+          failed++;
+        }
       }
+
+      offset += batchSize;
     }
 
     return { indexed, failed };
@@ -706,7 +719,7 @@ export class SearchService implements OnModuleInit {
         index: TAGS_INDEX,
         id: tag.id,
         body: doc,
-        refresh: true,
+        refresh: false,
       });
     } catch (error) {
       this.logger.error(`Failed to index tag ${tag.id}`, error);
@@ -723,7 +736,7 @@ export class SearchService implements OnModuleInit {
       await this.client.delete({
         index: TAGS_INDEX,
         id: tagId,
-        refresh: true,
+        refresh: false,
       });
     } catch (error) {
       this.logger.error(`Failed to remove tag ${tagId} from index`, error);
@@ -738,18 +751,30 @@ export class SearchService implements OnModuleInit {
       return { indexed: 0, failed: 0 };
     }
 
-    const tags = await this.tagRepository.find();
-
     let indexed = 0;
     let failed = 0;
+    const batchSize = 100;
+    let offset = 0;
 
-    for (const tag of tags) {
-      try {
-        await this.indexTag(tag);
-        indexed++;
-      } catch {
-        failed++;
+    while (true) {
+      const tags = await this.tagRepository.find({
+        skip: offset,
+        take: batchSize,
+        order: { createdAt: "ASC" },
+      });
+
+      if (tags.length === 0) break;
+
+      for (const tag of tags) {
+        try {
+          await this.indexTag(tag);
+          indexed++;
+        } catch {
+          failed++;
+        }
       }
+
+      offset += batchSize;
     }
 
     return { indexed, failed };
@@ -898,19 +923,27 @@ export class SearchService implements OnModuleInit {
       .take(limit)
       .getManyAndCount();
 
-    // Get tags for each story
-    const storiesWithTags = await Promise.all(
-      stories.map(async (story) => {
-        const storyTags = await this.storyTagRepository.find({
-          where: { storyId: story.id },
-          relations: ["tag"],
-        });
-        return {
-          ...story,
-          storyTags: storyTags.map((st) => st.tag),
-        };
-      }),
-    );
+    // Batch-fetch tags for all stories to avoid N+1 queries
+    const storyIds = stories.map((s) => s.id);
+    const allStoryTags =
+      storyIds.length > 0
+        ? await this.storyTagRepository.find({
+            where: { storyId: In(storyIds) },
+            relations: ["tag"],
+          })
+        : [];
+
+    const tagsByStoryId = new Map<string, typeof allStoryTags>();
+    for (const st of allStoryTags) {
+      const existing = tagsByStoryId.get(st.storyId) || [];
+      existing.push(st);
+      tagsByStoryId.set(st.storyId, existing);
+    }
+
+    const storiesWithTags = stories.map((story) => ({
+      ...story,
+      storyTags: (tagsByStoryId.get(story.id) || []).map((st) => st.tag),
+    }));
 
     return {
       data: storiesWithTags,

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  Logger,
-} from "@nestjs/common";
+import { Injectable, BadRequestException, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, In, MoreThan } from "typeorm";
 import { ConfigService } from "@nestjs/config";
@@ -208,7 +204,10 @@ export class MobileService {
   /**
    * Verify iOS App Store receipt and create/update subscription
    */
-  async verifyIosReceipt(userId: string, dto: VerifyIosReceiptDto): Promise<{
+  async verifyIosReceipt(
+    userId: string,
+    dto: VerifyIosReceiptDto,
+  ): Promise<{
     success: boolean;
     verified: boolean;
     message?: string;
@@ -217,9 +216,7 @@ export class MobileService {
     productId?: string;
     transactionId?: string;
   }> {
-    const sharedSecret = this.configService.get<string>(
-      "APPLE_SHARED_SECRET",
-    );
+    const sharedSecret = this.configService.get<string>("APPLE_SHARED_SECRET");
     if (!sharedSecret) {
       throw new BadRequestException(
         "iOS receipt verification is not configured. APPLE_SHARED_SECRET is missing.",
@@ -361,9 +358,7 @@ export class MobileService {
         await this.createOrUpdateMobileSubscription(userId, {
           platform: "android",
           platformSubscriptionId: dto.purchaseToken,
-          currentPeriodStart: new Date(
-            parseInt(result.startTimeMillis, 10),
-          ),
+          currentPeriodStart: new Date(parseInt(result.startTimeMillis, 10)),
           currentPeriodEnd: new Date(expiryTimeMillis),
           productId: dto.productId,
         });
@@ -499,17 +494,14 @@ export class MobileService {
     const jwt = `${signingInput}.${signature}`;
 
     // Exchange JWT for access token
-    const tokenResponse = await fetch(
-      "https://oauth2.googleapis.com/token",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-          assertion: jwt,
-        }),
-      },
-    );
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion: jwt,
+      }),
+    });
 
     const tokenData = await tokenResponse.json();
     if (!tokenData.access_token) {

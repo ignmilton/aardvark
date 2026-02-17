@@ -215,8 +215,7 @@ export class SegmentsService {
       updateDto.content = sanitizedContent;
     }
 
-    // Increment version
-    segment.previousVersionId = segment.id;
+    // Increment version (previousVersionId is not used for entity versioning here)
     segment.version += 1;
 
     Object.assign(segment, updateDto);
@@ -519,6 +518,11 @@ export class SegmentsService {
     }
 
     if (visited.has(fromId)) {
+      return false;
+    }
+
+    // Safety limit to prevent runaway recursion on malformed data
+    if (visited.size > 1000) {
       return false;
     }
 

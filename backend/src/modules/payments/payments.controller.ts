@@ -279,7 +279,9 @@ export class PaymentsController {
     }
 
     if (!userSub.stripeSubscriptionId) {
-      throw new NotFoundException("No Stripe subscription found. Mobile subscriptions must be canceled through their respective app store.");
+      throw new NotFoundException(
+        "No Stripe subscription found. Mobile subscriptions must be canceled through their respective app store.",
+      );
     }
     const subscription = await this.paymentsService.cancelSubscription(
       userSub.stripeSubscriptionId,
@@ -320,7 +322,9 @@ export class PaymentsController {
     }
 
     if (!userSub.stripeSubscriptionId) {
-      throw new NotFoundException("No Stripe subscription found. Mobile subscriptions must be managed through their respective app store.");
+      throw new NotFoundException(
+        "No Stripe subscription found. Mobile subscriptions must be managed through their respective app store.",
+      );
     }
     const subscription = await this.paymentsService.resumeSubscription(
       userSub.stripeSubscriptionId,

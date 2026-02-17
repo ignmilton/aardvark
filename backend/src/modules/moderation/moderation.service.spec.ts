@@ -133,9 +133,9 @@ describe("ModerationService", () => {
             create: jest.fn(),
             save: jest.fn(),
             count: jest.fn(),
-            createQueryBuilder: jest.fn().mockReturnValue(
-              createMockQueryBuilder([]),
-            ),
+            createQueryBuilder: jest
+              .fn()
+              .mockReturnValue(createMockQueryBuilder([])),
           },
         },
         {
@@ -145,9 +145,9 @@ describe("ModerationService", () => {
             save: jest.fn(),
             find: jest.fn(),
             findAndCount: jest.fn(),
-            createQueryBuilder: jest.fn().mockReturnValue(
-              createMockQueryBuilder([]),
-            ),
+            createQueryBuilder: jest
+              .fn()
+              .mockReturnValue(createMockQueryBuilder([])),
           },
         },
         {
@@ -157,9 +157,9 @@ describe("ModerationService", () => {
             save: jest.fn(),
             find: jest.fn(),
             count: jest.fn(),
-            createQueryBuilder: jest.fn().mockReturnValue(
-              createMockQueryBuilder(0),
-            ),
+            createQueryBuilder: jest
+              .fn()
+              .mockReturnValue(createMockQueryBuilder(0)),
           },
         },
         {
@@ -656,8 +656,14 @@ describe("ModerationService", () => {
     it("should issue a shadowban", async () => {
       userRepo.findOne.mockResolvedValue(mockUser as any);
       userBanRepo.findOne.mockResolvedValue(null);
-      userBanRepo.create.mockReturnValue({ ...mockBan, isShadowban: true } as any);
-      userBanRepo.save.mockResolvedValue({ ...mockBan, isShadowban: true } as any);
+      userBanRepo.create.mockReturnValue({
+        ...mockBan,
+        isShadowban: true,
+      } as any);
+      userBanRepo.save.mockResolvedValue({
+        ...mockBan,
+        isShadowban: true,
+      } as any);
 
       await service.issueBan(
         "user-123",
@@ -746,9 +752,9 @@ describe("ModerationService", () => {
     it("should throw NotFoundException if ban not found", async () => {
       userBanRepo.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.liftBan("nonexistent", "mod-123"),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.liftBan("nonexistent", "mod-123")).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it("should throw BadRequestException if ban already inactive", async () => {
@@ -757,9 +763,9 @@ describe("ModerationService", () => {
         isActive: false,
       } as any);
 
-      await expect(
-        service.liftBan("ban-123", "mod-123"),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.liftBan("ban-123", "mod-123")).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -1007,7 +1013,10 @@ describe("ModerationService", () => {
 
   describe("liftMute", () => {
     it("should lift an active mute", async () => {
-      userMuteRepo.findOne.mockResolvedValue({ ...mockMute, isActive: true } as any);
+      userMuteRepo.findOne.mockResolvedValue({
+        ...mockMute,
+        isActive: true,
+      } as any);
       userMuteRepo.save.mockImplementation((m) => Promise.resolve(m as any));
       moderationLogRepo.create.mockReturnValue({} as any);
       moderationLogRepo.save.mockResolvedValue({} as any);
@@ -1022,9 +1031,9 @@ describe("ModerationService", () => {
     it("should throw NotFoundException if mute not found", async () => {
       userMuteRepo.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.liftMute("nonexistent", "mod-123"),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.liftMute("nonexistent", "mod-123")).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it("should throw BadRequestException if mute already inactive", async () => {
@@ -1033,9 +1042,9 @@ describe("ModerationService", () => {
         isActive: false,
       } as any);
 
-      await expect(
-        service.liftMute("mute-123", "mod-123"),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.liftMute("mute-123", "mod-123")).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -1256,7 +1265,9 @@ describe("ModerationService", () => {
 
   describe("getModerationLogs", () => {
     it("should return paginated moderation logs", async () => {
-      const logs = [{ id: "log-123", action: ModerationAction.CONTENT_REMOVED }];
+      const logs = [
+        { id: "log-123", action: ModerationAction.CONTENT_REMOVED },
+      ];
       moderationLogRepo.findAndCount.mockResolvedValue([logs as any, 1]);
 
       const result = await service.getModerationLogs({ page: 1, limit: 20 });
@@ -1550,8 +1561,8 @@ describe("ModerationService", () => {
   describe("getModerationStats", () => {
     it("should return dashboard statistics", async () => {
       reportRepo.count
-        .mockResolvedValueOnce(5)   // pending
-        .mockResolvedValueOnce(3)   // under review
+        .mockResolvedValueOnce(5) // pending
+        .mockResolvedValueOnce(3) // under review
         .mockResolvedValueOnce(10); // resolved today
       userBanRepo.count.mockResolvedValue(2);
       (userWarningRepo.createQueryBuilder as jest.Mock).mockReturnValue({
@@ -1575,9 +1586,11 @@ describe("ModerationService", () => {
         addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         groupBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          { action: ModerationAction.CONTENT_REMOVED, count: "5" },
-        ]),
+        getRawMany: jest
+          .fn()
+          .mockResolvedValue([
+            { action: ModerationAction.CONTENT_REMOVED, count: "5" },
+          ]),
       });
 
       const result = await service.getModerationStats();
