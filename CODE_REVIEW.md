@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Aardvark is a well-structured full-stack interactive fiction platform with a solid architectural foundation. The codebase follows NestJS and Next.js conventions consistently, demonstrates good security awareness (JWT blacklisting, HTML sanitization, rate limiting, account lockout), and uses proper transactional patterns for financial operations. However, the review identified **26 findings across 4 severity levels**: a ValidationPipe implicit conversion bypass, missing search pagination caps, a refresh token rotation gap, multiple N+1 query patterns (search tags, threaded comments), race conditions in counter updates, an empty WebSocket module, missing composite database indexes, an unused cache layer, and frontend bundle size issues. The credit/payment system is particularly well-implemented with proper pessimistic locking.
+Aardvark is a well-structured full-stack interactive fiction platform with a solid architectural foundation. The codebase follows NestJS and Next.js conventions consistently, demonstrates good security awareness (JWT blacklisting, HTML sanitization, rate limiting, account lockout), and uses proper transactional patterns for financial operations. However, the review identified **32 findings across 4 severity levels**: a ValidationPipe implicit conversion bypass, missing search pagination caps, a refresh token rotation gap, multiple N+1 query patterns (search tags, threaded comments), race conditions in counter updates, an empty WebSocket module, missing composite database indexes, an unused cache layer, and frontend bundle size issues. The credit/payment system is particularly well-implemented with proper pessimistic locking.
 
 ---
 
@@ -412,11 +412,103 @@ const RichTextEditor = dynamic(() => import('@/components/editor/rich-text-edito
 });
 ```
 
+### 23. Widespread Untyped Request Objects Across Controllers
+
+**Location:** 32+ controller methods across `payments`, `branch-submissions`, `ads`, `credits`, `ratings`, and other controllers
+**Severity:** :yellow_circle: Medium
+
+```typescript
+// payments.controller.ts:87
+async createCreditCheckout(@Req() req: any, @Body() dto: CreateCreditCheckoutDto) {
+  const userId = req.user.id; // No compile-time type checking
+```
+
+**Problem:** Controllers use `@Req() req: any` instead of properly typed request objects. This means `req.user.id`, `req.user.role`, etc. have no compile-time type checking. Typos like `req.user.userId` or `req.user.Id` would silently pass TypeScript compilation and fail at runtime.
+
+**Recommendation:** Create and use a typed interface:
+```typescript
+interface AuthenticatedRequest extends Request {
+  user: { userId: string; username: string; role: UserRole };
+}
+```
+
+### 24. Stripe Redirect URL Validation Uses Weak Hostname Check
+
+**Location:** `frontend/src/components/payments/credit-bundles.tsx:102-112`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+if (url.hostname.endsWith('.stripe.com')) {
+  window.location.href = data.data.url;
+```
+
+**Problem:** `.endsWith('.stripe.com')` would also match a hostname like `evil-stripe.com` or `attacker.com.stripe.com.evil.com` depending on how the URL is crafted. This is an open redirect risk.
+
+**Recommendation:** Use exact hostname matching:
+```typescript
+if (url.hostname === 'checkout.stripe.com') {
+```
+
+### 25. Platform Fee Hardcoded Inconsistently
+
+**Location:** `backend/src/modules/credits/credits.service.ts:259` vs `:343`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+// Line 259 (story unlock) — uses shared constant
+const platformFee = Math.floor(story.creditCost * PLATFORM_FEE_PERCENTAGE);
+
+// Line 343 (tips) — hardcoded magic number
+const platformFee = Math.floor(dto.amount * 0.1); // 10% on tips
+```
+
+**Problem:** The tip fee calculation uses a hardcoded `0.1` instead of a named constant. If the platform fee changes, this location will be missed, creating an inconsistency between story unlocks and tips.
+
+**Recommendation:** Define a `TIP_FEE_PERCENTAGE` constant in `@aardvark/shared` or use `PLATFORM_FEE_PERCENTAGE` with a comment explaining if the rate intentionally differs.
+
+### 26. Feature Flag Boolean Parsing is Inconsistent
+
+**Location:** `backend/src/config/configuration.ts:112-120`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+features: {
+  nsfwContent: process.env.FEATURE_NSFW_CONTENT === "true",     // opt-in
+  aiCompanion: process.env.FEATURE_AI_COMPANION !== "false",     // opt-out
+```
+
+**Problem:** Some flags default to `false` (require `"true"` to enable) while others default to `true` (require `"false"` to disable). This inconsistency is easy to misconfigure in production deployments and there's no documentation about which flags are opt-in vs opt-out.
+
+**Recommendation:** Standardize on one parsing pattern (preferably opt-in with `=== "true"`) and add inline comments documenting the default behavior.
+
+### 27. Test Coverage: Only 7 Test Files for 31 Modules
+
+**Location:** `backend/src/modules/`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Only 7 service-level test files exist for a 31-module backend. Critical modules without tests include:
+- `stories.service.ts` — core CRUD and moderation workflow
+- `search.service.ts` — complex Elasticsearch + fallback logic
+- `segments.service.ts` — content management with versioning
+- `comments.service.ts` — threaded comments with sanitization
+- `notifications.service.ts` — real-time event handling
+
+**Recommendation:** Prioritize test coverage for business-critical services. At minimum, add tests for the stories, segments, and search services, as these contain the most complex logic and are most likely to regress.
+
+### 28. Missing HTTP Status Code Decorators on CRUD Endpoints
+
+**Location:** Multiple controllers
+**Severity:** :yellow_circle: Medium
+
+**Problem:** POST create endpoints return 200 OK by default instead of 201 Created. DELETE endpoints return 200 OK with a body instead of 204 No Content. This violates RESTful API conventions and can confuse API consumers.
+
+**Recommendation:** Add `@HttpCode(HttpStatus.CREATED)` on POST create endpoints and `@HttpCode(HttpStatus.NO_CONTENT)` on DELETE endpoints.
+
 ---
 
 ## Low-Severity Findings
 
-### 23. Inconsistent Pagination Response Formats
+### 29. Inconsistent Pagination Response Formats
 
 **Location:** Throughout backend services
 **Severity:** :green_circle: Low
@@ -429,7 +521,7 @@ Different services return pagination metadata in inconsistent formats:
 
 **Recommendation:** Standardize on a single pagination response format across all endpoints. The `{ data, meta }` pattern from the search/comments services is the most conventional.
 
-### 24. Frontend API Client Lacks Error Type Discrimination
+### 30. Frontend API Client Lacks Error Type Discrimination
 
 **Location:** `frontend/src/lib/api.ts:62-68`
 **Severity:** :green_circle: Low
@@ -455,14 +547,14 @@ class ApiError extends Error {
 }
 ```
 
-### 25. `TransformInterceptor` Applied Globally Without Exclusion
+### 31. `TransformInterceptor` Applied Globally Without Exclusion
 
 **Location:** `backend/src/main.ts:136-139`
 **Severity:** :green_circle: Low
 
 The `TransformInterceptor` and `LoggingInterceptor` are applied globally. Depending on their implementation, this could interfere with streaming responses, file downloads, or WebSocket upgrades. Consider applying these selectively or ensuring they handle non-JSON responses gracefully.
 
-### 26. Database Query Cache Uses Database-Backed Storage
+### 32. Database Query Cache Uses Database-Backed Storage
 
 **Location:** `backend/src/config/database.config.ts:53-57`
 **Severity:** :green_circle: Low
@@ -539,6 +631,12 @@ cache: {
 - [ ] Remove `refresh: true` from Elasticsearch index operations
 - [ ] Add depth limit to segment cycle detection algorithm
 - [ ] Code-split TipTap editor with dynamic imports
+- [ ] Replace `@Req() req: any` with typed `AuthenticatedRequest` interface (32+ occurrences)
+- [ ] Fix Stripe redirect URL validation to use exact hostname match
+- [ ] Replace hardcoded `0.1` tip fee with named constant
+- [ ] Standardize feature flag boolean parsing
+- [ ] Add test coverage for stories, segments, search, and comments services
+- [ ] Add `@HttpCode()` decorators to CRUD endpoints for proper REST status codes
 
 ### Nice-to-Have (Low)
 - [ ] Standardize pagination response format across all services
