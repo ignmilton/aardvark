@@ -21,6 +21,7 @@ import { RolesGuard } from "@/modules/auth/guards/roles.guard";
 import { BanCheckGuard } from "@/modules/auth/guards/ban-check.guard";
 import { Public } from "@/modules/auth/decorators/public.decorator";
 import { Roles } from "@/modules/auth/decorators/roles.decorator";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import { StoriesService } from "./stories.service";
 import { RecommendationService } from "./recommendation.service";
 import {
@@ -52,7 +53,7 @@ export class StoriesController {
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({ summary: "Create a new story (authors only)" })
   create(
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
     @Body() createDto: CreateStoryDto,
   ) {
     return this.storiesService.create(req.user.userId, createDto);
@@ -112,7 +113,7 @@ export class StoriesController {
   @ApiOperation({ summary: "Get personalized story recommendations" })
   @ApiQuery({ name: "limit", required: false, type: Number })
   getRecommendations(
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
     @Query("limit") limit?: number,
   ) {
     return this.recommendationService.getRecommendations(
@@ -130,7 +131,7 @@ export class StoriesController {
   @ApiOperation({ summary: "Get stories from followed authors" })
   @ApiQuery({ name: "limit", required: false, type: Number })
   getFollowingStories(
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
     @Query("limit") limit?: number,
   ) {
     return this.recommendationService.getStoriesFromFollowedAuthors(
@@ -159,7 +160,7 @@ export class StoriesController {
   @ApiOperation({ summary: "Record story interaction for recommendations" })
   async recordInteraction(
     @Param("id") id: string,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
     @Body() body: { type: "view" | "read" | "rate" | "bookmark" },
   ) {
     await this.recommendationService.recordInteraction(
@@ -200,7 +201,7 @@ export class StoriesController {
   @ApiOperation({ summary: "Update a story" })
   update(
     @Param("id") id: string,
-    @Request() req: { user: { userId: string; role: UserRole } },
+    @Request() req: AuthenticatedRequest,
     @Body() updateDto: UpdateStoryDto,
   ) {
     return this.storiesService.update(
@@ -221,7 +222,7 @@ export class StoriesController {
   @ApiOperation({ summary: "Delete a story" })
   remove(
     @Param("id") id: string,
-    @Request() req: { user: { userId: string; role: UserRole } },
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.storiesService.remove(id, req.user.userId, req.user.role);
   }
@@ -236,7 +237,7 @@ export class StoriesController {
   @ApiOperation({ summary: "Publish a story directly (bypasses moderation)" })
   publish(
     @Param("id") id: string,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.storiesService.publish(id, req.user.userId);
   }
@@ -251,7 +252,7 @@ export class StoriesController {
   @ApiOperation({ summary: "Submit a story for moderation review" })
   submitForReview(
     @Param("id") id: string,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.storiesService.submitForReview(id, req.user.userId);
   }
@@ -291,7 +292,7 @@ export class StoriesController {
   })
   createTranslation(
     @Param("id") id: string,
-    @Request() req: { user: { userId: string; role: UserRole } },
+    @Request() req: AuthenticatedRequest,
     @Body() body: { originalStoryId: string },
   ) {
     return this.storiesService.createTranslationLink(
@@ -311,7 +312,7 @@ export class StoriesController {
   @ApiOperation({ summary: "Remove translation link from a story" })
   removeTranslation(
     @Param("id") id: string,
-    @Request() req: { user: { userId: string; role: UserRole } },
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.storiesService.removeTranslationLink(
       id,

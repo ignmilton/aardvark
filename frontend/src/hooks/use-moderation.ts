@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
+import { getAuthToken, getSessionScope } from '@/lib/auth-token';
 import type {
   ModerationAction,
   ModerationQueueItem,
@@ -16,8 +17,9 @@ import type {
  * Hook for fetching moderation queue
  */
 export function useModerationQueue(query: ModerationQueueQuery, token?: string) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['moderationQueue', query],
+    queryKey: ['moderationQueue', query, scope],
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(query).forEach(([key, value]) => {
@@ -84,8 +86,9 @@ export function useAssignReport(token?: string) {
  * Hook for fetching moderation statistics
  */
 export function useModerationStats(token?: string) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['moderationStats'],
+    queryKey: ['moderationStats', scope],
     queryFn: () =>
       fetchApi<ModerationStats>('/admin/moderation/stats', { token }),
     enabled: !!token,
@@ -101,8 +104,9 @@ export const useResolveModeration = useResolveReport;
  * Hook for fetching admin stats (moderation + health)
  */
 export function useAdminStats(token?: string) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['adminStats'],
+    queryKey: ['adminStats', scope],
     queryFn: () =>
       fetchApi<{
         moderation: ModerationStats;
@@ -120,8 +124,9 @@ export function useUserBans(
   query: string | { page?: number; limit?: number; isActive?: boolean } | undefined,
   token?: string,
 ) {
+  const scope = getSessionScope();
   const isUserIdQuery = typeof query === 'string';
-  const queryKey = isUserIdQuery ? ['userBans', query] : ['userBans', 'admin', query];
+  const queryKey = isUserIdQuery ? ['userBans', query, scope] : ['userBans', 'admin', query, scope];
   const endpoint = isUserIdQuery
     ? `/admin/users/${query}/bans`
     : `/admin/bans?${new URLSearchParams(
@@ -143,8 +148,9 @@ export function useUserBans(
  * Hook for fetching user warnings
  */
 export function useUserWarnings(userId: string | undefined, token?: string) {
+  const scope = getSessionScope();
   return useQuery({
-    queryKey: ['userWarnings', userId],
+    queryKey: ['userWarnings', userId, scope],
     queryFn: () =>
       fetchApi<any[]>(`/admin/users/${userId}/warnings`, { token }),
     enabled: !!token && !!userId,
@@ -215,7 +221,7 @@ export function useLiftBan(token?: string) {
  * for use in admin moderation and reports pages.
  */
 export function useModeration() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
+  const token = getAuthToken();
   const { data: queueData, isLoading } = useModerationQueue({}, token);
   const resolveReportMutation = useResolveReport(token);
 

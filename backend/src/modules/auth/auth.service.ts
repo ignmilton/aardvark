@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
+import { createHash } from "crypto";
 import { nanoid } from "nanoid";
 import {
   UserRole,
@@ -121,11 +122,11 @@ export class AuthService {
 
     // Check account status
     if (user.accountStatus === AccountStatus.BANNED) {
-      throw new UnauthorizedException("Account has been banned");
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     if (user.accountStatus === AccountStatus.SUSPENDED) {
-      throw new UnauthorizedException("Account is suspended");
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     // Check if account is locked out
@@ -142,23 +143,26 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
-      // Track failed attempt
+      // Atomically increment login attempts to prevent race conditions
+      await this.userRepository.increment(
+        { id: user.id },
+        "loginAttempts",
+        1,
+      );
       const attempts = (user.loginAttempts || 0) + 1;
-      const updateData: Record<string, any> = { loginAttempts: attempts };
 
       if (attempts >= this.MAX_LOGIN_ATTEMPTS) {
         const lockoutUntil = new Date();
         lockoutUntil.setMinutes(
           lockoutUntil.getMinutes() + this.LOCKOUT_DURATION_MINUTES,
         );
-        updateData.lockoutUntil = lockoutUntil;
+        await this.userRepository.update(user.id, { lockoutUntil });
         // SECURITY: Don't log email addresses - log user ID instead
         this.logger.warn(
           `Account locked for user ${user.id} after ${attempts} failed attempts`,
         );
       }
 
-      await this.userRepository.update(user.id, updateData as any);
       return null;
     }
 
@@ -262,7 +266,7 @@ export class AuthService {
         throw new UnauthorizedException("User not found");
       }
 
-      // SECURITY: Check account status - banned/suspended users should not refresh tokens
+      // SECURITY: Check account status - banned/suspended/locked users should not refresh tokens
       if (user.accountStatus === AccountStatus.BANNED) {
         throw new UnauthorizedException("Account has been banned");
       }
@@ -271,6 +275,9 @@ export class AuthService {
       }
       if (user.accountStatus === AccountStatus.DEACTIVATED) {
         throw new UnauthorizedException("Account has been deactivated");
+      }
+      if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+        throw new UnauthorizedException("Account is temporarily locked");
       }
 
       // Blacklist the old refresh token to prevent reuse
@@ -354,11 +361,12 @@ export class AuthService {
     if (!user) return;
 
     const resetToken = nanoid(48);
+    const hashedToken = createHash("sha256").update(resetToken).digest("hex");
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + this.RESET_TOKEN_EXPIRY_HOURS);
 
     await this.userRepository.update(user.id, {
-      passwordResetToken: resetToken,
+      passwordResetToken: hashedToken,
       passwordResetExpires: expiresAt,
     });
 
@@ -379,8 +387,9 @@ export class AuthService {
    * Reset password using a valid reset token.
    */
   async resetPassword(token: string, newPassword: string): Promise<void> {
+    const hashedToken = createHash("sha256").update(token).digest("hex");
     const user = await this.userRepository.findOne({
-      where: { passwordResetToken: token },
+      where: { passwordResetToken: hashedToken },
       select: [
         "id",
         "passwordResetToken",

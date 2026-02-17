@@ -19,6 +19,7 @@ import {
 } from "@nestjs/swagger";
 import { Response } from "express";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import { AnalyticsService } from "./analytics.service";
 import {
   AnalyticsQueryDto,
@@ -67,7 +68,7 @@ export class AnalyticsController {
     type: Object,
   })
   async getDashboard(
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ): Promise<AuthorDashboard> {
     return this.analyticsService.getAuthorDashboard(req.user.userId);
   }
@@ -101,7 +102,7 @@ export class AnalyticsController {
   })
   async getStoryAnalytics(
     @Param("storyId") storyId: string,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ): Promise<StoryAnalytics> {
     return this.analyticsService.getStoryAnalytics(storyId, req.user.userId);
   }
@@ -136,7 +137,7 @@ export class AnalyticsController {
   })
   async getTopStories(
     @Query() query: TopStoriesDto,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ): Promise<TopStory[]> {
     return this.analyticsService.getTopStories(
       req.user.userId,
@@ -168,7 +169,7 @@ export class AnalyticsController {
   })
   async getReaderStats(
     @Query() query: AnalyticsQueryDto,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ): Promise<ReaderStats> {
     return this.analyticsService.getReaderStats(req.user.userId, query.period);
   }
@@ -196,7 +197,7 @@ export class AnalyticsController {
   })
   async getEarningsBreakdown(
     @Query() query: AnalyticsQueryDto,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ): Promise<EarningsBreakdown> {
     return this.analyticsService.getEarningsBreakdown(
       req.user.userId,
@@ -233,7 +234,7 @@ export class AnalyticsController {
   })
   async getBranchPopularity(
     @Param("storyId") storyId: string,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ): Promise<BranchPopularity[]> {
     return this.analyticsService.getBranchPopularity(storyId, req.user.userId);
   }
@@ -267,7 +268,7 @@ export class AnalyticsController {
   })
   async getCompletionFunnel(
     @Param("storyId") storyId: string,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ): Promise<CompletionFunnel> {
     return this.analyticsService.getCompletionFunnel(storyId, req.user.userId);
   }
@@ -309,7 +310,7 @@ export class AnalyticsController {
   })
   async getEngagementTrends(
     @Query() query: AnalyticsQueryDto & EngagementTrendsDto,
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
   ): Promise<EngagementTrends> {
     let startDate: Date | undefined;
     let endDate: Date | undefined;
@@ -384,7 +385,7 @@ export class AnalyticsController {
   })
   async exportAnalytics(
     @Query() query: ExportAnalyticsDto & { type?: string },
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
     @Res() res: Response,
   ): Promise<void> {
     const type = query.type || "dashboard";

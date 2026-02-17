@@ -362,13 +362,16 @@ describe("PaymentsService", () => {
         );
 
         expect(result).toEqual(transfer);
-        expect(mockStripe.transfers.create).toHaveBeenCalledWith({
-          amount: 5000,
-          currency: "usd",
-          destination: "acct_123",
-          description: "Author payout",
-          metadata: { payoutId: "payout-123" },
-        });
+        expect(mockStripe.transfers.create).toHaveBeenCalledWith(
+          {
+            amount: 5000,
+            currency: "usd",
+            destination: "acct_123",
+            description: "Author payout",
+            metadata: { payoutId: "payout-123" },
+          },
+          undefined,
+        );
       });
     });
   });

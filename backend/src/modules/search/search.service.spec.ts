@@ -123,10 +123,6 @@ describe("SearchService", () => {
     (service as any).isConnected = true;
   });
 
-  it("should be defined", () => {
-    expect(service).toBeDefined();
-  });
-
   // ==========================================================================
   // searchStories — pagination caps (ES-connected path)
   // ==========================================================================

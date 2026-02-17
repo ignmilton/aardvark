@@ -297,14 +297,18 @@ export class PaymentsService {
     destinationAccountId: string,
     description: string,
     metadata: Record<string, string> = {},
+    idempotencyKey?: string,
   ): Promise<Stripe.Transfer> {
-    return this.stripe.transfers.create({
-      amount: amountInCents,
-      currency: "usd",
-      destination: destinationAccountId,
-      description,
-      metadata,
-    });
+    return this.stripe.transfers.create(
+      {
+        amount: amountInCents,
+        currency: "usd",
+        destination: destinationAccountId,
+        description,
+        metadata,
+      },
+      idempotencyKey ? { idempotencyKey } : undefined,
+    );
   }
 
   // ============================================================================

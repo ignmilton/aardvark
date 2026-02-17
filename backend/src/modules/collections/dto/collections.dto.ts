@@ -7,6 +7,7 @@ import {
   Min,
   MaxLength,
   IsArray,
+  ArrayMaxSize,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
@@ -78,6 +79,7 @@ export class AddStoryToCollectionDto {
 export class ReorderStoriesDto {
   @ApiProperty({ description: "Array of story IDs in desired order" })
   @IsArray()
+  @ArrayMaxSize(200)
   @IsUUID("4", { each: true })
   storyIds: string[];
 }

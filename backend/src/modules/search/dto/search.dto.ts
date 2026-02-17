@@ -5,11 +5,14 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
+  IsUUID,
   Min,
   Max,
+  MinLength,
   MaxLength,
+  ArrayMaxSize,
 } from "class-validator";
-import { Type } from "class-transformer";
+import { Type, Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   StoryCategory,
@@ -21,18 +24,22 @@ import {
 export class SearchStoriesDto {
   @ApiProperty({ description: "Search query" })
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @MinLength(1, { message: "Search query must not be empty" })
   @MaxLength(200)
   query: string;
 
   @ApiPropertyOptional({ description: "Filter by categories", type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsEnum(StoryCategory, { each: true })
   categories?: StoryCategory[];
 
   @ApiPropertyOptional({ description: "Filter by tags", type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
   tags?: string[];
 
@@ -42,6 +49,7 @@ export class SearchStoriesDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsEnum(ContentWarning, { each: true })
   excludeWarnings?: ContentWarning[];
 
@@ -76,7 +84,7 @@ export class SearchStoriesDto {
 
   @ApiPropertyOptional({ description: "Filter by author ID" })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   authorId?: string;
 
   @ApiPropertyOptional({ description: "Language code (ISO 639-1)" })
@@ -112,6 +120,8 @@ export class SearchStoriesDto {
 export class SearchUsersDto {
   @ApiProperty({ description: "Search query" })
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @MinLength(1, { message: "Search query must not be empty" })
   @MaxLength(100)
   query: string;
 
@@ -134,6 +144,8 @@ export class SearchUsersDto {
 export class AutocompleteDto {
   @ApiProperty({ description: "Search prefix" })
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @MinLength(1, { message: "Search prefix must not be empty" })
   @MaxLength(50)
   prefix: string;
 
@@ -157,6 +169,8 @@ export class AutocompleteDto {
 export class SearchTagsDto {
   @ApiProperty({ description: "Search query" })
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @MinLength(1, { message: "Search query must not be empty" })
   @MaxLength(100)
   query: string;
 
@@ -185,13 +199,15 @@ export class AdvancedSearchDto {
   @ApiPropertyOptional({ description: "Text search query" })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   @MaxLength(200)
   query?: string;
 
   @ApiPropertyOptional({ description: "Tag IDs to filter by", type: [String] })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @ArrayMaxSize(20)
+  @IsUUID("4", { each: true })
   tagIds?: string[];
 
   @ApiPropertyOptional({
@@ -200,6 +216,7 @@ export class AdvancedSearchDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
   tagNames?: string[];
 
@@ -214,6 +231,7 @@ export class AdvancedSearchDto {
   @ApiPropertyOptional({ description: "Filter by categories", type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsEnum(StoryCategory, { each: true })
   categories?: StoryCategory[];
 

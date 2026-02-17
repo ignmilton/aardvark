@@ -28,18 +28,36 @@ export class StoriesService {
   ) {}
 
   /**
-   * Create a new story
+   * Create a new story.
+   * Retries on slug conflict (unique constraint violation) to handle
+   * the race window between slug generation and insert.
    */
   async create(userId: string, createDto: CreateStoryDto): Promise<Story> {
-    const slug = await this.generateUniqueSlug(createDto.title);
-    const story = this.storyRepository.create({
-      ...createDto,
-      slug,
-      authorId: userId,
-      status: StoryStatus.DRAFT,
-    });
+    const MAX_RETRIES = 3;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const slug = await this.generateUniqueSlug(createDto.title);
+      const story = this.storyRepository.create({
+        ...createDto,
+        slug,
+        authorId: userId,
+        status: StoryStatus.DRAFT,
+      });
 
-    return this.storyRepository.save(story);
+      try {
+        return await this.storyRepository.save(story);
+      } catch (error: any) {
+        // PostgreSQL unique_violation = 23505
+        const isUniqueViolation =
+          error?.code === "23505" ||
+          error?.driverError?.code === "23505";
+        if (isUniqueViolation && attempt < MAX_RETRIES - 1) {
+          continue; // Retry with a new slug
+        }
+        throw error;
+      }
+    }
+    // Unreachable, but satisfies TypeScript
+    throw new Error("Failed to generate unique slug after retries");
   }
 
   /**

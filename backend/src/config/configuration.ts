@@ -13,8 +13,8 @@ function requireSecret(envVar: string): string {
   // Generate a random fallback for development only — never use static defaults
   const crypto = require("crypto");
   const generated = crypto.randomBytes(32).toString("hex");
-  console.warn(
-    `WARNING: ${envVar} not set — using random ephemeral secret. Set it in .env for stable sessions.`,
+  process.stderr.write(
+    `[WARN] ${envVar} not set — using random ephemeral secret. Set it in .env for stable sessions.\n`,
   );
   return generated;
 }

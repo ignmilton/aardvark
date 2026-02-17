@@ -50,6 +50,7 @@ describe("AuthService", () => {
             create: jest.fn(),
             save: jest.fn(),
             update: jest.fn(),
+            increment: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -198,7 +199,7 @@ describe("AuthService", () => {
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it("should track failed login attempts", async () => {
+    it("should track failed login attempts atomically", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         loginAttempts: 0,
@@ -210,9 +211,10 @@ describe("AuthService", () => {
       );
 
       expect(result).toBeNull();
-      expect(userRepository.update).toHaveBeenCalledWith(
-        mockUser.id,
-        expect.objectContaining({ loginAttempts: 1 }),
+      expect(userRepository.increment).toHaveBeenCalledWith(
+        { id: mockUser.id },
+        "loginAttempts",
+        1,
       );
     });
 
@@ -224,10 +226,14 @@ describe("AuthService", () => {
 
       await service.validateUser("test@example.com", "WrongPassword");
 
+      expect(userRepository.increment).toHaveBeenCalledWith(
+        { id: mockUser.id },
+        "loginAttempts",
+        1,
+      );
       expect(userRepository.update).toHaveBeenCalledWith(
         mockUser.id,
         expect.objectContaining({
-          loginAttempts: 5,
           lockoutUntil: expect.any(Date),
         }),
       );

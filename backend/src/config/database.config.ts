@@ -50,12 +50,22 @@ export const databaseConfig = (
     retryDelay: 1000,
 
     // Cache configuration (TypeORM query cache)
-    // TODO: Switch to Redis-backed cache (type: "ioredis") for better performance
-    // and to avoid extra database writes for cache entries.
-    cache: {
-      type: "database",
-      tableName: "query_result_cache",
-      duration: 30000, // 30 seconds
-    },
+    // Uses Redis when available for better performance; falls back to database cache.
+    cache: configService.get("redis.host")
+      ? {
+          type: "ioredis",
+          options: {
+            host: configService.get("redis.host"),
+            port: configService.get<number>("redis.port", 6379),
+            password: configService.get("redis.password") || undefined,
+            db: 1, // Separate Redis DB from app cache (DB 0)
+          },
+          duration: 30000, // 30 seconds
+        }
+      : {
+          type: "database" as const,
+          tableName: "query_result_cache",
+          duration: 30000,
+        },
   };
 };
