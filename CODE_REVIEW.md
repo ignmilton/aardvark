@@ -1,14 +1,18 @@
-# Aardvark Interactive Fiction Platform — Code Review
+# Aardvark Interactive Fiction Platform — Code Review (v2)
 
 **Date:** 2026-02-17
-**Scope:** Full-stack codebase review (backend, frontend, shared, infrastructure)
-**Reviewer:** Automated senior engineering review
+**Scope:** Full-stack codebase review (backend, frontend, shared, infrastructure, tests)
+**Reviewer:** Automated senior engineering review — second pass with deeper analysis
 
 ---
 
 ## Executive Summary
 
-Aardvark is a well-structured full-stack interactive fiction platform with a solid architectural foundation. The codebase follows NestJS and Next.js conventions consistently, demonstrates good security awareness (JWT blacklisting, HTML sanitization, rate limiting, account lockout), and uses proper transactional patterns for financial operations. However, the review identified **32 findings across 4 severity levels**: a ValidationPipe implicit conversion bypass, missing search pagination caps, a refresh token rotation gap, multiple N+1 query patterns (search tags, threaded comments), race conditions in counter updates, an empty WebSocket module, missing composite database indexes, an unused cache layer, and frontend bundle size issues. The credit/payment system is particularly well-implemented with proper pessimistic locking.
+Aardvark is a well-structured full-stack interactive fiction platform with solid architectural foundations. The codebase follows NestJS and Next.js conventions consistently, demonstrates strong security awareness (pessimistic write locks on financial operations, JWT blacklisting, HTML sanitization, rate limiting, account lockout), and uses proper transactional patterns for credit/payment processing.
+
+This second-pass review goes deeper than the initial 32-finding review, conducting a line-by-line audit of all security-critical paths (auth, payments, credits), all backend services, frontend components, configuration/infrastructure, and test quality. The review identified **58 findings across 4 severity levels**, including: password reset tokens stored in plaintext, a token blacklist TTL race condition, IDOR on segment editor endpoints, missing idempotency on Razorpay webhooks, a non-functional admin settings page, broken user search in the frontend, and critical test coverage gaps (ratings service has only 1 method tested out of ~10).
+
+The credit/payment system remains the strongest area with proper pessimistic locking and integer-only arithmetic. The moderation system is also well-implemented with comprehensive test coverage (1600+ lines of tests).
 
 ---
 
@@ -32,9 +36,9 @@ app.useGlobalPipes(
 );
 ```
 
-**Problem:** `enableImplicitConversion: true` causes `class-transformer` to automatically convert types based on the TypeScript type metadata, which can bypass explicit `class-validator` decorators. For example, a string `"true"` for a boolean field will be silently converted without validation, and numbers from query strings may be coerced in unexpected ways. This effectively undermines the `whitelist` and `forbidNonWhitelisted` safeguards.
+**Problem:** `enableImplicitConversion: true` causes `class-transformer` to automatically convert types based on TypeScript type metadata, which can bypass explicit `class-validator` decorators. A string `"true"` for a boolean field will be silently converted without validation, and numbers from query strings may be coerced in unexpected ways.
 
-**Recommendation:** Remove `enableImplicitConversion` and use explicit `@Transform()` decorators in DTOs where type conversion is needed. Or at minimum, ensure all DTOs use explicit `@Type(() => Number)` decorators rather than relying on implicit conversion.
+**Recommendation:** Remove `enableImplicitConversion` and use explicit `@Transform()` or `@Type()` decorators in DTOs where type conversion is needed.
 
 ### 2. Search Endpoints Missing Pagination Limits
 
@@ -47,9 +51,9 @@ async searchStories(dto: SearchStoriesDto) {
   // No cap on limit — user can request limit=100000
 ```
 
-**Problem:** The `searchStories` and `searchUsers` methods do not cap the `limit` parameter, unlike other services (stories, comments, moderation) which all cap at 50-100. A malicious user could request `limit=100000` causing massive Elasticsearch or database result sets.
+**Problem:** The `searchStories` and `searchUsers` methods do not cap the `limit` parameter. A malicious user could request `limit=100000` causing massive Elasticsearch or database result sets and potential OOM.
 
-**Recommendation:** Add `const limit = Math.min(Math.max(1, rawLimit), 100)` consistent with the pattern used in `StoriesService.findAll()`, `CommentsService.findAll()`, and `ModerationService.getReportQueue()`.
+**Recommendation:** Add `const limit = Math.min(Math.max(1, rawLimit), 100)` consistent with the capping pattern used in other services.
 
 ### 3. Refresh Token Not Invalidated on Rotation
 
@@ -67,15 +71,89 @@ async refreshToken(refreshTokenStr: string): Promise<{...}> {
 }
 ```
 
-**Problem:** The service implements token rotation (issues a new refresh token each time), but the old refresh token is never invalidated. An attacker who captures a refresh token can use it repeatedly even after the legitimate user has rotated it. The comment on line 243 says "Implements token rotation" but the old token remains valid until its natural expiry.
+**Problem:** The service implements token rotation (issues a new refresh token each time), but the old refresh token is never invalidated. An attacker who captures a refresh token can use it repeatedly even after the legitimate user has rotated it.
 
-**Recommendation:** Store refresh tokens in the database (or Redis) and invalidate the old token when issuing a new one. Alternatively, blacklist used refresh tokens similarly to how access tokens are blacklisted on logout via `TokenBlacklistService`.
+**Recommendation:** Blacklist used refresh tokens via `TokenBlacklistService`, or store refresh tokens in a database/Redis store and invalidate the old token when issuing a new one.
+
+### 4. Password Reset Tokens Stored in Plaintext
+
+**Location:** `backend/src/modules/auth/auth.service.ts:348-376`
+**Severity:** :red_circle: Critical
+
+```typescript
+const resetToken = nanoid(48);
+await this.userRepository.update(user.id, {
+  passwordResetToken: resetToken,  // Stored in plain text
+  passwordResetExpires: expiresAt,
+});
+```
+
+**Problem:** Password reset tokens are stored in the database without hashing. If the database is compromised (SQL injection, backup leak, insider threat), an attacker can reset any user's password by using the plaintext token directly. This is in contrast to the `TokenBlacklistService` which properly hashes tokens before storage.
+
+**Recommendation:** Hash the reset token before storing:
+```typescript
+const resetToken = nanoid(48);
+const hashedToken = createHash('sha256').update(resetToken).digest('hex');
+await this.userRepository.update(user.id, {
+  passwordResetToken: hashedToken,
+  passwordResetExpires: expiresAt,
+});
+// Return unhashed token to user via email
+```
+Then compare hashed versions during reset verification.
+
+### 5. Token Blacklist TTL Race Condition
+
+**Location:** `backend/src/modules/auth/auth.controller.ts:89-119`
+**Severity:** :red_circle: Critical
+
+```typescript
+const decoded = JSON.parse(
+  Buffer.from(parts[1], "base64url").toString(),
+);
+const remainingSeconds =
+  typeof decoded.exp === "number"
+    ? Math.max(0, decoded.exp - Math.floor(Date.now() / 1000))
+    : 15 * 60;
+```
+
+**Problem:** The logout endpoint manually parses the JWT payload to extract expiration time. If the token has already expired when parsed, `remainingSeconds` becomes `0`, and the token is blacklisted with a TTL of 0 seconds — meaning it's immediately removed from the blacklist and can be reused. While expired tokens would normally fail verification, this creates a window where a just-expired token could bypass blacklisting.
+
+**Recommendation:** Use a fixed TTL matching the configured `JWT_ACCESS_EXPIRATION` (default 15m) rather than computing remaining time from the token payload. This is simpler and eliminates the race condition.
 
 ---
 
 ## High-Severity Findings
 
-### 4. N+1 Query in Advanced Search
+### 6. Missing Authorization Check on Segment Editor Endpoints (IDOR)
+
+**Location:** `backend/src/modules/segments/segments.controller.ts:49-73`
+**Severity:** :orange_circle: High
+
+```typescript
+@Get("story/:storyId")
+@UseGuards(JwtAuthGuard)
+async findByStory(
+  @Param("storyId") storyId: string,
+  @Query("includeUnapproved") includeUnapproved?: boolean,
+) {
+  return this.segmentsService.findByStory(storyId, includeUnapproved);
+}
+```
+
+**Problem:** Any authenticated user can call this endpoint with any `storyId` and retrieve all segments, including unapproved ones when `includeUnapproved=true`. This is an IDOR vulnerability — users can view other authors' unpublished/draft work and unapproved branch submissions.
+
+**Recommendation:** Add ownership or role verification:
+```typescript
+if (includeUnapproved) {
+  const story = await this.storiesService.findOne(storyId);
+  if (story.authorId !== req.user.id && !isAdminOrMod(req.user)) {
+    throw new ForbiddenException();
+  }
+}
+```
+
+### 7. N+1 Query in Advanced Search Tag Loading
 
 **Location:** `backend/src/modules/search/search.service.ts:901-913`
 **Severity:** :orange_circle: High
@@ -92,38 +170,38 @@ const storiesWithTags = await Promise.all(
 );
 ```
 
-**Problem:** For every story in the result set, a separate database query fetches its tags. With a page of 20 results, this produces 21 queries. This is a classic N+1 problem that degrades as result size grows.
+**Problem:** For every story in the result set, a separate database query fetches its tags. With a page of 20 results, this produces 21 queries.
 
-**Recommendation:** Replace with a single query:
+**Recommendation:** Batch fetch all tags in a single query using `WHERE storyId IN (:...storyIds)` then group in memory.
+
+### 8. N+1 Query in Analytics Service
+
+**Location:** `backend/src/modules/analytics/analytics.service.ts:343-348`
+**Severity:** :orange_circle: High
+
 ```typescript
-const storyIds = stories.map(s => s.id);
-const allStoryTags = await this.storyTagRepository.find({
-  where: { storyId: In(storyIds) },
-  relations: ["tag"],
-});
-const tagsByStory = new Map<string, Tag[]>();
-allStoryTags.forEach(st => {
-  if (!tagsByStory.has(st.storyId)) tagsByStory.set(st.storyId, []);
-  tagsByStory.get(st.storyId)!.push(st.tag);
-});
+for (const txn of recentEarnings) {
+  const story = await this.storyRepository.findOne(...)  // N+1!
+}
 ```
 
-### 5. Race Conditions in Counter Increments
+**Problem:** Story data is fetched one-by-one inside a loop. For 50 recent earnings, this generates 50 additional database queries.
+
+**Recommendation:** Batch fetch all stories first using `findByIds()` or `In()`, then map by ID.
+
+### 9. Race Conditions in Counter Increments
 
 **Location:** Multiple services
 **Severity:** :orange_circle: High
 
-Several counter updates happen outside of transactions and can race:
-
+Counter updates happen outside of transactions and can race:
 - `backend/src/modules/comments/comments.service.ts:67-79` — `repliesCount` and `commentCount` increments after comment creation are separate from the comment save transaction
 - `backend/src/modules/comments/comments.service.ts:293-306` — Decrements on soft-delete are separate from the delete save
 - `backend/src/modules/segments/segments.service.ts:454` — `incrementReadCount` outside any transaction
 
-**Problem:** Under concurrent requests, these increment/decrement operations can result in lost updates or incorrect counts. For example, two simultaneous comment creations could both read the same count and increment to the same value.
+**Recommendation:** Wrap comment creation and counter updates in a single transaction to prevent count drift.
 
-**Recommendation:** TypeORM's `.increment()` and `.decrement()` methods are atomic SQL operations (they use `SET count = count + 1`), so the individual operations are safe. However, the comment service saves the comment and then increments counters in separate operations with no transaction wrapper — if the increment fails, the count drifts. Wrap the comment creation and counter updates in a single transaction.
-
-### 6. Slug Generation Race Condition
+### 10. Slug Generation Race Condition
 
 **Location:** `backend/src/modules/stories/stories.service.ts:48-59`
 **Severity:** :orange_circle: High
@@ -141,11 +219,11 @@ private async generateUniqueSlug(title: string): Promise<string> {
 }
 ```
 
-**Problem:** Two simultaneous story creations with the same title can both check for slug uniqueness, find it available, and then both attempt to save with the same slug, causing a database constraint violation. The method is a check-then-act pattern without any locking.
+**Problem:** Two simultaneous story creations with the same title can both pass the uniqueness check and then both attempt to save with the same slug, causing a database constraint violation.
 
-**Recommendation:** Wrap in a database transaction with serializable isolation, or catch the unique constraint violation and retry with a suffix. A simpler approach: append a short random suffix (e.g., `nanoid(6)`) when a collision is detected.
+**Recommendation:** Catch the unique constraint violation and retry with a random suffix, or append a short `nanoid(6)` suffix when a collision is detected.
 
-### 7. WebSocket Module is Empty
+### 11. WebSocket Module is Empty
 
 **Location:** `backend/src/modules/websocket/websocket.module.ts`
 **Severity:** :orange_circle: High
@@ -155,11 +233,11 @@ private async generateUniqueSlug(title: string): Promise<string> {
 export class WebsocketModule {}
 ```
 
-**Problem:** The WebSocket module is empty — no gateway, no handlers, no authentication. The `IoAdapter` is configured in `main.ts:142`, but there's no actual implementation. This means real-time features described in the architecture (notifications, live updates) are non-functional.
+**Problem:** The WebSocket module is empty — no gateway, no handlers, no authentication. The `IoAdapter` is configured in `main.ts` but there is no implementation. Real-time features (notifications, live updates) are non-functional. More critically, if a WebSocket implementation is added later without authentication, it would be an open attack surface.
 
-**Recommendation:** Implement a WebSocket gateway with JWT authentication, room management for story sessions, and proper event handlers. At minimum, add a TODO comment so this isn't overlooked.
+**Recommendation:** Implement a WebSocket gateway with JWT authentication, or remove the module and IoAdapter configuration until it's needed.
 
-### 8. Reindex Operations Load All Records into Memory
+### 12. Reindex Operations Load All Records into Memory
 
 **Location:** `backend/src/modules/search/search.service.ts:588-611` and `:736-756`
 **Severity:** :orange_circle: High
@@ -173,44 +251,103 @@ async reindexAllStories(): Promise<{ indexed: number; failed: number }> {
   // Iterates all stories in memory
 ```
 
-**Problem:** `reindexAllStories()` and `reindexAllTags()` load ALL records into memory at once. As the platform grows, this will cause memory exhaustion and long blocking operations.
+**Problem:** Loads ALL published stories into memory at once. As the platform grows, this will cause memory exhaustion and long blocking operations.
 
-**Recommendation:** Use cursor-based pagination or streaming:
+**Recommendation:** Use cursor-based pagination or batched processing with configurable batch size (e.g., 100 records at a time).
+
+### 13. Missing Rate Limit on Change Password Endpoint
+
+**Location:** `backend/src/modules/auth/auth.controller.ts:156-166`
+**Severity:** :orange_circle: High
+
 ```typescript
-const batchSize = 100;
-let skip = 0;
-while (true) {
-  const batch = await this.storyRepository.find({
-    where: { status: StoryStatus.PUBLISHED },
-    relations: ["author"],
-    skip,
-    take: batchSize,
-  });
-  if (batch.length === 0) break;
-  for (const story of batch) await this.indexStory(story);
-  skip += batchSize;
+@Post("change-password")
+@UseGuards(JwtAuthGuard)
+@HttpCode(HttpStatus.OK)
+// No @Throttle() decorator
+async changePassword(...)
+```
+
+**Problem:** The `login` endpoint has rate limiting (10/min) and `register` has rate limiting (5/min), but `change-password` has none. An attacker with a stolen JWT could brute-force password changes without throttling.
+
+**Recommendation:** Add `@Throttle({ default: { limit: 3, ttl: 60000 } })`.
+
+### 14. Lockout Bypass via Token Refresh
+
+**Location:** `backend/src/modules/auth/auth.service.ts:247-291`
+**Severity:** :orange_circle: High
+
+```typescript
+if (user.accountStatus === AccountStatus.BANNED) {
+  throw new UnauthorizedException("Account has been banned");
+}
+// No check for lockoutUntil
+```
+
+**Problem:** The `refreshToken` method checks for banned accounts but does not check the `lockoutUntil` field. If a user is locked out from login due to failed attempts, they can still refresh existing tokens, bypassing the lockout protection.
+
+**Recommendation:** Add lockout check:
+```typescript
+if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+  throw new UnauthorizedException("Account is temporarily locked");
 }
 ```
+
+### 15. Login Attempt Counter Not Atomic
+
+**Location:** `backend/src/modules/auth/auth.service.ts:144-162`
+**Severity:** :orange_circle: High
+
+```typescript
+const attempts = (user.loginAttempts || 0) + 1;
+const updateData: Record<string, any> = { loginAttempts: attempts };
+await this.userRepository.update(user.id, updateData as any);
+```
+
+**Problem:** The failed login attempt tracking uses a read-modify-write pattern that is not atomic. Two simultaneous failed login attempts could both read `loginAttempts: 4`, increment to `5`, and write back — losing one count and potentially delaying account lockout.
+
+**Recommendation:** Use database-atomic update:
+```typescript
+await this.userRepository.increment({ id: user.id }, 'loginAttempts', 1);
+```
+
+### 16. Root Segment Creation Race Condition
+
+**Location:** `backend/src/modules/segments/segments.service.ts:59-66`
+**Severity:** :orange_circle: High
+
+```typescript
+const existingRoot = await this.segmentRepository.findOne({
+  where: { storyId: createDto.storyId, isRootSegment: true },
+});
+if (existingRoot) {
+  throw new BadRequestException("Story already has a root segment");
+}
+```
+
+**Problem:** Two concurrent requests could both pass the root segment check and create two root segments for the same story (TOCTOU race condition).
+
+**Recommendation:** Add a unique partial index: `CREATE UNIQUE INDEX ON segments (story_id) WHERE is_root_segment = true`, and wrap creation in a transaction with SERIALIZABLE isolation.
 
 ---
 
 ## Medium-Severity Findings
 
-### 9. `previousVersionId` Self-Reference Bug
+### 17. `previousVersionId` Self-Reference Bug
 
 **Location:** `backend/src/modules/segments/segments.service.ts:219`
 **Severity:** :yellow_circle: Medium
 
 ```typescript
-segment.previousVersionId = segment.id; // References itself, not a previous version
+segment.previousVersionId = segment.id; // References itself
 segment.version += 1;
 ```
 
-**Problem:** Setting `previousVersionId = segment.id` means the segment always points to itself as its "previous version," rather than creating an actual version chain. The intent appears to be version history, but this creates a self-referencing loop that provides no useful history.
+**Problem:** Setting `previousVersionId = segment.id` means the segment always points to itself as its "previous version," creating a self-referencing loop rather than an actual version chain.
 
-**Recommendation:** If version history is needed, create a new entity for the old version before modifying, or use a separate versioning table. If version history is not yet implemented, set `previousVersionId = null` and add a TODO.
+**Recommendation:** If version history is needed, create a snapshot of the old version before modifying. If not yet implemented, set `previousVersionId = null`.
 
-### 10. CSP Allows `'unsafe-inline'` for Scripts
+### 18. CSP Allows `'unsafe-inline'` for Scripts
 
 **Location:** `backend/src/main.ts:53`
 **Severity:** :yellow_circle: Medium
@@ -219,45 +356,78 @@ segment.version += 1;
 scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
 ```
 
-**Problem:** Allowing `'unsafe-inline'` for scripts significantly weakens CSP protection against XSS. While this may be needed for Stripe or inline Next.js scripts, it undermines the core benefit of CSP.
+**Problem:** Allowing `'unsafe-inline'` significantly weakens CSP protection against XSS. Investigate whether Next.js nonces can be used instead.
 
-**Recommendation:** Use nonces or hashes instead of `'unsafe-inline'`. For Stripe, the required CSP directive is `https://js.stripe.com` which is already present; `'unsafe-inline'` may not be needed for Stripe specifically. Investigate whether Next.js can be configured to use nonces via the `csp` config option.
-
-### 11. User Registration Reveals Email/Username Existence
+### 19. User Registration Reveals Email/Username Existence
 
 **Location:** `backend/src/modules/auth/auth.service.ts:54-59`
 **Severity:** :yellow_circle: Medium
 
 ```typescript
-if (existingUser) {
-  if (existingUser.username === username) {
-    throw new ConflictException("Username already taken");
-  }
-  throw new ConflictException("Email already registered");
+if (existingUser.username === username) {
+  throw new ConflictException("Username already taken");
+}
+throw new ConflictException("Email already registered");
+```
+
+**Problem:** Distinct error messages enable account enumeration attacks. Contrast with the password reset endpoint which correctly returns success regardless of email existence.
+
+**Recommendation:** Return a generic error: `"Registration failed. An account with this email or username may already exist."`
+
+### 20. Account Status Error Messages Leak Information
+
+**Location:** `backend/src/modules/auth/auth.service.ts:122-139`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+if (user.accountStatus === AccountStatus.BANNED) {
+  throw new UnauthorizedException("Account has been banned");
+}
+if (user.accountStatus === AccountStatus.SUSPENDED) {
+  throw new UnauthorizedException("Account is suspended");
 }
 ```
 
-**Problem:** Distinct error messages reveal whether a specific email or username is already registered. This enables account enumeration attacks. Contrast this with the password reset endpoint (`auth.service.ts:345`) which correctly returns success regardless of whether the email exists.
+**Problem:** Different error messages for different statuses allow attackers to enumerate account states (banned vs suspended vs wrong password).
 
-**Recommendation:** Return a generic error message: `"Registration failed. An account with this email or username may already exist."` This prevents enumeration while still informing the user of the general issue.
+**Recommendation:** Return the same generic message for all authentication failures.
 
-### 12. Elasticsearch Connection Error Leaks Configuration
+### 21. JWT Algorithm Not Explicitly Configured
+
+**Location:** `backend/src/modules/auth/strategies/jwt.strategy.ts:30-45`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Neither the JWT strategy nor the module configuration explicitly sets the signing algorithm. While `@nestjs/jwt` defaults to HS256, this should be explicit to prevent algorithm confusion attacks.
+
+**Recommendation:** Set `algorithm: 'HS256'` in both JWT module config and strategy options.
+
+### 22. Missing CSRF Protection
+
+**Location:** `backend/src/main.ts:101-106`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+app.enableCors({
+  origin: corsOrigin,
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+});
+```
+
+**Problem:** CORS is enabled with `credentials: true` but there is no CSRF token validation. The `X-Requested-With` header alone is insufficient CSRF protection.
+
+**Recommendation:** Implement CSRF token validation for state-changing operations, or use the SameSite cookie attribute as a defense layer.
+
+### 23. Elasticsearch Connection Error Leaks Configuration
 
 **Location:** `backend/src/modules/search/search.service.ts:113-118`
 **Severity:** :yellow_circle: Medium
 
-```typescript
-this.logger.error(
-  `Failed to connect to Elasticsearch: ${error.message}. Search will fall back to database queries. ` +
-    `Ensure Elasticsearch is running at ${this.configService.get("elasticsearch.node", "http://localhost:9200")}.`,
-);
-```
+**Problem:** Error messages include the Elasticsearch connection URL, which could expose internal infrastructure addresses in production logs.
 
-**Problem:** The error message includes the Elasticsearch connection URL, which could include credentials if embedded in the URL. Even if credentials aren't embedded, internal infrastructure addresses should not be logged in production.
+**Recommendation:** In production, log a generic connection failure message without the URL.
 
-**Recommendation:** In production, log a generic message without the connection URL. Include the URL only in development mode.
-
-### 13. Stripe API Version is Outdated
+### 24. Stripe API Version Outdated
 
 **Location:** `backend/src/modules/payments/payments.service.ts:31`
 **Severity:** :yellow_circle: Medium
@@ -268,296 +438,236 @@ this.stripe = new Stripe(stripeKey, {
 });
 ```
 
-**Problem:** The Stripe API version `2023-10-16` is over two years old. While pinning API versions is good practice for stability, staying this far behind means missing security patches and new features.
+**Problem:** The Stripe API version is over two years old. While pinning is good practice, staying this far behind means missing security patches.
 
-**Recommendation:** Review the Stripe changelog and upgrade to a more recent API version. Test payment flows thoroughly after upgrading.
-
-### 14. Body Parser Size Limits May Be Too Generous
+### 25. Body Parser Limits Too Generous
 
 **Location:** `backend/src/main.ts:15-17`
 **Severity:** :yellow_circle: Medium
 
 ```typescript
 const JSON_LIMIT = "10mb";
-const URL_ENCODED_LIMIT = "10mb";
-const RAW_LIMIT = "10mb";
 ```
 
-**Problem:** 10MB is generous for JSON request bodies on an interactive fiction platform. Most API endpoints process text content, DTOs, and metadata that should be well under 1MB. Large limits increase vulnerability to DoS attacks via oversized payloads, even with rate limiting in place.
+**Problem:** 10MB is excessive for JSON request bodies on an interactive fiction platform. Most endpoints process text content and metadata well under 1MB. Large limits increase DoS vulnerability.
 
-**Recommendation:** Reduce the default JSON limit to `1mb` or `2mb`. Apply higher limits only to specific routes that need them (e.g., file upload endpoints) using route-specific middleware.
+**Recommendation:** Reduce to `1mb` or `2mb` default. Apply higher limits only to routes that need them.
 
-### 15. Missing `@IsUUID()` Validation in Multiple Locations
+### 26. Missing `@IsUUID()` Validation Throughout DTOs
 
-**Location:** Throughout DTOs
+**Location:** Multiple DTOs
 **Severity:** :yellow_circle: Medium
 
-Several endpoints accept `userId`, `storyId`, and other IDs as path parameters or body fields without UUID format validation. Invalid UUIDs will cause TypeORM query failures with potentially verbose error messages.
+**Problem:** Several endpoints accept entity IDs as path/body parameters without UUID format validation. Invalid UUIDs cause TypeORM query failures with potentially verbose error messages.
 
-**Recommendation:** Add `@IsUUID()` validation to all ID parameters in DTOs. Use `ParseUUIDPipe` for path parameters in controllers.
+**Recommendation:** Add `@IsUUID()` to all ID fields and use `ParseUUIDPipe` for path parameters.
 
-### 16. Bulk Operations Have No Size Limit
+### 27. Bulk Operations Have No Size Limit
 
 **Location:** `backend/src/modules/moderation/moderation.service.ts:1023-1088`
 **Severity:** :yellow_circle: Medium
 
-```typescript
-async bulkResolveReports(
-  reportIds: string[], // No max length validation
-  moderatorId: string,
-  action: ModerationAction,
-  notes?: string,
-): Promise<{ resolved: number; failed: string[] }>
-```
+**Problem:** `bulkResolveReports`, `bulkAssignReports`, and `bulkIssueWarnings` accept unbounded arrays that could submit thousands of IDs.
 
-**Problem:** `bulkResolveReports`, `bulkAssignReports`, and `bulkIssueWarnings` accept unbounded arrays. A moderator (or compromised moderator account) could submit thousands of IDs, causing sequential database operations that block the event loop.
+**Recommendation:** Add `@ArrayMaxSize(100)` validation in the DTO.
 
-**Recommendation:** Add `@ArrayMaxSize(100)` validation in the DTO, and process items in batches if needed.
+### 28. Missing Pagination Limit Validation on Comments
 
-### 17. N+1 Query in Threaded Comments
-
-**Location:** `backend/src/modules/comments/comments.service.ts:203-217`
+**Location:** `backend/src/modules/comments/comments.controller.ts:56-68`
 **Severity:** :yellow_circle: Medium
 
 ```typescript
-const commentsWithReplies = await Promise.all(
-  rootComments.map(async (comment) => {
-    const replies = await this.commentRepository.find({
-      where: { parentCommentId: comment.id, isDeleted: false },
-      relations: ["user"],
-      order: { createdAt: "ASC" },
-      take: 3,
-    });
-    // ... N queries executed for N root comments
-  }),
-);
-```
-
-**Problem:** For every root comment on a page, a separate query fetches its replies. With 20 root comments, this creates 21 queries. This pattern appears on every story page with comments.
-
-**Recommendation:** Use a single query with `WHERE parentCommentId IN (:...rootIds)` then group results in memory, or use a LEFT JOIN in the initial query.
-
-### 18. Missing Composite Database Indexes
-
-**Location:** Multiple entity files
-**Severity:** :yellow_circle: Medium
-
-Common query patterns lack covering indexes:
-- **Comments:** `WHERE storyId = ? AND isDeleted = FALSE ORDER BY createdAt` needs `@Index(["storyId", "isDeleted", "createdAt"])`
-- **Stories:** `WHERE status = 'PUBLISHED' AND category = ? ORDER BY viewCount DESC` needs `@Index(["status", "category", "viewCount"])`
-- **Reader Progress:** `WHERE userId = ? ORDER BY lastReadAt DESC` needs `@Index(["userId", "lastReadAt"])`
-
-**Recommendation:** Add composite indexes matching the most common query patterns. These will provide significant improvement on tables that grow large.
-
-### 19. Cache Module Created But Not Used by Services
-
-**Location:** `backend/src/common/cache/cache.module.ts` + all services
-**Severity:** :yellow_circle: Medium
-
-**Problem:** The Redis-backed CacheModule is properly configured and globally available, but no service actually uses `@Cacheable()` decorators or injects the cache manager to cache query results. Frequently accessed data like featured stories, popular tags, and user stats are re-queried on every request.
-
-**Recommendation:** Add caching to high-traffic, low-mutation endpoints:
-- Featured stories: 10-minute TTL
-- Tag listings: 1-hour TTL
-- Story metadata for read endpoints: 5-minute TTL
-
-### 20. Elasticsearch Uses `refresh: true` on Every Index Operation
-
-**Location:** `backend/src/modules/search/search.service.ts:525,579,709`
-**Severity:** :yellow_circle: Medium
-
-```typescript
-await this.client.index({
-  index: STORIES_INDEX,
-  id: story.id,
-  body: doc,
-  refresh: true, // Forces immediate shard refresh
-});
-```
-
-**Problem:** `refresh: true` forces Elasticsearch to refresh the index shard on every write. This is expensive and unnecessary for most operations. Elasticsearch's default 1-second refresh interval is sufficient for near-real-time search.
-
-**Recommendation:** Use `refresh: false` (or omit) for normal writes. Reserve `refresh: true` for test environments only. For bulk reindexing, use `refresh: "wait_for"` at the end of the batch.
-
-### 21. Segment Cycle Detection Has No Depth Limit
-
-**Location:** `backend/src/modules/segments/segments.service.ts:512-541`
-**Severity:** :yellow_circle: Medium
-
-```typescript
-private async wouldCreateCycle(
-  fromId: string,
-  toId: string,
-  visited: Set<string> = new Set(),
-): Promise<boolean> {
-  // ... recursive with one DB query per node
-```
-
-**Problem:** The cycle detection algorithm has no maximum depth limit and makes one database query per graph node visited. A story with deep branching (10+ levels) generates 10+ sequential queries. Pathological graphs could cause stack overflow or timeouts.
-
-**Recommendation:** Add `if (visited.size > 100) return false;` as a safety limit. For better performance, batch-fetch all segments for the story once and traverse in memory.
-
-### 22. TipTap Editor Not Code-Split on Frontend
-
-**Location:** `frontend/package.json` (13 TipTap packages)
-**Severity:** :yellow_circle: Medium
-
-**Problem:** The TipTap rich text editor (13 packages, ~300KB+ JS) is loaded as a core dependency but only used on 2-3 editing routes. Every page load pays the bundle size cost.
-
-**Recommendation:** Use Next.js dynamic imports with `ssr: false`:
-```typescript
-const RichTextEditor = dynamic(() => import('@/components/editor/rich-text-editor'), {
-  loading: () => <EditorSkeleton />,
-  ssr: false,
-});
-```
-
-### 23. Widespread Untyped Request Objects Across Controllers
-
-**Location:** 32+ controller methods across `payments`, `branch-submissions`, `ads`, `credits`, `ratings`, and other controllers
-**Severity:** :yellow_circle: Medium
-
-```typescript
-// payments.controller.ts:87
-async createCreditCheckout(@Req() req: any, @Body() dto: CreateCreditCheckoutDto) {
-  const userId = req.user.id; // No compile-time type checking
-```
-
-**Problem:** Controllers use `@Req() req: any` instead of properly typed request objects. This means `req.user.id`, `req.user.role`, etc. have no compile-time type checking. Typos like `req.user.userId` or `req.user.Id` would silently pass TypeScript compilation and fail at runtime.
-
-**Recommendation:** Create and use a typed interface:
-```typescript
-interface AuthenticatedRequest extends Request {
-  user: { userId: string; username: string; role: UserRole };
+async getThreadedComments(
+  @Query("limit") limit = 20,
+) {
+  return this.commentsService.getThreadedComments(storyId, segmentId, +page, +limit);
 }
 ```
 
-### 24. Stripe Redirect URL Validation Uses Weak Hostname Check
+**Problem:** While the service caps at 50, the controller doesn't validate the `limit` parameter. A user could pass `limit=1000000` and the conversion to number happens without bounds checking.
 
-**Location:** `frontend/src/components/payments/credit-bundles.tsx:102-112`
+**Recommendation:** Add `ParseIntPipe` and max validation on the `limit` parameter.
+
+### 29. No Rate Limiting on Ad Reward Endpoint
+
+**Location:** `backend/src/modules/ads/ads.controller.ts:67-88`
 **Severity:** :yellow_circle: Medium
 
 ```typescript
-if (url.hostname.endsWith('.stripe.com')) {
-  window.location.href = data.data.url;
+@Post("reward")
+@ApiBearerAuth()
+@HttpCode(HttpStatus.OK)
+// No @Throttle() decorator
+async recordReward(...)
 ```
 
-**Problem:** `.endsWith('.stripe.com')` would also match a hostname like `evil-stripe.com` or `attacker.com.stripe.com.evil.com` depending on how the URL is crafted. This is an open redirect risk.
+**Problem:** While there's an application-level cooldown check, the endpoint has no network-level rate limiting. Distributed attackers can rapid-fire requests to earn extra credits.
 
-**Recommendation:** Use exact hostname matching:
-```typescript
-if (url.hostname === 'checkout.stripe.com') {
-```
+**Recommendation:** Add `@Throttle({ default: { limit: 5, ttl: 60000 } })`.
 
-### 25. Platform Fee Hardcoded Inconsistently
+### 30. Ad Reward Daily Limit Not Thread-Safe
 
-**Location:** `backend/src/modules/credits/credits.service.ts:259` vs `:343`
+**Location:** `backend/src/modules/credits/credits.controller.ts:176-235`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** The daily ad count check uses Redis cache with a 5-minute TTL. Between checking the count and incrementing it, another request could slip through. Maximum damage is limited to ~50-100 extra credits.
+
+**Recommendation:** Implement a distributed Redis lock for ad count increment, or use Redis INCR which is atomic.
+
+### 31. Razorpay Webhooks Lack Idempotency Tracking
+
+**Location:** `backend/src/modules/subscriptions/subscriptions.controller.ts:327-355`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Stripe webhooks have proper idempotency via cache-based event ID tracking, but Razorpay webhooks do not. The same Razorpay webhook event could be processed multiple times.
+
+**Recommendation:** Add Redis-based idempotency tracking for Razorpay webhooks, matching the Stripe webhook pattern.
+
+### 32. Stripe Transfer Lacks Idempotency Key
+
+**Location:** `backend/src/modules/earnings/earnings.service.ts:387-392`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** If a Stripe transfer succeeds but the response is lost (network error), retrying could result in a double-payment because no idempotency key is provided.
+
+**Recommendation:** Use Stripe's `idempotencyKey` parameter for all transfer operations.
+
+### 33. Payout Account Status Not Re-Verified
+
+**Location:** `backend/src/modules/earnings/earnings.service.ts:373-379`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** `processPayout()` retrieves the account but doesn't re-check `payoutsEnabled` before executing the transfer. The account could have been disabled between payout request and processing.
+
+### 34. Search Query Validation Gaps
+
+**Location:** `backend/src/modules/search/search.controller.ts:38-43`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Search queries have `@MaxLength(200)` but no `@MinLength(1)` or whitespace trimming. A user could submit 200 spaces as a search query, causing unnecessary ES/DB load.
+
+**Recommendation:** Add `@Transform(({ value }) => value?.trim())` and `@MinLength(1)`.
+
+### 35. Tag Array DoS in Advanced Search
+
+**Location:** `backend/src/modules/search/search.service.ts:849-857`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Tag name arrays in advanced search have no length limit. An extremely large array (10,000+ names) could cause DoS via an oversized SQL `IN` clause.
+
+**Recommendation:** Add `@ArrayMaxSize(100)` to the tag names field in the search DTO.
+
+### 36. Autocomplete Exposes Banned Users
+
+**Location:** `backend/src/modules/search/search.service.ts:444-485`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** The `autocomplete()` endpoint returns user IDs and usernames without filtering out banned or deleted users.
+
+**Recommendation:** Add an `accountStatus: ACTIVE` filter in the Elasticsearch query or response processing.
+
+### 37. Admin Settings Page Non-Functional
+
+**Location:** `frontend/src/app/admin/settings/page.tsx`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Input fields have `defaultValue` but no `onChange` handlers and no submit handler. The "Save" button does nothing. Settings changes are never persisted.
+
+**Recommendation:** Add state management and API call to persist admin settings.
+
+### 38. User Search Feature Broken in Frontend
+
+**Location:** `frontend/src/hooks/use-user-management.ts:150-159`
 **Severity:** :yellow_circle: Medium
 
 ```typescript
-// Line 259 (story unlock) — uses shared constant
-const platformFee = Math.floor(story.creditCost * PLATFORM_FEE_PERCENTAGE);
-
-// Line 343 (tips) — hardcoded magic number
-const platformFee = Math.floor(dto.amount * 0.1); // 10% on tips
+const [search, setSearch] = useState('');
+const searchUsers = useCallback((query: string) => {
+  setSearch(query);
+}, []);
 ```
 
-**Problem:** The tip fee calculation uses a hardcoded `0.1` instead of a named constant. If the platform fee changes, this location will be missed, creating an inconsistency between story unlocks and tips.
+**Problem:** `setSearch()` updates state but the `search` value is never used in the `useUserList` query. The search feature always fetches all users regardless of the search input.
 
-**Recommendation:** Define a `TIP_FEE_PERCENTAGE` constant in `@aardvark/shared` or use `PLATFORM_FEE_PERCENTAGE` with a comment explaining if the rate intentionally differs.
+**Recommendation:** Pass the `search` state to the `useUserList` query parameters.
 
-### 26. Feature Flag Boolean Parsing is Inconsistent
+### 39. LocalStorage XSS Risk in Segment Editor
+
+**Location:** `frontend/src/components/editor/segment-editor-modal.tsx:54-72`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+const loadDraft = useCallback((): DraftData | null => {
+  const stored = localStorage.getItem(key);
+  if (!stored) return null;
+  const draft: DraftData = JSON.parse(stored);
+  // No sanitization of draft.contentHtml
+  return draft;
+}, [key]);
+```
+
+**Problem:** Draft data including `contentHtml` is loaded from localStorage without sanitization. If an attacker gains localStorage access (via XSS elsewhere), they can inject malicious HTML that will be rendered when the draft is restored.
+
+**Recommendation:** Sanitize `contentHtml` when loading from localStorage before passing it to the editor.
+
+### 40. Frontend API Base URL Exposes Development Server
+
+**Location:** `frontend/src/lib/api.ts:14`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** `NEXT_PUBLIC_API_URL` falls back to `localhost:4000`. In production, if the environment variable is missing, this exposes the development URL and causes all API calls to fail silently or redirect to internal infrastructure.
+
+**Recommendation:** Remove the localhost fallback or fail loudly if the variable is unset in production.
+
+### 41. No Request Timeout in Frontend API Client
+
+**Location:** `frontend/src/lib/api.ts:68-71`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** `fetch` requests have no timeout configured. Requests could hang indefinitely on slow or broken connections.
+
+**Recommendation:** Implement request timeout using `AbortController` (5-30 seconds).
+
+### 42. Moderation Queue Cache Key Missing User Context
+
+**Location:** `frontend/src/hooks/use-moderation.ts:20`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+queryKey: ['moderationQueue', query],
+```
+
+**Problem:** The React Query cache key doesn't include user or token context. If cache keys match across different users, stale data from one moderator session could be served to another.
+
+**Recommendation:** Include a user ID or token hash in the query key.
+
+### 43. Token Retrieval Pattern Inconsistent Across Hooks
+
+**Location:** `frontend/src/hooks/use-admin-analytics.ts:94`, `use-moderation.ts:218`, `use-user-management.ts:149`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Three hooks independently read tokens from `localStorage` without format or expiration validation. This pattern should be centralized in an auth hook/context.
+
+**Recommendation:** Replace all `localStorage.getItem('token')` patterns with a shared `useAuth()` hook that validates token integrity.
+
+### 44. Feature Flag Boolean Parsing Inconsistent
 
 **Location:** `backend/src/config/configuration.ts:112-120`
 **Severity:** :yellow_circle: Medium
 
 ```typescript
-features: {
-  nsfwContent: process.env.FEATURE_NSFW_CONTENT === "true",     // opt-in
-  aiCompanion: process.env.FEATURE_AI_COMPANION !== "false",     // opt-out
+nsfwContent: process.env.FEATURE_NSFW_CONTENT === "true",     // opt-in
+aiCompanion: process.env.FEATURE_AI_COMPANION !== "false",     // opt-out
 ```
 
-**Problem:** Some flags default to `false` (require `"true"` to enable) while others default to `true` (require `"false"` to disable). This inconsistency is easy to misconfigure in production deployments and there's no documentation about which flags are opt-in vs opt-out.
+**Problem:** Some flags default to `false` (require `"true"` to enable) while others default to `true` (require `"false"` to disable). This inconsistency is error-prone in production deployments.
 
-**Recommendation:** Standardize on one parsing pattern (preferably opt-in with `=== "true"`) and add inline comments documenting the default behavior.
+**Recommendation:** Standardize on one pattern (preferably opt-in) and document defaults.
 
-### 27. Test Coverage: Only 7 Test Files for 31 Modules
+### 45. Database Query Cache Uses Database-Backed Storage
 
-**Location:** `backend/src/modules/`
+**Location:** `backend/src/config/database.config.ts:52-59`
 **Severity:** :yellow_circle: Medium
-
-**Problem:** Only 7 service-level test files exist for a 31-module backend. Critical modules without tests include:
-- `stories.service.ts` — core CRUD and moderation workflow
-- `search.service.ts` — complex Elasticsearch + fallback logic
-- `segments.service.ts` — content management with versioning
-- `comments.service.ts` — threaded comments with sanitization
-- `notifications.service.ts` — real-time event handling
-
-**Recommendation:** Prioritize test coverage for business-critical services. At minimum, add tests for the stories, segments, and search services, as these contain the most complex logic and are most likely to regress.
-
-### 28. Missing HTTP Status Code Decorators on CRUD Endpoints
-
-**Location:** Multiple controllers
-**Severity:** :yellow_circle: Medium
-
-**Problem:** POST create endpoints return 200 OK by default instead of 201 Created. DELETE endpoints return 200 OK with a body instead of 204 No Content. This violates RESTful API conventions and can confuse API consumers.
-
-**Recommendation:** Add `@HttpCode(HttpStatus.CREATED)` on POST create endpoints and `@HttpCode(HttpStatus.NO_CONTENT)` on DELETE endpoints.
-
----
-
-## Low-Severity Findings
-
-### 29. Inconsistent Pagination Response Formats
-
-**Location:** Throughout backend services
-**Severity:** :green_circle: Low
-
-Different services return pagination metadata in inconsistent formats:
-- `StoriesService.findAll()` returns `{ items, total, page, limit }`
-- `CommentsService.findAll()` returns `{ data, meta: { page, limit, total, totalPages } }`
-- `ModerationService.getReportQueue()` returns `{ reports, total, page, limit, totalPages }`
-- `SearchService.searchStories()` returns `{ data, meta: { page, limit, total, totalPages } }`
-
-**Recommendation:** Standardize on a single pagination response format across all endpoints. The `{ data, meta }` pattern from the search/comments services is the most conventional.
-
-### 30. Frontend API Client Lacks Error Type Discrimination
-
-**Location:** `frontend/src/lib/api.ts:62-68`
-**Severity:** :green_circle: Low
-
-```typescript
-if (!response.ok) {
-  const error = await response.json().catch(() => ({ message: 'Request failed' }));
-  throw new Error(error.message || `HTTP error ${response.status}`);
-}
-```
-
-**Problem:** All API errors are converted to generic `Error` objects, losing the structured error response from the backend (`code`, `details`, `status`). This makes it difficult for the frontend to handle different error types (validation errors vs auth errors vs server errors).
-
-**Recommendation:** Create a custom `ApiError` class:
-```typescript
-class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public code?: string,
-    public details?: unknown,
-  ) { super(message); }
-}
-```
-
-### 31. `TransformInterceptor` Applied Globally Without Exclusion
-
-**Location:** `backend/src/main.ts:136-139`
-**Severity:** :green_circle: Low
-
-The `TransformInterceptor` and `LoggingInterceptor` are applied globally. Depending on their implementation, this could interfere with streaming responses, file downloads, or WebSocket upgrades. Consider applying these selectively or ensuring they handle non-JSON responses gracefully.
-
-### 32. Database Query Cache Uses Database-Backed Storage
-
-**Location:** `backend/src/config/database.config.ts:53-57`
-**Severity:** :green_circle: Low
 
 ```typescript
 cache: {
@@ -569,81 +679,243 @@ cache: {
 
 **Problem:** With Redis already available, using database-backed query caching adds unnecessary database load. Every cached query result is stored in and retrieved from the same database being queried.
 
-**Recommendation:** Switch to Redis-based TypeORM caching:
+**Recommendation:** Switch to Redis-based TypeORM caching.
+
+### 46. Untyped Request Objects Across 32+ Controller Methods
+
+**Location:** Multiple controllers (payments, ads, credits, ratings, etc.)
+**Severity:** :yellow_circle: Medium
+
 ```typescript
-cache: {
-  type: "ioredis",
-  options: { host: redisHost, port: redisPort },
-  duration: 30000,
+async createCreditCheckout(@Req() req: any, @Body() dto: CreateCreditCheckoutDto) {
+  const userId = req.user.id; // No compile-time type checking
+```
+
+**Problem:** Using `@Req() req: any` loses TypeScript type safety. Typos like `req.user.userId` or `req.user.Id` would compile but fail at runtime.
+
+**Recommendation:** Use the typed `AuthenticatedRequest` interface (which already exists at `backend/src/common/interfaces/authenticated-request.interface.ts`) consistently.
+
+### 47. Stripe Redirect URL Validation Uses Weak Hostname Check
+
+**Location:** `frontend/src/components/payments/credit-bundles.tsx:102-112`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+if (url.hostname.endsWith('.stripe.com')) {
+```
+
+**Problem:** `.endsWith('.stripe.com')` could match `evil-stripe.com`. This is an open redirect risk.
+
+**Recommendation:** Use exact hostname matching: `if (url.hostname === 'checkout.stripe.com')`.
+
+### 48. Mobile Receipt Replay Attack Prevention Incomplete
+
+**Location:** `backend/src/modules/mobile/mobile.service.ts:398-410`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Checks subscription ID uniqueness but doesn't prevent token re-submission. No nonce/challenge system for receipt verification.
+
+**Recommendation:** Add nonce-based verification or track receipt IDs to prevent replay.
+
+### 49. Ratings Service Has Minimal Test Coverage
+
+**Location:** `backend/src/modules/ratings/ratings.service.spec.ts`
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Only 1 method (`getFeaturedReviews`) is tested out of approximately 10 service methods. Missing tests for: `create()`, `update()`, `delete()`, `getAverageRating()`, helpful voting, duplicate prevention, and score validation.
+
+**Recommendation:** This is a critical gap — ratings directly affect story visibility and author reputation. Add comprehensive tests.
+
+### 50. Test Coverage: Transaction Behavior Not Verified
+
+**Location:** Multiple test files (ads, comments, credits, earnings, subscriptions)
+**Severity:** :yellow_circle: Medium
+
+**Problem:** Across all service tests, `mockTransactionManager` is defined but tests typically only verify that `dataSource.transaction` was called — they don't verify that transaction commits/rollbacks actually happen correctly. This means tests could pass even if transaction logic is broken.
+
+**Recommendation:** Verify that transaction managers receive the correct entity operations and that rollback scenarios are tested.
+
+---
+
+## Low-Severity Findings
+
+### 51. Inconsistent Pagination Response Formats
+
+**Location:** Throughout backend services
+**Severity:** :green_circle: Low
+
+Different services return pagination in different formats: `{ items, total, page, limit }` vs `{ data, meta: { page, limit, total, totalPages } }` vs `{ reports, total, page, limit, totalPages }`.
+
+**Recommendation:** Standardize on the `{ data, meta }` pattern.
+
+### 52. Frontend API Client Loses Error Structure
+
+**Location:** `frontend/src/lib/api.ts:62-68`
+**Severity:** :green_circle: Low
+
+```typescript
+if (!response.ok) {
+  const error = await response.json().catch(() => ({ message: 'Request failed' }));
+  throw new Error(error.message || `HTTP error ${response.status}`);
 }
 ```
+
+**Problem:** All API errors become generic `Error` objects, losing status codes, error codes, and validation details. This makes error-specific handling impossible in the frontend.
+
+**Recommendation:** Create a custom `ApiError` class that preserves the full error response.
+
+### 53. `TransformInterceptor` Applied Globally Without Exclusion
+
+**Location:** `backend/src/main.ts:136-139`
+**Severity:** :green_circle: Low
+
+**Problem:** Could interfere with streaming responses, file downloads, or WebSocket upgrades.
+
+### 54. `console.warn` in Production Code
+
+**Location:** `backend/src/config/configuration.ts:16-18`
+**Severity:** :green_circle: Low
+
+```typescript
+console.warn(`WARNING: ${envVar} not set — using random ephemeral secret...`);
+```
+
+**Problem:** Uses `console.warn()` instead of the NestJS structured logger. This bypasses log levels and formatting.
+
+### 55. `deepClone` Utility Loses Date Types
+
+**Location:** `shared/src/utils/index.ts:178-180`
+**Severity:** :green_circle: Low
+
+```typescript
+export function deepClone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+```
+
+**Problem:** `JSON.parse(JSON.stringify())` converts `Date` objects to strings, loses `undefined` values, and drops functions/symbols. Could cause subtle bugs.
+
+**Recommendation:** Document the limitation or use `structuredClone()` (available in Node 17+).
+
+### 56. Seed Data Uses Hardcoded Stripe Price IDs
+
+**Location:** `backend/src/database/seeds/run-seed.ts:186-296`
+**Severity:** :green_circle: Low
+
+**Problem:** Credit bundles and subscription plans use fake Stripe price IDs (`price_starter_100`) that won't match real Stripe account configuration.
+
+**Recommendation:** Add validation or documentation noting these must be replaced before production use.
+
+### 57. Missing HTTP Status Code Decorators on CRUD Endpoints
+
+**Location:** Multiple controllers
+**Severity:** :green_circle: Low
+
+**Problem:** POST create endpoints return 200 OK instead of 201 Created. DELETE endpoints return 200 OK instead of 204 No Content. This violates RESTful API conventions.
+
+### 58. Hardcoded Platform Fee in Tips
+
+**Location:** `backend/src/modules/credits/credits.service.ts:343`
+**Severity:** :green_circle: Low
+
+```typescript
+const platformFee = Math.floor(dto.amount * 0.1); // 10% on tips
+```
+
+**Problem:** The tip fee uses a hardcoded `0.1` instead of a named constant. Story unlocks use `PLATFORM_FEE_PERCENTAGE` but tips don't.
+
+**Recommendation:** Define `TIP_FEE_RATE` as a named constant.
 
 ---
 
 ## Positive Observations
 
-1. **Excellent financial transaction handling** — The `CreditsService` uses pessimistic write locks (`lock: { mode: "pessimistic_write" }`) within database transactions for all balance-modifying operations. This correctly prevents double-spending and race conditions on credit operations.
+1. **Excellent financial transaction handling** — `CreditsService` uses pessimistic write locks (`lock: { mode: "pessimistic_write" }`) within database transactions for all balance-modifying operations (unlock, tip, add credits). This correctly prevents double-spending.
 
-2. **Strong authentication security** — Account lockout after 5 failed attempts, password change invalidation of existing tokens via `passwordChangedAt` checking in the JWT strategy, token blacklisting on logout, and rate limiting on auth endpoints are all well-implemented.
+2. **Strong authentication security** — Account lockout after 5 failed attempts, password change invalidation of existing tokens via `passwordChangedAt` checking in JWT strategy, token blacklisting on logout, rate limiting on auth endpoints.
 
-3. **Good HTML sanitization** — Both `SegmentsService` and `CommentsService` use `sanitize-html` with explicit allowlists for tags and attributes, transform links to add `rel="noopener noreferrer"` and `target="_blank"`, and restrict URL schemes to `http`, `https`, and `mailto`.
+3. **Proper HTML sanitization** — Both `SegmentsService` and `CommentsService` use `sanitize-html` with explicit allowlists for tags/attributes, transform links to add `rel="noopener noreferrer"`, and restrict URL schemes.
 
-4. **Upload security** — The `UploadService` validates magic bytes for images (JPEG, PNG, GIF, WebP, AVIF), checks dangerous file extensions, enforces MIME type allowlists, and applies per-category size limits.
+4. **Upload security** — `UploadService` validates magic bytes for images (JPEG, PNG, GIF, WebP, AVIF), checks dangerous file extensions, enforces MIME type allowlists, and applies per-category size limits.
 
-5. **Graceful degradation** — The search service falls back to PostgreSQL `ILIKE` queries when Elasticsearch is unavailable. Payment services gracefully disable in development when Stripe/Razorpay are unconfigured.
+5. **Graceful degradation** — Search falls back to PostgreSQL `ILIKE` when Elasticsearch is unavailable. Payment services gracefully disable when Stripe/Razorpay are unconfigured.
 
-6. **Secret management** — The `requireSecret()` function in `configuration.ts` throws in production if `JWT_SECRET`/`JWT_REFRESH_SECRET` are missing and generates ephemeral random secrets in development, preventing use of hardcoded defaults.
+6. **Secret management** — `requireSecret()` throws in production if `JWT_SECRET`/`JWT_REFRESH_SECRET` are missing and generates ephemeral random secrets in development.
 
-7. **SQL injection prevention** — Query builder usage with parameterized queries is consistent. The `getSortColumn()` method in `StoriesService` uses a whitelist to prevent sort column injection.
+7. **SQL injection prevention** — Parameterized queries throughout. `getSortColumn()` uses a whitelist to prevent sort column injection.
 
-8. **Proper CORS configuration** — Explicit origin whitelist in both production and development, with credentials enabled and specific allowed methods/headers.
+8. **Razorpay webhook security** — Uses `crypto.timingSafeEqual()` for constant-time HMAC comparison, preventing timing attacks.
 
-9. **Comprehensive moderation system** — Reports, warnings, bans, mutes, appeals, shadow bans, auto-ban (3 strikes), and priority scoring are all well-modeled with proper audit trails via `ModerationLog`.
+9. **Comprehensive moderation system** — 1600+ lines of tests. Reports, warnings, bans, mutes, appeals, shadow bans, auto-ban (3 strikes), and priority scoring with proper audit trails.
 
-10. **Consistent authorization patterns** — Ownership checks in services follow a clear pattern: owner can edit their own content, moderators/admins have elevated permissions, with proper `ForbiddenException` responses.
+10. **Integer-only credit system** — All financial amounts use integer arithmetic (cents, paise, whole credits), eliminating floating-point rounding errors entirely.
 
 ---
 
 ## Action Items
 
 ### Must-Fix (Critical/High)
+
 - [ ] Remove or rethink `enableImplicitConversion: true` in the global `ValidationPipe`
 - [ ] Add pagination limit caps in `SearchService.searchStories()` and `SearchService.searchUsers()`
 - [ ] Invalidate old refresh tokens on rotation (store in Redis or DB)
-- [ ] Fix the N+1 query in `SearchService.advancedSearch()` for tag loading
-- [ ] Implement the WebSocket module or remove it from `app.module.ts`
-- [ ] Add batched processing for `reindexAllStories()` and `reindexAllTags()`
+- [ ] Hash password reset tokens before storing in database
+- [ ] Fix token blacklist TTL race condition (use fixed TTL matching JWT expiration)
+- [ ] Add authorization checks on segment editor endpoints to prevent IDOR
+- [ ] Fix N+1 queries in search tag loading and analytics
 - [ ] Add transaction wrapping for comment creation + counter updates
+- [ ] Fix slug generation race condition with retry-on-conflict
+- [ ] Add rate limiting to change-password endpoint
+- [ ] Add lockout check to token refresh endpoint
+- [ ] Make login attempt counter atomic (use SQL `INCREMENT`)
+- [ ] Add unique partial index for root segments
+- [ ] Implement or remove the empty WebSocket module
+- [ ] Add batched processing for reindex operations
 
 ### Should-Fix (Medium)
-- [ ] Fix the `previousVersionId` self-reference in segment updates
-- [ ] Replace `'unsafe-inline'` in CSP scriptSrc with nonces
-- [ ] Use generic registration error messages to prevent account enumeration
-- [ ] Redact Elasticsearch URL from production error logs
+
+- [ ] Fix `previousVersionId` self-reference in segment updates
+- [ ] Replace `'unsafe-inline'` in CSP with nonces
+- [ ] Use generic error messages on registration and login to prevent enumeration
+- [ ] Explicitly configure JWT algorithm (HS256)
+- [ ] Implement CSRF protection
+- [ ] Redact Elasticsearch URL from production logs
 - [ ] Upgrade Stripe API version from `2023-10-16`
-- [ ] Reduce default body parser JSON limit from `10mb` to `1-2mb`
+- [ ] Reduce JSON body parser limit to `1-2mb`
 - [ ] Add `@IsUUID()` validation to all ID fields in DTOs
-- [ ] Add `@ArrayMaxSize()` to bulk operation DTOs
-- [ ] Fix slug generation race condition with retry-on-conflict pattern
-- [ ] Fix N+1 in threaded comments (fetch replies in single batch query)
-- [ ] Add composite indexes on Comment, Story, and ReaderProgress entities
-- [ ] Implement caching on high-traffic read endpoints (featured stories, tags)
-- [ ] Remove `refresh: true` from Elasticsearch index operations
-- [ ] Add depth limit to segment cycle detection algorithm
-- [ ] Code-split TipTap editor with dynamic imports
-- [ ] Replace `@Req() req: any` with typed `AuthenticatedRequest` interface (32+ occurrences)
-- [ ] Fix Stripe redirect URL validation to use exact hostname match
-- [ ] Replace hardcoded `0.1` tip fee with named constant
+- [ ] Add `@ArrayMaxSize()` to bulk operation and search DTOs
+- [ ] Add rate limiting to ad reward endpoint
+- [ ] Implement Redis-based idempotency for Razorpay webhooks
+- [ ] Add Stripe idempotency keys to transfer operations
+- [ ] Re-verify payout account status before processing
+- [ ] Add search query trimming and min length validation
+- [ ] Filter banned users from autocomplete results
+- [ ] Fix non-functional admin settings page (frontend)
+- [ ] Fix broken user search in `use-user-management.ts` (frontend)
+- [ ] Sanitize localStorage draft content on load (frontend)
+- [ ] Remove localhost fallback from API base URL (frontend)
+- [ ] Add request timeouts to frontend API client
+- [ ] Add user context to React Query cache keys for admin hooks
+- [ ] Centralize token retrieval in a shared auth hook (frontend)
+- [ ] Replace `@Req() req: any` with typed `AuthenticatedRequest` (32+ methods)
+- [ ] Fix Stripe redirect URL validation to exact hostname
 - [ ] Standardize feature flag boolean parsing
-- [ ] Add test coverage for stories, segments, search, and comments services
-- [ ] Add `@HttpCode()` decorators to CRUD endpoints for proper REST status codes
+- [ ] Switch TypeORM query cache from database to Redis
+- [ ] Add comprehensive tests for ratings service
+- [ ] Verify transaction commit/rollback in service tests
+- [ ] Fix mobile receipt replay attack prevention
 
 ### Nice-to-Have (Low)
+
 - [ ] Standardize pagination response format across all services
-- [ ] Create a custom `ApiError` class in the frontend API client
-- [ ] Switch TypeORM query cache from database-backed to Redis-backed
+- [ ] Create custom `ApiError` class in frontend API client
 - [ ] Review global interceptor behavior with non-JSON responses
-- [ ] Optimize Radix UI package imports in Next.js config
+- [ ] Replace `console.warn` with NestJS logger in configuration
+- [ ] Document `deepClone()` limitations or use `structuredClone()`
+- [ ] Replace hardcoded Stripe price IDs in seed data with documentation
+- [ ] Add `@HttpCode()` decorators for proper REST status codes
+- [ ] Extract hardcoded tip fee rate into a named constant
+- [ ] Code-split TipTap editor with dynamic imports
 
 ---
 
@@ -653,8 +925,12 @@ cache: {
 
 2. **Soft delete strategy** — Comments use soft delete (`isDeleted` flag) while stories use hard delete (`repository.remove()`). Is this intentional? Hard-deleting stories cascades to segments, choices, and reader progress, which may not be recoverable.
 
-3. **NSFW content gating** — The `nsfwFlag` field exists on stories and the `FEATURE_NSFW_CONTENT` flag exists in configuration, but there's no visible enforcement in the story query endpoints to filter NSFW content by default.
+3. **NSFW content gating** — The `nsfwFlag` field exists on stories and `FEATURE_NSFW_CONTENT` exists in configuration, but there's no visible enforcement in story query endpoints to filter NSFW content by default.
 
-4. **Two-factor authentication** — The `twoFactorEnabled` and `twoFactorSecret` fields exist on the User entity, but there's no TOTP implementation visible. Is this planned?
+4. **Two-factor authentication** — The `twoFactorEnabled` and `twoFactorSecret` fields exist on the User entity, but there's no TOTP implementation. Is this planned?
 
-5. **Collaborative editing conflicts** — The segment versioning (`version` field + `previousVersionId`) suggests planned concurrent editing support, but there's no conflict resolution or optimistic locking. What's the intended behavior when two users edit the same segment simultaneously?
+5. **Collaborative editing conflicts** — Segment versioning (`version` field + `previousVersionId`) suggests planned concurrent editing support, but there's no conflict resolution or optimistic locking. What's the intended behavior for simultaneous edits?
+
+6. **WebSocket authentication** — The IoAdapter is configured in `main.ts` but the WebSocket module is empty. When implemented, how will WebSocket connections be authenticated — JWT in handshake headers, or a separate auth mechanism?
+
+7. **Admin settings persistence** — The admin settings page has UI but no backend endpoint or state management. Is there an admin settings API planned, or should settings remain environment-variable-only?
