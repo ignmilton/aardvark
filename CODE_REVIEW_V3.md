@@ -192,6 +192,36 @@ app.useWebSocketAdapter(new IoAdapter(app));
 
 The Socket.io adapter is configured in `main.ts` but there's no WebSocket gateway implementation. This is harmless but adds an unnecessary dependency and attack surface (Socket.io listener on the same port).
 
+### N6. MinIO Default Credentials in Docker Compose
+**Location:** `docker/docker-compose.yml`
+**Severity:** 🟡 Medium
+
+MinIO root credentials (`aardvark_minio:aardvark_minio_secret`) are hard-coded directly in `docker-compose.yml`. While this is development-only, these could accidentally be deployed. Should use `${MINIO_ROOT_USER:-aardvark_minio}` pattern with `.env` defaults.
+
+### N7. Missing Prometheus Exporter Services in Production Docker Compose
+**Location:** `docker/docker-compose.prod.yml`
+**Severity:** 🟡 Medium
+
+Prometheus scrape config references `postgres-exporter:9187`, `redis-exporter:9121`, `nginx:9113`, and `node-exporter:9100`, but none of these exporter services are defined in `docker-compose.prod.yml`. Monitoring will be incomplete.
+
+### N8. E2E Tests Cannot Run in CI
+**Location:** `.github/workflows/ci.yml` (E2E job)
+**Severity:** 🟡 Medium
+
+The E2E test job installs Playwright and runs tests but has no backend, PostgreSQL, or Redis service containers. E2E tests would fail or be skipped in CI. The `test` job has service containers but the `e2e` job does not.
+
+### N9. No Deployment Rollback Mechanism
+**Location:** `.github/workflows/deploy.yml`
+**Severity:** 🟡 Medium
+
+The deployment pipeline has health checks but no rollback strategy if they fail. If the new version is broken, manual intervention is required. Consider keeping the previous image tag and adding an automatic rollback step.
+
+### N10. Nginx Missing CSP and Permissions-Policy Headers
+**Location:** `docker/nginx/conf.d/default.conf`
+**Severity:** 🟢 Low
+
+Nginx includes good security headers (HSTS, X-Frame-Options, X-Content-Type-Options) but is missing `Content-Security-Policy` and `Permissions-Policy` headers. CSP is partially configured in NestJS via Helmet but should also be reinforced at the reverse proxy level.
+
 ---
 
 ## Architecture & Code Quality Summary
