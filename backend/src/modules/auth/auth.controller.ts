@@ -101,9 +101,11 @@ export class AuthController {
           const decoded = JSON.parse(
             Buffer.from(parts[1], "base64url").toString(),
           );
+          // Use at least 60s TTL to prevent race where token with 0 remaining
+          // seconds is immediately evicted from the blacklist
           const remainingSeconds =
             typeof decoded.exp === "number"
-              ? Math.max(0, decoded.exp - Math.floor(Date.now() / 1000))
+              ? Math.max(60, decoded.exp - Math.floor(Date.now() / 1000))
               : 15 * 60;
           await this.tokenBlacklistService.blacklistToken(
             token,
@@ -150,6 +152,7 @@ export class AuthController {
    */
   @Post("change-password")
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({ summary: "Change password" })

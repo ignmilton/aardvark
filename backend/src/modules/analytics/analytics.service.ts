@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, In } from "typeorm";
 import {
   Story,
   StorySegment,
@@ -339,12 +339,21 @@ export class AnalyticsService {
       .limit(limit)
       .getMany();
 
+    // Batch-load stories to avoid N+1 queries
+    const storyRefIds = recentEarnings
+      .filter((txn) => txn.referenceType === "story" && txn.referenceId)
+      .map((txn) => txn.referenceId!);
+
+    const earningStories =
+      storyRefIds.length > 0
+        ? await this.storyRepository.findBy({ id: In(storyRefIds) })
+        : [];
+    const earningStoryMap = new Map(earningStories.map((s) => [s.id, s]));
+
     for (const txn of recentEarnings) {
       const story =
         txn.referenceType === "story" && txn.referenceId
-          ? await this.storyRepository.findOne({
-              where: { id: txn.referenceId },
-            })
+          ? earningStoryMap.get(txn.referenceId) || null
           : null;
 
       activities.push({
@@ -635,19 +644,32 @@ export class AnalyticsService {
 
     const stories = await query.getMany();
 
-    // Get earnings for each story
-    const storyEarnings = await Promise.all(
-      stories.map((story) => this.getStoryEarnings(story.id)),
-    );
+    // Batch-load earnings for all stories in a single query to avoid N+1
+    const storyIds = stories.map((s) => s.id);
+    const earningsMap = new Map<string, number>();
+    if (storyIds.length > 0) {
+      const earningsResults = await this.transactionRepository
+        .createQueryBuilder("txn")
+        .select("txn.referenceId", "storyId")
+        .addSelect("SUM(txn.amount)", "total")
+        .where("txn.referenceId IN (:...storyIds)", { storyIds })
+        .andWhere("txn.referenceType = 'story'")
+        .andWhere("txn.amount > 0")
+        .groupBy("txn.referenceId")
+        .getRawMany();
+      for (const row of earningsResults) {
+        earningsMap.set(row.storyId, parseFloat(row.total || "0"));
+      }
+    }
 
-    return stories.map((story, index) => ({
+    return stories.map((story) => ({
       id: story.id,
       title: story.title,
       viewCount: story.viewCount,
       uniqueReaders: story.uniqueReaders,
       averageRating: parseFloat(story.averageRating.toString()),
       completionRate: parseFloat(story.completionRate.toString()),
-      earnings: storyEarnings[index],
+      earnings: earningsMap.get(story.id) || 0,
     }));
   }
 

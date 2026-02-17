@@ -383,12 +383,18 @@ export class EarningsService {
       payout.processedAt = new Date();
       await this.payoutRepository.save(payout);
 
-      // Create Stripe transfer
+      // Re-verify account is still enabled before transferring
+      if (!account.payoutsEnabled) {
+        throw new BadRequestException("Payout account is no longer active");
+      }
+
+      // Create Stripe transfer with idempotency key to prevent double-payment on retry
       const transfer = await this.paymentsService.createTransfer(
         payout.amount,
         account.stripeConnectAccountId!,
         `Aardvark author payout`,
         { payoutId: payout.id, authorId: payout.authorId },
+        `payout_${payout.id}`,
       );
 
       payout.stripeTransferId = transfer.id;

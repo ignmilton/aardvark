@@ -24,7 +24,11 @@ import { User, UserBan } from "@/database/entities";
       useFactory: (configService: ConfigService) => ({
         secret: configService.get("jwt.secret"),
         signOptions: {
+          algorithm: "HS256" as const,
           expiresIn: configService.get("jwt.accessExpiration", "15m"),
+        },
+        verifyOptions: {
+          algorithms: ["HS256" as const],
         },
       }),
       inject: [ConfigService],

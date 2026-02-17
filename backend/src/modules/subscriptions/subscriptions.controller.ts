@@ -341,6 +341,16 @@ export class SubscriptionsController {
     try {
       const event = body.event;
       const payload = body.payload;
+      const eventId = body.event_id || `${event}_${payload?.payment?.entity?.id || Date.now()}`;
+
+      // Idempotency check — skip already-processed events
+      const cacheKey = `rzp_webhook:${eventId}`;
+      const alreadyProcessed = await this.cacheManager.get(cacheKey);
+      if (alreadyProcessed) {
+        this.logger.log(`Skipping duplicate Razorpay webhook: ${eventId}`);
+        return res.json({ received: true });
+      }
+      await this.cacheManager.set(cacheKey, "processed", 86400);
 
       this.logger.log(`Received Razorpay webhook: ${event}`);
 

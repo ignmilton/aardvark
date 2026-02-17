@@ -368,6 +368,7 @@ describe("EarningsService", () => {
         "acct_123",
         "Aardvark author payout",
         expect.any(Object),
+        "payout_payout-123",
       );
     });
 

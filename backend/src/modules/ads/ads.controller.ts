@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { AdsService } from "./ads.service";
 import { RecordAdRewardDto } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
@@ -66,6 +67,7 @@ export class AdsController {
    */
   @UseGuards(JwtAuthGuard)
   @Post("reward")
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Record ad watch and award credits" })
