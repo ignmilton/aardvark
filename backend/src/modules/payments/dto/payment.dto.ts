@@ -1,4 +1,16 @@
-import { IsString, IsUUID, IsOptional, IsUrl, IsEnum } from "class-validator";
+import {
+  IsString,
+  IsUUID,
+  IsOptional,
+  IsUrl,
+  IsEnum,
+  IsBoolean,
+  IsNumber,
+  Min,
+  MaxLength,
+  Matches,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 /**
  * DTO for creating a checkout session for credit purchase
@@ -59,6 +71,8 @@ export class CreateConnectAccountDto {
  */
 export class CancelSubscriptionDto {
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
   cancelImmediately?: boolean;
 }
 
@@ -93,9 +107,14 @@ export class VerifyUPIPaymentDto {
  */
 export class SetupUPIPayoutAccountDto {
   @IsString()
-  upiVpa: string; // e.g., "username@upi", "phone@paytm"
+  @Matches(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/, {
+    message: "Invalid UPI VPA format (e.g., username@upi)",
+  })
+  @MaxLength(100)
+  upiVpa: string;
 
   @IsString()
+  @MaxLength(200)
   accountHolderName: string;
 }
 
@@ -104,5 +123,8 @@ export class SetupUPIPayoutAccountDto {
  */
 export class RequestUPIPayoutDto {
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
   amount?: number; // In paise, defaults to full available balance
 }

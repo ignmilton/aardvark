@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThanOrEqual } from "typeorm";
+import { Repository, MoreThanOrEqual, DataSource } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 import { AdReward, User, Transaction } from "@/database/entities";
 import { TransactionType } from "@aardvark/shared";
@@ -30,6 +30,7 @@ export class AdsService {
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
     private readonly configService: ConfigService,
+    private readonly dataSource: DataSource,
   ) {
     this.creditsPerRewardedVideo = this.configService.get<number>(
       "AD_CREDITS_REWARDED_VIDEO",
@@ -159,47 +160,58 @@ export class AdsService {
         ? this.creditsPerRewardedVideo
         : this.creditsPerInterstitial;
 
-    // Get user and update balance
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new BadRequestException("User not found");
-    }
+    // Use a transaction to ensure balance update + record creation are atomic
+    const result = await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const adRewardRepo = manager.getRepository(AdReward);
+      const txRepo = manager.getRepository(Transaction);
 
-    const newBalance = user.creditsBalance + creditsToAward;
+      const user = await userRepo.findOne({
+        where: { id: userId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!user) {
+        throw new BadRequestException("User not found");
+      }
 
-    // Create ad reward record
-    const adReward = this.adRewardRepository.create({
-      userId,
-      adProvider: dto.adProvider,
-      adType: dto.adType,
-      creditsAwarded: creditsToAward,
-      adUnitId: dto.adUnitId || null,
-      sessionId: dto.sessionId || null,
-      platform: dto.platform || null,
-      deviceId: dto.deviceId || null,
-      ipAddress: ipAddress || null,
-      verificationToken: dto.verificationToken || null,
-      adMetadata: dto.adMetadata || null,
-      verified: !!dto.verificationToken, // Mark as verified if token provided
+      const newBalance = user.creditsBalance + creditsToAward;
+
+      // Create ad reward record
+      const adReward = adRewardRepo.create({
+        userId,
+        adProvider: dto.adProvider,
+        adType: dto.adType,
+        creditsAwarded: creditsToAward,
+        adUnitId: dto.adUnitId || null,
+        sessionId: dto.sessionId || null,
+        platform: dto.platform || null,
+        deviceId: dto.deviceId || null,
+        ipAddress: ipAddress || null,
+        verificationToken: dto.verificationToken || null,
+        adMetadata: dto.adMetadata || null,
+        verified: !!dto.verificationToken,
+      });
+
+      const savedAdReward = await adRewardRepo.save(adReward);
+
+      // Update user balance
+      await userRepo.update(userId, { creditsBalance: newBalance });
+
+      // Create transaction record
+      const transaction = txRepo.create({
+        userId,
+        type: TransactionType.AD_REWARD,
+        amount: creditsToAward,
+        balance: newBalance,
+        description: `Earned from watching ${dto.adType} ad`,
+        referenceId: savedAdReward.id,
+        referenceType: "ad_reward",
+      });
+
+      await txRepo.save(transaction);
+
+      return { newBalance, adRewardId: savedAdReward.id };
     });
-
-    await this.adRewardRepository.save(adReward);
-
-    // Update user balance
-    await this.userRepository.update(userId, { creditsBalance: newBalance });
-
-    // Create transaction record
-    const transaction = this.transactionRepository.create({
-      userId,
-      type: TransactionType.AD_REWARD,
-      amount: creditsToAward,
-      balance: newBalance,
-      description: `Earned from watching ${dto.adType} ad`,
-      referenceId: adReward.id,
-      referenceType: "ad_reward",
-    });
-
-    await this.transactionRepository.save(transaction);
 
     this.logger.log(
       `User ${userId} earned ${creditsToAward} credits from ${dto.adType} ad`,
@@ -208,7 +220,7 @@ export class AdsService {
     return {
       success: true,
       creditsAwarded: creditsToAward,
-      newBalance,
+      newBalance: result.newBalance,
       remainingAdsToday: dailyStatus.remaining - 1,
     };
   }

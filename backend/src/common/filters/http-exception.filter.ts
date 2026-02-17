@@ -43,7 +43,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
         // Handle validation errors (array of messages)
         if (Array.isArray(responseObj.message)) {
           message = "Validation failed";
-          details = { errors: responseObj.message };
+          // Only expose validation details in non-production environments
+          if (process.env.NODE_ENV !== "production") {
+            details = { errors: responseObj.message };
+          }
         }
 
         errorCode = (responseObj.code as string) || this.getErrorCode(status);

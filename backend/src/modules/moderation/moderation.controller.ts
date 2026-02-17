@@ -112,8 +112,8 @@ export class ModerationController {
     @Body() dto: AssignReportDto,
     @Request() req: any,
   ) {
-    // If moderatorId is not provided, assign to self
-    const moderatorId = dto.moderatorId || req.user.id;
+    // Always use authenticated user's ID — accepting moderatorId from body is an IDOR risk
+    const moderatorId = req.user.id;
     return this.moderationService.assignReport(id, moderatorId);
   }
 
@@ -435,7 +435,8 @@ export class ModerationController {
   @ApiOperation({ summary: "Bulk assign reports (admin/moderator only)" })
   @ApiResponse({ status: 200, description: "Reports assigned" })
   async bulkAssignReports(@Body() dto: BulkAssignDto, @Request() req: any) {
-    const moderatorId = dto.moderatorId || req.user.id;
+    // Always use authenticated user's ID — accepting moderatorId from body is an IDOR risk
+    const moderatorId = req.user.id;
     return this.moderationService.bulkAssignReports(dto.reportIds, moderatorId);
   }
 

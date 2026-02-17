@@ -988,9 +988,10 @@ export class AnalyticsService {
         count: 0,
       };
 
+      const feeRate = PLATFORM_FEE_PERCENTAGE / 100;
       existing.gross += txn.amount;
-      existing.fees += txn.amount * 0.1;
-      existing.net += txn.amount * 0.9;
+      existing.fees += txn.amount * feeRate;
+      existing.net += txn.amount * (1 - feeRate);
       existing.count++;
 
       byTypeMap.set(type, existing);
@@ -1027,9 +1028,10 @@ export class AnalyticsService {
         count: 0,
       };
 
+      const periodFeeRate = PLATFORM_FEE_PERCENTAGE / 100;
       existing.gross += txn.amount;
-      existing.fees += txn.amount * 0.1;
-      existing.net += txn.amount * 0.9;
+      existing.fees += txn.amount * periodFeeRate;
+      existing.net += txn.amount * (1 - periodFeeRate);
       existing.count++;
 
       periodMap.set(periodKey, existing);

@@ -60,6 +60,11 @@ export function RichTextEditor({
     if (!editor) return;
     const url = window.prompt('Enter URL:');
     if (url) {
+      // Block javascript: and data: URIs to prevent XSS
+      const normalized = url.trim().toLowerCase();
+      if (normalized.startsWith('javascript:') || normalized.startsWith('data:')) {
+        return;
+      }
       editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     }
   }, [editor]);
@@ -68,6 +73,11 @@ export function RichTextEditor({
     if (!editor) return;
     const url = window.prompt('Enter image URL:');
     if (url) {
+      // Only allow http(s) image URLs
+      const normalized = url.trim().toLowerCase();
+      if (!normalized.startsWith('https://') && !normalized.startsWith('http://')) {
+        return;
+      }
       editor.chain().focus().setImage({ src: url }).run();
     }
   }, [editor]);

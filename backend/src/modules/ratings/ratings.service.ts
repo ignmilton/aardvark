@@ -6,7 +6,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThanOrEqual, DataSource } from "typeorm";
+import { Repository, MoreThanOrEqual, Not, IsNull, DataSource } from "typeorm";
 import {
   Rating,
   Story,
@@ -312,7 +312,7 @@ export class RatingsService {
    */
   async getFeaturedReviews(storyId: string, limit = 3): Promise<Rating[]> {
     return this.ratingRepository.find({
-      where: { storyId, isFeatured: true, reviewText: undefined }, // reviewText not null
+      where: { storyId, isFeatured: true, reviewText: Not(IsNull()) },
       relations: ["user"],
       order: { helpfulCount: "DESC" },
       take: limit,

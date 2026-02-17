@@ -381,10 +381,20 @@ export class AuthService {
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { passwordResetToken: token },
-      select: ["id", "passwordResetToken", "passwordResetExpires"],
+      select: [
+        "id",
+        "passwordResetToken",
+        "passwordResetExpires",
+        "accountStatus",
+      ],
     });
 
     if (!user) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    // Prevent banned users from resetting password
+    if (user.accountStatus === AccountStatus.BANNED) {
       throw new BadRequestException("Invalid or expired reset token");
     }
 
