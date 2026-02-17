@@ -222,6 +222,24 @@ The deployment pipeline has health checks but no rollback strategy if they fail.
 
 Nginx includes good security headers (HSTS, X-Frame-Options, X-Content-Type-Options) but is missing `Content-Security-Policy` and `Permissions-Policy` headers. CSP is partially configured in NestJS via Helmet but should also be reinforced at the reverse proxy level.
 
+### N11. Token Key Inconsistency in Frontend
+**Location:** `frontend/src/app/story/[slug]/read/page.tsx:47` vs `frontend/src/components/providers/auth-provider.tsx:10`
+**Severity:** 🟡 Medium
+
+The auth provider stores tokens under `'accessToken'` in localStorage, but the story reader page falls back to `'token'` as the key name. If a component reads from the wrong key, authentication silently fails. All localStorage token access should go through the centralized `lib/auth-token.ts` utility.
+
+### N12. No Error Boundary Components
+**Location:** `frontend/src/app/`
+**Severity:** 🟡 Medium
+
+No `error.tsx` files exist in the App Router directory structure. Unhandled component errors will cause blank pages rather than graceful error UI. Next.js App Router supports `error.tsx` at any route level for error recovery.
+
+### N13. Unused Dependencies: next-auth and Zustand
+**Location:** `frontend/package.json`
+**Severity:** 🟢 Low
+
+`next-auth` (v4.24.5) is listed as a dependency but the app uses a custom auth provider instead. `zustand` (v4.4.7) is installed but no Zustand stores were found in the codebase. These add unnecessary bundle weight and should be removed if truly unused.
+
 ---
 
 ## Architecture & Code Quality Summary
