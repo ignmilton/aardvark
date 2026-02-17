@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Aardvark is a well-structured full-stack interactive fiction platform with a solid architectural foundation. The codebase follows NestJS and Next.js conventions consistently, demonstrates good security awareness (JWT blacklisting, HTML sanitization, rate limiting, account lockout), and uses proper transactional patterns for financial operations. However, there are several areas requiring attention: a missing pagination cap in search endpoints, an N+1 query pattern in the advanced search, potential race conditions in non-transactional counter updates, and an incomplete WebSocket module. The credit/payment system is particularly well-implemented with proper pessimistic locking.
+Aardvark is a well-structured full-stack interactive fiction platform with a solid architectural foundation. The codebase follows NestJS and Next.js conventions consistently, demonstrates good security awareness (JWT blacklisting, HTML sanitization, rate limiting, account lockout), and uses proper transactional patterns for financial operations. However, the review identified **26 findings across 4 severity levels**: a ValidationPipe implicit conversion bypass, missing search pagination caps, a refresh token rotation gap, multiple N+1 query patterns (search tags, threaded comments), race conditions in counter updates, an empty WebSocket module, missing composite database indexes, an unused cache layer, and frontend bundle size issues. The credit/payment system is particularly well-implemented with proper pessimistic locking.
 
 ---
 
@@ -314,11 +314,109 @@ async bulkResolveReports(
 
 **Recommendation:** Add `@ArrayMaxSize(100)` validation in the DTO, and process items in batches if needed.
 
+### 17. N+1 Query in Threaded Comments
+
+**Location:** `backend/src/modules/comments/comments.service.ts:203-217`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+const commentsWithReplies = await Promise.all(
+  rootComments.map(async (comment) => {
+    const replies = await this.commentRepository.find({
+      where: { parentCommentId: comment.id, isDeleted: false },
+      relations: ["user"],
+      order: { createdAt: "ASC" },
+      take: 3,
+    });
+    // ... N queries executed for N root comments
+  }),
+);
+```
+
+**Problem:** For every root comment on a page, a separate query fetches its replies. With 20 root comments, this creates 21 queries. This pattern appears on every story page with comments.
+
+**Recommendation:** Use a single query with `WHERE parentCommentId IN (:...rootIds)` then group results in memory, or use a LEFT JOIN in the initial query.
+
+### 18. Missing Composite Database Indexes
+
+**Location:** Multiple entity files
+**Severity:** :yellow_circle: Medium
+
+Common query patterns lack covering indexes:
+- **Comments:** `WHERE storyId = ? AND isDeleted = FALSE ORDER BY createdAt` needs `@Index(["storyId", "isDeleted", "createdAt"])`
+- **Stories:** `WHERE status = 'PUBLISHED' AND category = ? ORDER BY viewCount DESC` needs `@Index(["status", "category", "viewCount"])`
+- **Reader Progress:** `WHERE userId = ? ORDER BY lastReadAt DESC` needs `@Index(["userId", "lastReadAt"])`
+
+**Recommendation:** Add composite indexes matching the most common query patterns. These will provide significant improvement on tables that grow large.
+
+### 19. Cache Module Created But Not Used by Services
+
+**Location:** `backend/src/common/cache/cache.module.ts` + all services
+**Severity:** :yellow_circle: Medium
+
+**Problem:** The Redis-backed CacheModule is properly configured and globally available, but no service actually uses `@Cacheable()` decorators or injects the cache manager to cache query results. Frequently accessed data like featured stories, popular tags, and user stats are re-queried on every request.
+
+**Recommendation:** Add caching to high-traffic, low-mutation endpoints:
+- Featured stories: 10-minute TTL
+- Tag listings: 1-hour TTL
+- Story metadata for read endpoints: 5-minute TTL
+
+### 20. Elasticsearch Uses `refresh: true` on Every Index Operation
+
+**Location:** `backend/src/modules/search/search.service.ts:525,579,709`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+await this.client.index({
+  index: STORIES_INDEX,
+  id: story.id,
+  body: doc,
+  refresh: true, // Forces immediate shard refresh
+});
+```
+
+**Problem:** `refresh: true` forces Elasticsearch to refresh the index shard on every write. This is expensive and unnecessary for most operations. Elasticsearch's default 1-second refresh interval is sufficient for near-real-time search.
+
+**Recommendation:** Use `refresh: false` (or omit) for normal writes. Reserve `refresh: true` for test environments only. For bulk reindexing, use `refresh: "wait_for"` at the end of the batch.
+
+### 21. Segment Cycle Detection Has No Depth Limit
+
+**Location:** `backend/src/modules/segments/segments.service.ts:512-541`
+**Severity:** :yellow_circle: Medium
+
+```typescript
+private async wouldCreateCycle(
+  fromId: string,
+  toId: string,
+  visited: Set<string> = new Set(),
+): Promise<boolean> {
+  // ... recursive with one DB query per node
+```
+
+**Problem:** The cycle detection algorithm has no maximum depth limit and makes one database query per graph node visited. A story with deep branching (10+ levels) generates 10+ sequential queries. Pathological graphs could cause stack overflow or timeouts.
+
+**Recommendation:** Add `if (visited.size > 100) return false;` as a safety limit. For better performance, batch-fetch all segments for the story once and traverse in memory.
+
+### 22. TipTap Editor Not Code-Split on Frontend
+
+**Location:** `frontend/package.json` (13 TipTap packages)
+**Severity:** :yellow_circle: Medium
+
+**Problem:** The TipTap rich text editor (13 packages, ~300KB+ JS) is loaded as a core dependency but only used on 2-3 editing routes. Every page load pays the bundle size cost.
+
+**Recommendation:** Use Next.js dynamic imports with `ssr: false`:
+```typescript
+const RichTextEditor = dynamic(() => import('@/components/editor/rich-text-editor'), {
+  loading: () => <EditorSkeleton />,
+  ssr: false,
+});
+```
+
 ---
 
 ## Low-Severity Findings
 
-### 17. Inconsistent Pagination Response Formats
+### 23. Inconsistent Pagination Response Formats
 
 **Location:** Throughout backend services
 **Severity:** :green_circle: Low
@@ -331,7 +429,7 @@ Different services return pagination metadata in inconsistent formats:
 
 **Recommendation:** Standardize on a single pagination response format across all endpoints. The `{ data, meta }` pattern from the search/comments services is the most conventional.
 
-### 18. Frontend API Client Lacks Error Type Discrimination
+### 24. Frontend API Client Lacks Error Type Discrimination
 
 **Location:** `frontend/src/lib/api.ts:62-68`
 **Severity:** :green_circle: Low
@@ -357,14 +455,14 @@ class ApiError extends Error {
 }
 ```
 
-### 19. `TransformInterceptor` Applied Globally Without Exclusion
+### 25. `TransformInterceptor` Applied Globally Without Exclusion
 
 **Location:** `backend/src/main.ts:136-139`
 **Severity:** :green_circle: Low
 
 The `TransformInterceptor` and `LoggingInterceptor` are applied globally. Depending on their implementation, this could interfere with streaming responses, file downloads, or WebSocket upgrades. Consider applying these selectively or ensuring they handle non-JSON responses gracefully.
 
-### 20. Database Query Cache Uses Database-Backed Storage
+### 26. Database Query Cache Uses Database-Backed Storage
 
 **Location:** `backend/src/config/database.config.ts:53-57`
 **Severity:** :green_circle: Low
@@ -435,12 +533,19 @@ cache: {
 - [ ] Add `@IsUUID()` validation to all ID fields in DTOs
 - [ ] Add `@ArrayMaxSize()` to bulk operation DTOs
 - [ ] Fix slug generation race condition with retry-on-conflict pattern
+- [ ] Fix N+1 in threaded comments (fetch replies in single batch query)
+- [ ] Add composite indexes on Comment, Story, and ReaderProgress entities
+- [ ] Implement caching on high-traffic read endpoints (featured stories, tags)
+- [ ] Remove `refresh: true` from Elasticsearch index operations
+- [ ] Add depth limit to segment cycle detection algorithm
+- [ ] Code-split TipTap editor with dynamic imports
 
 ### Nice-to-Have (Low)
 - [ ] Standardize pagination response format across all services
 - [ ] Create a custom `ApiError` class in the frontend API client
 - [ ] Switch TypeORM query cache from database-backed to Redis-backed
 - [ ] Review global interceptor behavior with non-JSON responses
+- [ ] Optimize Radix UI package imports in Next.js config
 
 ---
 
