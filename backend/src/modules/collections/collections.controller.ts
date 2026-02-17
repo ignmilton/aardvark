@@ -21,6 +21,7 @@ import {
 } from "@nestjs/swagger";
 import { JwtAuthGuard, OptionalJwtAuthGuard } from "@/modules/auth/guards";
 import { CollectionsService } from "./collections.service";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import {
   CreateCollectionDto,
   UpdateCollectionDto,
@@ -57,7 +58,7 @@ export class CollectionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get current user's collections" })
   @ApiResponse({ status: 200, description: "User collections retrieved" })
-  async findMine(@Request() req: any) {
+  async findMine(@Request() req: AuthenticatedRequest) {
     return this.collectionsService.findMine(req.user.id);
   }
 
@@ -69,7 +70,7 @@ export class CollectionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get collections I follow" })
   @ApiResponse({ status: 200, description: "Followed collections retrieved" })
-  async getFollowing(@Request() req: any) {
+  async getFollowing(@Request() req: AuthenticatedRequest) {
     return this.collectionsService.getFollowedCollections(req.user.id);
   }
 
@@ -81,7 +82,7 @@ export class CollectionsController {
   @ApiOperation({ summary: "Get user's public collections" })
   @ApiParam({ name: "userId", description: "User ID" })
   @ApiResponse({ status: 200, description: "User collections retrieved" })
-  async findByUser(@Param("userId") userId: string, @Request() req: any) {
+  async findByUser(@Param("userId") userId: string, @Request() req: AuthenticatedRequest) {
     return this.collectionsService.findByUser(userId, req.user?.id);
   }
 
@@ -94,7 +95,7 @@ export class CollectionsController {
   @ApiParam({ name: "slug", description: "Collection slug" })
   @ApiResponse({ status: 200, description: "Collection retrieved" })
   @ApiResponse({ status: 404, description: "Collection not found" })
-  async findBySlug(@Param("slug") slug: string, @Request() req: any) {
+  async findBySlug(@Param("slug") slug: string, @Request() req: AuthenticatedRequest) {
     return this.collectionsService.findBySlug(slug, req.user?.id);
   }
 
@@ -107,7 +108,7 @@ export class CollectionsController {
   @ApiParam({ name: "id", description: "Collection ID" })
   @ApiResponse({ status: 200, description: "Collection retrieved" })
   @ApiResponse({ status: 404, description: "Collection not found" })
-  async findOne(@Param("id") id: string, @Request() req: any) {
+  async findOne(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.collectionsService.findOne(id, req.user?.id);
   }
 
@@ -119,7 +120,7 @@ export class CollectionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new collection" })
   @ApiResponse({ status: 201, description: "Collection created" })
-  async create(@Request() req: any, @Body() dto: CreateCollectionDto) {
+  async create(@Request() req: AuthenticatedRequest, @Body() dto: CreateCollectionDto) {
     return this.collectionsService.create(req.user.id, dto);
   }
 
@@ -136,7 +137,7 @@ export class CollectionsController {
   @ApiResponse({ status: 404, description: "Collection not found" })
   async update(
     @Param("id") id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: UpdateCollectionDto,
   ) {
     return this.collectionsService.update(id, req.user.id, dto);
@@ -154,7 +155,7 @@ export class CollectionsController {
   @ApiResponse({ status: 204, description: "Collection deleted" })
   @ApiResponse({ status: 403, description: "Not the owner" })
   @ApiResponse({ status: 404, description: "Collection not found" })
-  async delete(@Param("id") id: string, @Request() req: any) {
+  async delete(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.collectionsService.delete(id, req.user.id);
   }
 
@@ -164,6 +165,7 @@ export class CollectionsController {
   @Post(":id/stories")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Add a story to a collection" })
   @ApiParam({ name: "id", description: "Collection ID" })
   @ApiResponse({ status: 200, description: "Story added" })
@@ -172,7 +174,7 @@ export class CollectionsController {
   @ApiResponse({ status: 409, description: "Story already in collection" })
   async addStory(
     @Param("id") id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: AddStoryToCollectionDto,
   ) {
     return this.collectionsService.addStory(id, req.user.id, dto);
@@ -194,7 +196,7 @@ export class CollectionsController {
   async removeStory(
     @Param("id") id: string,
     @Param("storyId") storyId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     await this.collectionsService.removeStory(id, storyId, req.user.id);
   }
@@ -212,7 +214,7 @@ export class CollectionsController {
   @ApiResponse({ status: 404, description: "Collection not found" })
   async reorderStories(
     @Param("id") id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: ReorderStoriesDto,
   ) {
     return this.collectionsService.reorderStories(
@@ -228,13 +230,14 @@ export class CollectionsController {
   @Post(":id/follow")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Follow a collection" })
   @ApiParam({ name: "id", description: "Collection ID" })
   @ApiResponse({ status: 201, description: "Now following" })
   @ApiResponse({ status: 403, description: "Collection is private" })
   @ApiResponse({ status: 404, description: "Collection not found" })
   @ApiResponse({ status: 409, description: "Already following" })
-  async follow(@Param("id") id: string, @Request() req: any) {
+  async follow(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.collectionsService.follow(id, req.user.id);
   }
 
@@ -249,7 +252,7 @@ export class CollectionsController {
   @ApiParam({ name: "id", description: "Collection ID" })
   @ApiResponse({ status: 204, description: "Unfollowed" })
   @ApiResponse({ status: 404, description: "Not following" })
-  async unfollow(@Param("id") id: string, @Request() req: any) {
+  async unfollow(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.collectionsService.unfollow(id, req.user.id);
   }
 
@@ -262,7 +265,7 @@ export class CollectionsController {
   @ApiOperation({ summary: "Check if following a collection" })
   @ApiParam({ name: "id", description: "Collection ID" })
   @ApiResponse({ status: 200, description: "Following status" })
-  async isFollowing(@Param("id") id: string, @Request() req: any) {
+  async isFollowing(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     const isFollowing = await this.collectionsService.isFollowing(
       id,
       req.user.id,

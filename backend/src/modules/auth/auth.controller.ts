@@ -19,6 +19,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { ForgotPasswordDto, ResetPasswordDto } from "./dto/reset-password.dto";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 /**
  * Authentication controller handling registration, login,
@@ -85,7 +86,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({ summary: "Logout current user" })
-  async logout(@Request() req: any) {
+  async logout(@Request() req: AuthenticatedRequest) {
     // Extract token and add to blacklist so it can't be reused
     // JwtAuthGuard ensures auth header is present, so this branch always executes
     const authHeader = req.headers?.authorization;

@@ -1,11 +1,19 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { RichTextEditor } from './rich-text-editor';
 import { useAutosave } from './use-autosave';
+
+const RichTextEditor = dynamic(
+  () => import('./rich-text-editor').then((mod) => mod.RichTextEditor),
+  {
+    ssr: false,
+    loading: () => <div className="h-[180px] rounded-md border bg-muted animate-pulse" />,
+  },
+);
 
 // Note: StateEffect interface removed per design simplification
 

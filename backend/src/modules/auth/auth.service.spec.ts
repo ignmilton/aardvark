@@ -361,6 +361,25 @@ describe("AuthService", () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it("should throw BadRequestException for banned user", async () => {
+      const futureDate = new Date();
+      futureDate.setHours(futureDate.getHours() + 1);
+
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        accountStatus: AccountStatus.BANNED,
+        passwordResetToken: "valid-token",
+        passwordResetExpires: futureDate,
+      } as User);
+
+      await expect(
+        service.resetPassword("valid-token", "NewPassword123!"),
+      ).rejects.toThrow(BadRequestException);
+
+      // Ensure the password was NOT updated
+      expect(userRepository.update).not.toHaveBeenCalled();
+    });
+
     it("should successfully reset password with valid token", async () => {
       const futureDate = new Date();
       futureDate.setHours(futureDate.getHours() + 1);

@@ -44,6 +44,7 @@ import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
 import { RolesGuard } from "@/modules/auth/guards/roles.guard";
 import { Roles } from "@/modules/auth/decorators/roles.decorator";
 import { UserRole } from "@aardvark/shared";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 /**
  * Controller for content moderation, user reports, warnings, and bans.
@@ -69,7 +70,7 @@ export class ModerationController {
   @ApiResponse({ status: 201, description: "Report submitted successfully" })
   @ApiResponse({ status: 400, description: "Already reported this content" })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  async createReport(@Body() dto: CreateReportDto, @Request() req: any) {
+  async createReport(@Body() dto: CreateReportDto, @Request() req: AuthenticatedRequest) {
     return this.moderationService.createReport(
       req.user.id,
       dto.contentType,
@@ -110,7 +111,7 @@ export class ModerationController {
   async assignReport(
     @Param("id") id: string,
     @Body() dto: AssignReportDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     // Always use authenticated user's ID — accepting moderatorId from body is an IDOR risk
     const moderatorId = req.user.id;
@@ -134,7 +135,7 @@ export class ModerationController {
   async resolveReport(
     @Param("id") id: string,
     @Body() dto: ResolveModerationDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.moderationService.resolveReport(
       id,
@@ -151,11 +152,12 @@ export class ModerationController {
   @Post("warnings")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Issue warning to user (admin/moderator only)" })
-  @ApiResponse({ status: 201, description: "Warning issued successfully" })
+  @ApiResponse({ status: 200, description: "Warning issued successfully" })
   @ApiResponse({ status: 403, description: "Forbidden" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async issueWarning(@Body() dto: IssueWarningDto, @Request() req: any) {
+  async issueWarning(@Body() dto: IssueWarningDto, @Request() req: AuthenticatedRequest) {
     return this.moderationService.issueWarning(
       dto.userId,
       req.user.id,
@@ -183,12 +185,13 @@ export class ModerationController {
   @Post("bans")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Issue ban to user (admin/moderator only)" })
-  @ApiResponse({ status: 201, description: "Ban issued successfully" })
+  @ApiResponse({ status: 200, description: "Ban issued successfully" })
   @ApiResponse({ status: 400, description: "User already has active ban" })
   @ApiResponse({ status: 403, description: "Forbidden" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async issueBan(@Body() dto: IssueBanDto, @Request() req: any) {
+  async issueBan(@Body() dto: IssueBanDto, @Request() req: AuthenticatedRequest) {
     let expiresAt: Date | undefined;
 
     if (!dto.isPermanent && dto.durationDays) {
@@ -217,7 +220,7 @@ export class ModerationController {
   @ApiResponse({ status: 400, description: "Ban already inactive" })
   @ApiResponse({ status: 403, description: "Forbidden" })
   @ApiResponse({ status: 404, description: "Ban not found" })
-  async liftBan(@Param("id") id: string, @Request() req: any) {
+  async liftBan(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.moderationService.liftBan(id, req.user.id);
   }
 
@@ -302,7 +305,7 @@ export class ModerationController {
   async resolveContentFlag(
     @Param("id") id: string,
     @Body() dto: ResolveModerationDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.moderationService.resolveContentFlag(
       id,
@@ -319,11 +322,12 @@ export class ModerationController {
   @Post("mutes")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Issue mute to user (admin/moderator only)" })
-  @ApiResponse({ status: 201, description: "Mute issued successfully" })
+  @ApiResponse({ status: 200, description: "Mute issued successfully" })
   @ApiResponse({ status: 400, description: "User already has active mute" })
   @ApiResponse({ status: 403, description: "Forbidden" })
-  async issueMute(@Body() dto: IssueMuteDto, @Request() req: any) {
+  async issueMute(@Body() dto: IssueMuteDto, @Request() req: AuthenticatedRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + dto.durationDays);
 
@@ -344,7 +348,7 @@ export class ModerationController {
   @ApiOperation({ summary: "Lift mute (admin/moderator only)" })
   @ApiParam({ name: "id", description: "Mute ID" })
   @ApiResponse({ status: 200, description: "Mute lifted successfully" })
-  async liftMute(@Param("id") id: string, @Request() req: any) {
+  async liftMute(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.moderationService.liftMute(id, req.user.id);
   }
 
@@ -367,7 +371,7 @@ export class ModerationController {
   @ApiResponse({ status: 201, description: "Appeal submitted successfully" })
   @ApiResponse({ status: 400, description: "Already have pending appeal" })
   @ApiResponse({ status: 404, description: "Ban not found" })
-  async createAppeal(@Body() dto: CreateAppealDto, @Request() req: any) {
+  async createAppeal(@Body() dto: CreateAppealDto, @Request() req: AuthenticatedRequest) {
     return this.moderationService.createAppeal(
       req.user.id,
       dto.banId,
@@ -379,7 +383,7 @@ export class ModerationController {
   @Get("appeals/me")
   @ApiOperation({ summary: "Get my appeals" })
   @ApiResponse({ status: 200, description: "List of user appeals" })
-  async getMyAppeals(@Request() req: any) {
+  async getMyAppeals(@Request() req: AuthenticatedRequest) {
     return this.moderationService.getUserAppeals(req.user.id);
   }
 
@@ -401,7 +405,7 @@ export class ModerationController {
   async reviewAppeal(
     @Param("id") id: string,
     @Body() dto: ReviewAppealDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.moderationService.reviewAppeal(
       id,
@@ -418,9 +422,10 @@ export class ModerationController {
   @Post("bulk/resolve")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Bulk resolve reports (admin/moderator only)" })
   @ApiResponse({ status: 200, description: "Reports resolved" })
-  async bulkResolveReports(@Body() dto: BulkResolveDto, @Request() req: any) {
+  async bulkResolveReports(@Body() dto: BulkResolveDto, @Request() req: AuthenticatedRequest) {
     return this.moderationService.bulkResolveReports(
       dto.reportIds,
       req.user.id,
@@ -432,9 +437,10 @@ export class ModerationController {
   @Post("bulk/assign")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Bulk assign reports (admin/moderator only)" })
   @ApiResponse({ status: 200, description: "Reports assigned" })
-  async bulkAssignReports(@Body() dto: BulkAssignDto, @Request() req: any) {
+  async bulkAssignReports(@Body() dto: BulkAssignDto, @Request() req: AuthenticatedRequest) {
     // Always use authenticated user's ID — accepting moderatorId from body is an IDOR risk
     const moderatorId = req.user.id;
     return this.moderationService.bulkAssignReports(dto.reportIds, moderatorId);
@@ -443,9 +449,10 @@ export class ModerationController {
   @Post("bulk/warn")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Bulk issue warnings (admin/moderator only)" })
   @ApiResponse({ status: 200, description: "Warnings issued" })
-  async bulkIssueWarnings(@Body() dto: BulkWarnDto, @Request() req: any) {
+  async bulkIssueWarnings(@Body() dto: BulkWarnDto, @Request() req: AuthenticatedRequest) {
     return this.moderationService.bulkIssueWarnings(
       dto.userIds,
       req.user.id,
@@ -512,6 +519,7 @@ export class ModerationController {
   @Post("stories/:id/approve")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Approve a story for publication" })
   @ApiParam({ name: "id", description: "Story ID" })
   @ApiResponse({ status: 200, description: "Story approved and published" })
@@ -519,7 +527,7 @@ export class ModerationController {
   @ApiResponse({ status: 404, description: "Story not found" })
   async approveStory(
     @Param("id") id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() body: { notes?: string },
   ) {
     return this.storiesService.approveStory(id, req.user.id, body.notes);
@@ -528,6 +536,7 @@ export class ModerationController {
   @Post("stories/:id/reject")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Reject a story" })
   @ApiParam({ name: "id", description: "Story ID" })
   @ApiResponse({ status: 200, description: "Story rejected" })
@@ -535,7 +544,7 @@ export class ModerationController {
   @ApiResponse({ status: 404, description: "Story not found" })
   async rejectStory(
     @Param("id") id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() body: { reason: string },
   ) {
     return this.storiesService.rejectStory(id, req.user.id, body.reason);
@@ -544,6 +553,7 @@ export class ModerationController {
   @Post("stories/:id/request-changes")
   @UseGuards(RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Request changes on a story" })
   @ApiParam({ name: "id", description: "Story ID" })
   @ApiResponse({ status: 200, description: "Changes requested" })
@@ -551,7 +561,7 @@ export class ModerationController {
   @ApiResponse({ status: 404, description: "Story not found" })
   async requestStoryChanges(
     @Param("id") id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() body: { notes: string },
   ) {
     return this.storiesService.requestChanges(id, req.user.id, body.notes);

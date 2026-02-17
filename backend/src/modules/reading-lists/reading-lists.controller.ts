@@ -21,6 +21,7 @@ import {
   ApiQuery,
 } from "@nestjs/swagger";
 import { JwtAuthGuard, OptionalJwtAuthGuard } from "@/modules/auth/guards";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import { ReadingListsService } from "./reading-lists.service";
 import {
   CreateReadingListDto,
@@ -38,7 +39,7 @@ export class ReadingListsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new reading list" })
   @ApiResponse({ status: 201, description: "Reading list created" })
-  async create(@Request() req: any, @Body() dto: CreateReadingListDto) {
+  async create(@Request() req: AuthenticatedRequest, @Body() dto: CreateReadingListDto) {
     return this.readingListsService.create(req.user.id, dto);
   }
 
@@ -47,7 +48,7 @@ export class ReadingListsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get my reading lists" })
   @ApiResponse({ status: 200, description: "User reading lists" })
-  async getMyLists(@Request() req: any) {
+  async getMyLists(@Request() req: AuthenticatedRequest) {
     return this.readingListsService.getUserLists(req.user.id, req.user.id);
   }
 
@@ -56,7 +57,7 @@ export class ReadingListsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get reading lists I follow" })
   @ApiResponse({ status: 200, description: "Followed reading lists" })
-  async getFollowedLists(@Request() req: any) {
+  async getFollowedLists(@Request() req: AuthenticatedRequest) {
     return this.readingListsService.getFollowedLists(req.user.id);
   }
 
@@ -73,7 +74,7 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Get user's public reading lists" })
   @ApiResponse({ status: 200, description: "User reading lists" })
   @ApiParam({ name: "userId", description: "User ID" })
-  async getUserLists(@Param("userId") userId: string, @Request() req: any) {
+  async getUserLists(@Param("userId") userId: string, @Request() req: AuthenticatedRequest) {
     return this.readingListsService.getUserLists(userId, req.user?.id);
   }
 
@@ -82,7 +83,7 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Get a reading list by ID" })
   @ApiResponse({ status: 200, description: "Reading list details" })
   @ApiParam({ name: "id", description: "Reading list ID" })
-  async getById(@Param("id") id: string, @Request() req: any) {
+  async getById(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.readingListsService.getById(id, req.user?.id);
   }
 
@@ -94,7 +95,7 @@ export class ReadingListsController {
   @ApiParam({ name: "id", description: "Reading list ID" })
   async update(
     @Param("id") id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: UpdateReadingListDto,
   ) {
     return this.readingListsService.update(id, req.user.id, dto);
@@ -107,19 +108,20 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Delete a reading list" })
   @ApiResponse({ status: 204, description: "Reading list deleted" })
   @ApiParam({ name: "id", description: "Reading list ID" })
-  async delete(@Param("id") id: string, @Request() req: any) {
+  async delete(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.readingListsService.delete(id, req.user.id);
   }
 
   @Post(":id/stories")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Add a story to reading list" })
   @ApiResponse({ status: 200, description: "Story added to list" })
   @ApiParam({ name: "id", description: "Reading list ID" })
   async addStory(
     @Param("id") id: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: AddStoryToListDto,
   ) {
     return this.readingListsService.addStory(id, dto.storyId, req.user.id);
@@ -136,7 +138,7 @@ export class ReadingListsController {
   async removeStory(
     @Param("id") id: string,
     @Param("storyId") storyId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     await this.readingListsService.removeStory(id, storyId, req.user.id);
   }
@@ -147,7 +149,7 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Follow a reading list" })
   @ApiResponse({ status: 201, description: "Now following list" })
   @ApiParam({ name: "id", description: "Reading list ID" })
-  async follow(@Param("id") id: string, @Request() req: any) {
+  async follow(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.readingListsService.follow(id, req.user.id);
   }
 
@@ -158,7 +160,7 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Unfollow a reading list" })
   @ApiResponse({ status: 204, description: "Unfollowed list" })
   @ApiParam({ name: "id", description: "Reading list ID" })
-  async unfollow(@Param("id") id: string, @Request() req: any) {
+  async unfollow(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.readingListsService.unfollow(id, req.user.id);
   }
 
@@ -168,7 +170,7 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Check if following a reading list" })
   @ApiResponse({ status: 200, description: "Following status" })
   @ApiParam({ name: "id", description: "Reading list ID" })
-  async isFollowing(@Param("id") id: string, @Request() req: any) {
+  async isFollowing(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     const isFollowing = await this.readingListsService.isFollowing(
       id,
       req.user.id,

@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, DataSource } from "typeorm";
 import { Comment, Story, User, CommentLike } from "@/database/entities";
 import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./dto";
 import { UserRole } from "@aardvark/shared";
@@ -21,6 +21,7 @@ export class CommentsService {
     private readonly storyRepository: Repository<Story>,
     @InjectRepository(CommentLike)
     private readonly commentLikeRepository: Repository<CommentLike>,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -60,23 +61,27 @@ export class CommentsService {
       contentHtml,
     });
 
-    const savedComment = await this.commentRepository.save(comment);
+    const savedComment = await this.dataSource.transaction(async (manager) => {
+      const saved = await manager.getRepository(Comment).save(comment);
 
-    // Increment parent's reply count
-    if (createDto.parentCommentId) {
-      await this.commentRepository.increment(
-        { id: createDto.parentCommentId },
-        "repliesCount",
+      // Increment parent's reply count
+      if (createDto.parentCommentId) {
+        await manager.getRepository(Comment).increment(
+          { id: createDto.parentCommentId },
+          "repliesCount",
+          1,
+        );
+      }
+
+      // Increment story comment count
+      await manager.getRepository(Story).increment(
+        { id: createDto.storyId },
+        "commentCount",
         1,
       );
-    }
 
-    // Increment story comment count
-    await this.storyRepository.increment(
-      { id: createDto.storyId },
-      "commentCount",
-      1,
-    );
+      return saved;
+    });
 
     // Load user relation for response
     return this.commentRepository.findOne({
@@ -302,23 +307,25 @@ export class CommentsService {
     comment.content = "[deleted]";
     comment.contentHtml = "<p>[deleted]</p>";
 
-    await this.commentRepository.save(comment);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.getRepository(Comment).save(comment);
 
-    // Decrement parent's reply count
-    if (comment.parentCommentId) {
-      await this.commentRepository.decrement(
-        { id: comment.parentCommentId },
-        "repliesCount",
+      // Decrement parent's reply count
+      if (comment.parentCommentId) {
+        await manager.getRepository(Comment).decrement(
+          { id: comment.parentCommentId },
+          "repliesCount",
+          1,
+        );
+      }
+
+      // Decrement story comment count
+      await manager.getRepository(Story).decrement(
+        { id: comment.storyId },
+        "commentCount",
         1,
       );
-    }
-
-    // Decrement story comment count
-    await this.storyRepository.decrement(
-      { id: comment.storyId },
-      "commentCount",
-      1,
-    );
+    });
   }
 
   /**

@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -33,6 +35,7 @@ import { RolesGuard } from "@/modules/auth/guards/roles.guard";
 import { Roles } from "@/modules/auth/decorators/roles.decorator";
 import { UserRole } from "@aardvark/shared";
 import { Public } from "@/modules/auth/decorators/public.decorator";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("tags")
 @Controller("tags")
@@ -114,7 +117,7 @@ export class TagsController {
   async addTagsToStory(
     @Param("storyId") storyId: string,
     @Body() dto: AddTagsToStoryDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.tagsService.addTagsToStory(storyId, dto, req.user.id);
   }
@@ -122,6 +125,7 @@ export class TagsController {
   @UseGuards(JwtAuthGuard)
   @Delete("stories/:storyId/:tagId")
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Remove a tag from a story" })
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiParam({ name: "tagId", description: "Tag ID" })
@@ -175,6 +179,7 @@ export class TagsController {
   @Roles(UserRole.ADMIN)
   @Delete(":id")
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Delete a tag (admin only)" })
   @ApiParam({ name: "id", description: "Tag ID" })
   @ApiResponse({ status: 200, description: "Tag deleted" })
@@ -227,6 +232,7 @@ export class TagsController {
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
   @Delete(":id/aliases/:aliasId")
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Remove an alias from a tag (moderator+)" })
   @ApiParam({ name: "id", description: "Tag ID" })
   @ApiParam({ name: "aliasId", description: "Alias ID" })

@@ -22,6 +22,7 @@ import {
 import { CommentsService } from "./comments.service";
 import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("comments")
 @Controller("comments")
@@ -37,7 +38,7 @@ export class CommentsController {
     status: 404,
     description: "Story or parent comment not found",
   })
-  async create(@Body() createDto: CreateCommentDto, @Request() req: any) {
+  async create(@Body() createDto: CreateCommentDto, @Request() req: AuthenticatedRequest) {
     return this.commentsService.create(createDto, req.user.id);
   }
 
@@ -95,7 +96,7 @@ export class CommentsController {
   async update(
     @Param("id") id: string,
     @Body() updateDto: UpdateCommentDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.commentsService.update(id, updateDto, req.user.id);
   }
@@ -109,7 +110,7 @@ export class CommentsController {
   @ApiResponse({ status: 204, description: "Comment deleted" })
   @ApiResponse({ status: 403, description: "Not authorized to delete" })
   @ApiResponse({ status: 404, description: "Comment not found" })
-  async delete(@Param("id") id: string, @Request() req: any) {
+  async delete(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.commentsService.delete(id, req.user.id, req.user.role);
   }
 
@@ -120,7 +121,7 @@ export class CommentsController {
   @ApiOperation({ summary: "Like a comment" })
   @ApiParam({ name: "id", description: "Comment ID" })
   @ApiResponse({ status: 200, description: "Comment liked" })
-  async likeComment(@Param("id") id: string, @Request() req: any) {
+  async likeComment(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.commentsService.likeComment(id, req.user.id);
     return { message: "Comment liked" };
   }
@@ -132,7 +133,7 @@ export class CommentsController {
   @ApiOperation({ summary: "Unlike a comment" })
   @ApiParam({ name: "id", description: "Comment ID" })
   @ApiResponse({ status: 200, description: "Comment unliked" })
-  async unlikeComment(@Param("id") id: string, @Request() req: any) {
+  async unlikeComment(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     await this.commentsService.unlikeComment(id, req.user.id);
     return { message: "Comment unliked" };
   }

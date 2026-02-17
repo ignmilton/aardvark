@@ -6,8 +6,11 @@ import {
   Query,
   Req,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import { EarningsService } from "./earnings.service";
 import {
   RequestPayoutDto,
@@ -29,7 +32,7 @@ export class EarningsController {
    */
   @Get("summary")
   async getSummary(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query("period") period?: "day" | "week" | "month" | "year" | "all_time",
   ) {
     const authorId = req.user.id;
@@ -45,7 +48,7 @@ export class EarningsController {
    * GET /earnings/balance
    */
   @Get("balance")
-  async getBalance(@Req() req: any) {
+  async getBalance(@Req() req: AuthenticatedRequest) {
     const authorId = req.user.id;
     const balance = await this.earningsService.getPendingBalance(authorId);
     return {
@@ -59,7 +62,7 @@ export class EarningsController {
    * GET /earnings/history
    */
   @Get("history")
-  async getHistory(@Req() req: any, @Query() query: EarningsQueryDto) {
+  async getHistory(@Req() req: AuthenticatedRequest, @Query() query: EarningsQueryDto) {
     const authorId = req.user.id;
     const result = await this.earningsService.getEarnings(authorId, query);
     return {
@@ -89,7 +92,7 @@ export class EarningsController {
    */
   @Get("by-story")
   async getByStory(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query("period") period?: "day" | "week" | "month" | "year" | "all_time",
   ) {
     const authorId = req.user.id;
@@ -112,7 +115,7 @@ export class EarningsController {
    * GET /earnings/payout-account
    */
   @Get("payout-account")
-  async getPayoutAccount(@Req() req: any) {
+  async getPayoutAccount(@Req() req: AuthenticatedRequest) {
     const authorId = req.user.id;
     const account = await this.earningsService.getPayoutAccount(authorId);
 
@@ -141,8 +144,9 @@ export class EarningsController {
    * POST /earnings/payout-account/setup
    */
   @Post("payout-account/setup")
+  @HttpCode(HttpStatus.OK)
   async setupPayoutAccount(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: SetupPayoutAccountDto,
   ) {
     const authorId = req.user.id;
@@ -168,7 +172,8 @@ export class EarningsController {
    * POST /earnings/payout
    */
   @Post("payout")
-  async requestPayout(@Req() req: any, @Body() dto: RequestPayoutDto) {
+  @HttpCode(HttpStatus.OK)
+  async requestPayout(@Req() req: AuthenticatedRequest, @Body() dto: RequestPayoutDto) {
     const authorId = req.user.id;
     const payout = await this.earningsService.requestPayout(
       authorId,
@@ -190,7 +195,7 @@ export class EarningsController {
    * GET /earnings/payouts
    */
   @Get("payouts")
-  async getPayoutHistory(@Req() req: any) {
+  async getPayoutHistory(@Req() req: AuthenticatedRequest) {
     const authorId = req.user.id;
     const payouts = await this.earningsService.getPayoutHistory(authorId);
     return {

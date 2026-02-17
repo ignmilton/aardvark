@@ -15,6 +15,7 @@ import {
 } from "@nestjs/common";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
 import { BranchSubmissionsService } from "./branch-submissions.service";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 import {
   CreateBranchSubmissionDto,
   ReviewBranchSubmissionDto,
@@ -36,7 +37,7 @@ export class BranchSubmissionsController {
    * POST /branch-submissions
    */
   @Post()
-  async create(@Req() req: any, @Body() dto: CreateBranchSubmissionDto) {
+  async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateBranchSubmissionDto) {
     const userId = req.user.id;
     const submission = await this.submissionsService.create(userId, dto);
     return {
@@ -96,7 +97,7 @@ export class BranchSubmissionsController {
    * GET /branch-submissions/my-submissions
    */
   @Get("my-submissions")
-  async findMySubmissions(@Req() req: any) {
+  async findMySubmissions(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     const submissions = await this.submissionsService.findByUser(userId);
     return {
@@ -125,7 +126,7 @@ export class BranchSubmissionsController {
   @Put(":id")
   async update(
     @Param("id", ParseUUIDPipe) id: string,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateBranchSubmissionDto,
   ) {
     const userId = req.user.id;
@@ -141,9 +142,10 @@ export class BranchSubmissionsController {
    * POST /branch-submissions/:id/review
    */
   @Post(":id/review")
+  @HttpCode(HttpStatus.OK)
   async review(
     @Param("id", ParseUUIDPipe) id: string,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: ReviewBranchSubmissionDto,
   ) {
     const reviewerId = req.user.id;
@@ -164,7 +166,7 @@ export class BranchSubmissionsController {
    */
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@Param("id", ParseUUIDPipe) id: string, @Req() req: any) {
+  async delete(@Param("id", ParseUUIDPipe) id: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     await this.submissionsService.delete(id, userId);
   }

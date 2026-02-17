@@ -6,6 +6,8 @@ import {
   Query,
   Req,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -18,6 +20,7 @@ import { AdsService } from "./ads.service";
 import { RecordAdRewardDto } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
 import { Public } from "@/modules/auth/decorators/public.decorator";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("ads")
 @Controller("ads")
@@ -49,7 +52,7 @@ export class AdsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get daily ad limit status" })
   @ApiResponse({ status: 200, description: "Daily limit status retrieved" })
-  async getDailyLimit(@Req() req: any) {
+  async getDailyLimit(@Req() req: AuthenticatedRequest) {
     const status = await this.adsService.getDailyLimit(req.user.id);
     return {
       success: true,
@@ -64,15 +67,16 @@ export class AdsController {
   @UseGuards(JwtAuthGuard)
   @Post("reward")
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Record ad watch and award credits" })
   @ApiResponse({ status: 201, description: "Credits awarded successfully" })
   @ApiResponse({
     status: 400,
     description: "Daily limit reached or cooldown active",
   })
-  async recordReward(@Req() req: any, @Body() dto: RecordAdRewardDto) {
+  async recordReward(@Req() req: AuthenticatedRequest, @Body() dto: RecordAdRewardDto) {
     // Get IP address from request
-    const ipAddress = req.ip || req.connection?.remoteAddress || null;
+    const ipAddress = req.ip || req.connection?.remoteAddress || undefined;
 
     const result = await this.adsService.recordAdReward(
       req.user.id,
@@ -95,7 +99,7 @@ export class AdsController {
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiResponse({ status: 200, description: "Reward history retrieved" })
   async getHistory(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query("page") page = 1,
     @Query("limit") limit = 20,
   ) {

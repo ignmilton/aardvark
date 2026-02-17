@@ -22,6 +22,7 @@ import {
 import { UsersService } from "./users.service";
 import { UpdateUserDto, UserQueryDto } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("users")
 @Controller("users")
@@ -40,7 +41,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get current user profile" })
   @ApiResponse({ status: 200, description: "Current user data" })
-  async getCurrentUser(@Request() req: any) {
+  async getCurrentUser(@Request() req: AuthenticatedRequest) {
     return this.usersService.findById(req.user.id);
   }
 
@@ -50,7 +51,7 @@ export class UsersController {
   @ApiOperation({ summary: "Update current user profile" })
   @ApiResponse({ status: 200, description: "Updated user data" })
   async updateCurrentUser(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() updateDto: UpdateUserDto,
   ) {
     return this.usersService.updateProfile(req.user.id, updateDto);
@@ -62,7 +63,7 @@ export class UsersController {
   @ApiOperation({ summary: "Get current user followers" })
   @ApiResponse({ status: 200, description: "List of followers" })
   async getMyFollowers(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query("page") page = 1,
     @Query("limit") limit = 20,
   ) {
@@ -75,7 +76,7 @@ export class UsersController {
   @ApiOperation({ summary: "Get users current user is following" })
   @ApiResponse({ status: 200, description: "List of following users" })
   async getMyFollowing(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query("page") page = 1,
     @Query("limit") limit = 20,
   ) {
@@ -88,7 +89,7 @@ export class UsersController {
   @ApiOperation({ summary: "Get current user stories" })
   @ApiResponse({ status: 200, description: "List of user stories" })
   async getMyStories(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query("page") page = 1,
     @Query("limit") limit = 10,
     @Query("sortBy")
@@ -110,7 +111,7 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Upgrade current user to author role" })
   @ApiResponse({ status: 200, description: "User upgraded to author" })
-  async upgradeToAuthor(@Request() req: any) {
+  async upgradeToAuthor(@Request() req: AuthenticatedRequest) {
     return this.usersService.upgradeToAuthor(req.user.id);
   }
 
@@ -122,7 +123,7 @@ export class UsersController {
     status: 200,
     description: "Complete user data export in JSON format",
   })
-  async exportData(@Request() req: any) {
+  async exportData(@Request() req: AuthenticatedRequest) {
     return this.usersService.exportUserData(req.user.userId);
   }
 
@@ -132,7 +133,7 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "GDPR: Delete account and all associated data" })
   @ApiResponse({ status: 204, description: "Account deleted successfully" })
-  async deleteAccount(@Request() req: any) {
+  async deleteAccount(@Request() req: AuthenticatedRequest) {
     await this.usersService.deleteAccount(req.user.userId);
   }
 
@@ -141,7 +142,7 @@ export class UsersController {
   @ApiParam({ name: "username", description: "Username" })
   @ApiResponse({ status: 200, description: "User profile" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async getProfile(@Param("username") username: string, @Request() req: any) {
+  async getProfile(@Param("username") username: string, @Request() req: AuthenticatedRequest) {
     const currentUserId = req.user?.id;
     return this.usersService.getProfile(username, currentUserId);
   }
@@ -181,7 +182,7 @@ export class UsersController {
   @ApiResponse({ status: 200, description: "Successfully followed user" })
   @ApiResponse({ status: 404, description: "User not found" })
   @ApiResponse({ status: 409, description: "Already following this user" })
-  async followUser(@Param("username") username: string, @Request() req: any) {
+  async followUser(@Param("username") username: string, @Request() req: AuthenticatedRequest) {
     const targetUser = await this.usersService.findByUsername(username);
     await this.usersService.followUser(req.user.id, targetUser.id);
     return { message: "Successfully followed user" };
@@ -195,7 +196,7 @@ export class UsersController {
   @ApiParam({ name: "username", description: "Username to unfollow" })
   @ApiResponse({ status: 200, description: "Successfully unfollowed user" })
   @ApiResponse({ status: 404, description: "Not following this user" })
-  async unfollowUser(@Param("username") username: string, @Request() req: any) {
+  async unfollowUser(@Param("username") username: string, @Request() req: AuthenticatedRequest) {
     const targetUser = await this.usersService.findByUsername(username);
     await this.usersService.unfollowUser(req.user.id, targetUser.id);
     return { message: "Successfully unfollowed user" };
@@ -207,7 +208,7 @@ export class UsersController {
   @ApiOperation({ summary: "Check if current user is following a user" })
   @ApiParam({ name: "username", description: "Username to check" })
   @ApiResponse({ status: 200, description: "Following status" })
-  async isFollowing(@Param("username") username: string, @Request() req: any) {
+  async isFollowing(@Param("username") username: string, @Request() req: AuthenticatedRequest) {
     const targetUser = await this.usersService.findByUsername(username);
     const isFollowing = await this.usersService.isFollowing(
       req.user.id,

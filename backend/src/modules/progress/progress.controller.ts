@@ -28,6 +28,7 @@ import {
   UpdateBookmarkDto,
 } from "./dto";
 import { JwtAuthGuard } from "@/modules/auth/guards/jwt-auth.guard";
+import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
 
 @ApiTags("progress")
 @Controller("progress")
@@ -37,12 +38,13 @@ export class ProgressController {
   constructor(private readonly progressService: ProgressService) {}
 
   @Post("start")
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Start reading a story or resume existing progress",
   })
-  @ApiResponse({ status: 201, description: "Reading started/resumed" })
+  @ApiResponse({ status: 200, description: "Reading started/resumed" })
   @ApiResponse({ status: 404, description: "Story not found" })
-  async startReading(@Body() dto: StartReadingDto, @Request() req: any) {
+  async startReading(@Body() dto: StartReadingDto, @Request() req: AuthenticatedRequest) {
     return this.progressService.startReading(req.user.id, dto);
   }
 
@@ -51,7 +53,7 @@ export class ProgressController {
   @ApiQuery({ name: "isCompleted", required: false, type: Boolean })
   @ApiResponse({ status: 200, description: "List of reading progress" })
   async getUserProgress(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query("isCompleted") isCompleted?: string,
   ) {
     const completed =
@@ -66,7 +68,7 @@ export class ProgressController {
   @Get("me/stats")
   @ApiOperation({ summary: "Get reading statistics for current user" })
   @ApiResponse({ status: 200, description: "User reading statistics" })
-  async getUserStats(@Request() req: any) {
+  async getUserStats(@Request() req: AuthenticatedRequest) {
     return this.progressService.getUserReadingStats(req.user.id);
   }
 
@@ -75,7 +77,7 @@ export class ProgressController {
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiResponse({ status: 200, description: "Reading progress" })
   @ApiResponse({ status: 404, description: "No progress found" })
-  async getProgress(@Param("storyId") storyId: string, @Request() req: any) {
+  async getProgress(@Param("storyId") storyId: string, @Request() req: AuthenticatedRequest) {
     const progress = await this.progressService.getProgress(
       req.user.id,
       storyId,
@@ -96,7 +98,7 @@ export class ProgressController {
   async makeChoice(
     @Param("storyId") storyId: string,
     @Body() dto: MakeChoiceDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.progressService.makeChoice(req.user.id, storyId, dto);
   }
@@ -116,7 +118,7 @@ export class ProgressController {
   async navigateToSegment(
     @Param("storyId") storyId: string,
     @Param("segmentId") segmentId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.progressService.navigateToSegment(
       req.user.id,
@@ -131,7 +133,7 @@ export class ProgressController {
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiResponse({ status: 200, description: "Progress reset" })
   @ApiResponse({ status: 404, description: "Progress not found" })
-  async resetProgress(@Param("storyId") storyId: string, @Request() req: any) {
+  async resetProgress(@Param("storyId") storyId: string, @Request() req: AuthenticatedRequest) {
     return this.progressService.resetProgress(req.user.id, storyId);
   }
 
@@ -141,7 +143,7 @@ export class ProgressController {
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiResponse({ status: 204, description: "Progress deleted" })
   @ApiResponse({ status: 404, description: "Progress not found" })
-  async deleteProgress(@Param("storyId") storyId: string, @Request() req: any) {
+  async deleteProgress(@Param("storyId") storyId: string, @Request() req: AuthenticatedRequest) {
     await this.progressService.deleteProgress(req.user.id, storyId);
   }
 
@@ -155,7 +157,7 @@ export class ProgressController {
   async addBookmark(
     @Param("storyId") storyId: string,
     @Body() dto: AddBookmarkDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.progressService.addBookmark(req.user.id, storyId, dto);
   }
@@ -170,7 +172,7 @@ export class ProgressController {
     @Param("storyId") storyId: string,
     @Param("segmentId") segmentId: string,
     @Body() dto: UpdateBookmarkDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.progressService.updateBookmark(
       req.user.id,
@@ -190,7 +192,7 @@ export class ProgressController {
   async removeBookmark(
     @Param("storyId") storyId: string,
     @Param("segmentId") segmentId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.progressService.removeBookmark(req.user.id, storyId, segmentId);
   }
