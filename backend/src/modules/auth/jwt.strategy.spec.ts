@@ -97,13 +97,13 @@ describe("JwtStrategy", () => {
     it("should reject blacklisted tokens", async () => {
       tokenBlacklistService.isBlacklisted.mockResolvedValue(true);
 
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow(UnauthorizedException);
-
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow("Token has been invalidated");
+      try {
+        await strategy.validate(createMockRequest(), mockPayload);
+        throw new Error("Expected UnauthorizedException");
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        expect(error.message).toBe("Token has been invalidated");
+      }
 
       // Should not even look up the user when the token is blacklisted
       expect(userRepository.findOne).not.toHaveBeenCalled();
@@ -115,13 +115,13 @@ describe("JwtStrategy", () => {
         accountStatus: AccountStatus.BANNED,
       } as User);
 
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow(UnauthorizedException);
-
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow("Account has been banned");
+      try {
+        await strategy.validate(createMockRequest(), mockPayload);
+        throw new Error("Expected UnauthorizedException");
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        expect(error.message).toBe("Account has been banned");
+      }
     });
 
     it("should reject suspended users", async () => {
@@ -130,13 +130,13 @@ describe("JwtStrategy", () => {
         accountStatus: AccountStatus.SUSPENDED,
       } as User);
 
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow(UnauthorizedException);
-
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow("Account is suspended");
+      try {
+        await strategy.validate(createMockRequest(), mockPayload);
+        throw new Error("Expected UnauthorizedException");
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        expect(error.message).toBe("Account is suspended");
+      }
     });
 
     it("should reject tokens issued before password change", async () => {
@@ -148,13 +148,13 @@ describe("JwtStrategy", () => {
         passwordChangedAt,
       } as User);
 
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow(UnauthorizedException);
-
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow("Token invalidated by password change");
+      try {
+        await strategy.validate(createMockRequest(), mockPayload);
+        throw new Error("Expected UnauthorizedException");
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        expect(error.message).toBe("Token invalidated by password change");
+      }
     });
 
     it("should allow tokens issued after password change", async () => {
@@ -182,13 +182,13 @@ describe("JwtStrategy", () => {
     it("should throw UnauthorizedException when user is not found", async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow(UnauthorizedException);
-
-      await expect(
-        strategy.validate(createMockRequest(), mockPayload),
-      ).rejects.toThrow("User not found");
+      try {
+        await strategy.validate(createMockRequest(), mockPayload);
+        throw new Error("Expected UnauthorizedException");
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        expect(error.message).toBe("User not found");
+      }
     });
   });
 });

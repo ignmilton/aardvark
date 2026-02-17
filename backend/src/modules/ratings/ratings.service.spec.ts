@@ -238,10 +238,6 @@ describe("RatingsService", () => {
     dataSource = module.get(DataSource);
   });
 
-  it("should be defined", () => {
-    expect(service).toBeDefined();
-  });
-
   // ===========================================================================
   // create()
   // ===========================================================================
@@ -1212,7 +1208,6 @@ describe("RatingsService", () => {
       const result = await service.getFeaturedReviews("story-123");
 
       expect(result).toEqual([]);
-      expect(result).toHaveLength(0);
     });
   });
 });

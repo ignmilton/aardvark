@@ -25,7 +25,6 @@ describe("CreditsService", () => {
   let bundleRepo: jest.Mocked<Repository<CreditBundle>>;
   let earningRepo: jest.Mocked<Repository<AuthorEarning>>;
   let storyUnlockRepo: jest.Mocked<Repository<StoryUnlock>>;
-  let _dataSource: jest.Mocked<DataSource>;
 
   const mockUser = {
     id: "user-123",
@@ -134,7 +133,6 @@ describe("CreditsService", () => {
     bundleRepo = module.get(getRepositoryToken(CreditBundle));
     earningRepo = module.get(getRepositoryToken(AuthorEarning));
     storyUnlockRepo = module.get(getRepositoryToken(StoryUnlock));
-    _dataSource = module.get(DataSource);
   });
 
   describe("getBalance", () => {

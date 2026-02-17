@@ -138,10 +138,6 @@ describe("CommentsService", () => {
     dataSource = module.get(DataSource);
   });
 
-  it("should be defined", () => {
-    expect(service).toBeDefined();
-  });
-
   // ==========================================================================
   // create()
   // ==========================================================================
