@@ -36,13 +36,17 @@ export class SegmentsController {
   constructor(private readonly segmentsService: SegmentsService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new story segment" })
   @ApiResponse({ status: 201, description: "Segment created successfully" })
   @ApiResponse({ status: 403, description: "Not allowed to create segment" })
   @ApiResponse({ status: 404, description: "Story not found" })
-  async create(@Body() createDto: CreateSegmentDto, @Request() req: AuthenticatedRequest) {
+  async create(
+    @Body() createDto: CreateSegmentDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.segmentsService.create(createDto, req.user.id);
   }
 
@@ -108,7 +112,10 @@ export class SegmentsController {
     description: "Registration required to continue reading",
   })
   @ApiResponse({ status: 404, description: "Segment not found" })
-  async findById(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async findById(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const segment = await this.segmentsService.findById(id);
 
     // Guest users can only read the root segment (first chapter)
@@ -195,7 +202,10 @@ export class SegmentsController {
   @ApiParam({ name: "id", description: "Segment ID" })
   @ApiResponse({ status: 200, description: "Segment approved" })
   @ApiResponse({ status: 403, description: "Not authorized to approve" })
-  async approveSegment(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async approveSegment(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.segmentsService.approveSegment(id, req.user.id);
   }
 

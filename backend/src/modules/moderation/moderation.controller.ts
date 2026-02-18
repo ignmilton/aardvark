@@ -66,11 +66,15 @@ export class ModerationController {
   // ============================================================================
 
   @Post("reports")
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Submit a content report (authenticated users)" })
   @ApiResponse({ status: 201, description: "Report submitted successfully" })
   @ApiResponse({ status: 400, description: "Already reported this content" })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  async createReport(@Body() dto: CreateReportDto, @Request() req: AuthenticatedRequest) {
+  async createReport(
+    @Body() dto: CreateReportDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.moderationService.createReport(
       req.user.id,
       dto.contentType,
@@ -157,7 +161,10 @@ export class ModerationController {
   @ApiResponse({ status: 200, description: "Warning issued successfully" })
   @ApiResponse({ status: 403, description: "Forbidden" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async issueWarning(@Body() dto: IssueWarningDto, @Request() req: AuthenticatedRequest) {
+  async issueWarning(
+    @Body() dto: IssueWarningDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.moderationService.issueWarning(
       dto.userId,
       req.user.id,
@@ -191,7 +198,10 @@ export class ModerationController {
   @ApiResponse({ status: 400, description: "User already has active ban" })
   @ApiResponse({ status: 403, description: "Forbidden" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async issueBan(@Body() dto: IssueBanDto, @Request() req: AuthenticatedRequest) {
+  async issueBan(
+    @Body() dto: IssueBanDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     let expiresAt: Date | undefined;
 
     if (!dto.isPermanent && dto.durationDays) {
@@ -327,7 +337,10 @@ export class ModerationController {
   @ApiResponse({ status: 200, description: "Mute issued successfully" })
   @ApiResponse({ status: 400, description: "User already has active mute" })
   @ApiResponse({ status: 403, description: "Forbidden" })
-  async issueMute(@Body() dto: IssueMuteDto, @Request() req: AuthenticatedRequest) {
+  async issueMute(
+    @Body() dto: IssueMuteDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + dto.durationDays);
 
@@ -348,7 +361,10 @@ export class ModerationController {
   @ApiOperation({ summary: "Lift mute (admin/moderator only)" })
   @ApiParam({ name: "id", description: "Mute ID" })
   @ApiResponse({ status: 200, description: "Mute lifted successfully" })
-  async liftMute(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async liftMute(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.moderationService.liftMute(id, req.user.id);
   }
 
@@ -367,11 +383,15 @@ export class ModerationController {
   // ============================================================================
 
   @Post("appeals")
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Submit ban appeal (banned users)" })
   @ApiResponse({ status: 201, description: "Appeal submitted successfully" })
   @ApiResponse({ status: 400, description: "Already have pending appeal" })
   @ApiResponse({ status: 404, description: "Ban not found" })
-  async createAppeal(@Body() dto: CreateAppealDto, @Request() req: AuthenticatedRequest) {
+  async createAppeal(
+    @Body() dto: CreateAppealDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.moderationService.createAppeal(
       req.user.id,
       dto.banId,
@@ -425,7 +445,10 @@ export class ModerationController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Bulk resolve reports (admin/moderator only)" })
   @ApiResponse({ status: 200, description: "Reports resolved" })
-  async bulkResolveReports(@Body() dto: BulkResolveDto, @Request() req: AuthenticatedRequest) {
+  async bulkResolveReports(
+    @Body() dto: BulkResolveDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.moderationService.bulkResolveReports(
       dto.reportIds,
       req.user.id,
@@ -440,7 +463,10 @@ export class ModerationController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Bulk assign reports (admin/moderator only)" })
   @ApiResponse({ status: 200, description: "Reports assigned" })
-  async bulkAssignReports(@Body() dto: BulkAssignDto, @Request() req: AuthenticatedRequest) {
+  async bulkAssignReports(
+    @Body() dto: BulkAssignDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     // Always use authenticated user's ID — accepting moderatorId from body is an IDOR risk
     const moderatorId = req.user.id;
     return this.moderationService.bulkAssignReports(dto.reportIds, moderatorId);
@@ -452,7 +478,10 @@ export class ModerationController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Bulk issue warnings (admin/moderator only)" })
   @ApiResponse({ status: 200, description: "Warnings issued" })
-  async bulkIssueWarnings(@Body() dto: BulkWarnDto, @Request() req: AuthenticatedRequest) {
+  async bulkIssueWarnings(
+    @Body() dto: BulkWarnDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.moderationService.bulkIssueWarnings(
       dto.userIds,
       req.user.id,

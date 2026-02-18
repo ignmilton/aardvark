@@ -10,6 +10,7 @@ import type {
   CreateChoiceDto,
   UpdateChoiceDto,
 } from '@aardvark/shared';
+import { getAuthToken } from '@/lib/auth-token';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -150,7 +151,7 @@ export const choicesApi = {
   getAvailable: (segmentId: string) =>
     fetchApi<Choice[]>(`/choices/segment/${segmentId}/available`),
   recordChoice: (choiceId: string) =>
-    fetchApi<void>(`/choices/${choiceId}/chosen`, { method: 'POST' }),
+    fetchApi<void>(`/choices/${choiceId}/chosen`, { method: 'POST', token: getAuthToken() }),
   create: (data: CreateChoiceDto, token: string) =>
     fetchApi<Choice>('/choices', {
       method: 'POST',

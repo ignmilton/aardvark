@@ -1,8 +1,7 @@
-import { NestFactory } from "@nestjs/core";
+import { NestFactory, Reflector } from "@nestjs/core";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { IoAdapter } from "@nestjs/platform-socket.io";
 import helmet from "helmet";
 import compression from "compression";
 import * as bodyParser from "body-parser";
@@ -134,13 +133,11 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // Global interceptors
+  const reflector = app.get(Reflector);
   app.useGlobalInterceptors(
-    new TransformInterceptor(),
+    new TransformInterceptor(reflector),
     new LoggingInterceptor(),
   );
-
-  // WebSocket adapter for Socket.io
-  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Swagger API documentation (disabled in production)
   if (!isProduction) {

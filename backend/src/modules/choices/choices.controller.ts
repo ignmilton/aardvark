@@ -29,6 +29,7 @@ export class ChoicesController {
   constructor(private readonly choicesService: ChoicesService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new choice" })
@@ -39,7 +40,10 @@ export class ChoicesController {
   })
   @ApiResponse({ status: 403, description: "Not allowed to create choice" })
   @ApiResponse({ status: 404, description: "Segment not found" })
-  async create(@Body() createDto: CreateChoiceDto, @Request() req: AuthenticatedRequest) {
+  async create(
+    @Body() createDto: CreateChoiceDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.choicesService.create(createDto, req.user.id);
   }
 

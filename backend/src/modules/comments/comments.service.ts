@@ -66,19 +66,15 @@ export class CommentsService {
 
       // Increment parent's reply count
       if (createDto.parentCommentId) {
-        await manager.getRepository(Comment).increment(
-          { id: createDto.parentCommentId },
-          "repliesCount",
-          1,
-        );
+        await manager
+          .getRepository(Comment)
+          .increment({ id: createDto.parentCommentId }, "repliesCount", 1);
       }
 
       // Increment story comment count
-      await manager.getRepository(Story).increment(
-        { id: createDto.storyId },
-        "commentCount",
-        1,
-      );
+      await manager
+        .getRepository(Story)
+        .increment({ id: createDto.storyId }, "commentCount", 1);
 
       return saved;
     });
@@ -312,19 +308,15 @@ export class CommentsService {
 
       // Decrement parent's reply count
       if (comment.parentCommentId) {
-        await manager.getRepository(Comment).decrement(
-          { id: comment.parentCommentId },
-          "repliesCount",
-          1,
-        );
+        await manager
+          .getRepository(Comment)
+          .decrement({ id: comment.parentCommentId }, "repliesCount", 1);
       }
 
       // Decrement story comment count
-      await manager.getRepository(Story).decrement(
-        { id: comment.storyId },
-        "commentCount",
-        1,
-      );
+      await manager
+        .getRepository(Story)
+        .decrement({ id: comment.storyId }, "commentCount", 1);
     });
   }
 

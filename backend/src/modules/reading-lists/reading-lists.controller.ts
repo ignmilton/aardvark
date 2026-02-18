@@ -35,11 +35,15 @@ export class ReadingListsController {
   constructor(private readonly readingListsService: ReadingListsService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new reading list" })
   @ApiResponse({ status: 201, description: "Reading list created" })
-  async create(@Request() req: AuthenticatedRequest, @Body() dto: CreateReadingListDto) {
+  async create(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: CreateReadingListDto,
+  ) {
     return this.readingListsService.create(req.user.id, dto);
   }
 
@@ -74,7 +78,10 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Get user's public reading lists" })
   @ApiResponse({ status: 200, description: "User reading lists" })
   @ApiParam({ name: "userId", description: "User ID" })
-  async getUserLists(@Param("userId") userId: string, @Request() req: AuthenticatedRequest) {
+  async getUserLists(
+    @Param("userId") userId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.readingListsService.getUserLists(userId, req.user?.id);
   }
 
@@ -144,6 +151,7 @@ export class ReadingListsController {
   }
 
   @Post(":id/follow")
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Follow a reading list" })
@@ -160,7 +168,10 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Unfollow a reading list" })
   @ApiResponse({ status: 204, description: "Unfollowed list" })
   @ApiParam({ name: "id", description: "Reading list ID" })
-  async unfollow(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async unfollow(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.readingListsService.unfollow(id, req.user.id);
   }
 
@@ -170,7 +181,10 @@ export class ReadingListsController {
   @ApiOperation({ summary: "Check if following a reading list" })
   @ApiResponse({ status: 200, description: "Following status" })
   @ApiParam({ name: "id", description: "Reading list ID" })
-  async isFollowing(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async isFollowing(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const isFollowing = await this.readingListsService.isFollowing(
       id,
       req.user.id,

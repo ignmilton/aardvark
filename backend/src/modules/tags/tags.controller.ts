@@ -109,6 +109,7 @@ export class TagsController {
 
   @UseGuards(JwtAuthGuard)
   @Post("stories/:storyId")
+  @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Add tags to a story" })
   @ApiParam({ name: "storyId", description: "Story ID" })
@@ -155,6 +156,7 @@ export class TagsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new tag (moderator+)" })
   @ApiResponse({ status: 201, description: "Tag created successfully" })
@@ -217,6 +219,7 @@ export class TagsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
   @Post(":id/aliases")
+  @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Add an alias to a tag (moderator+)" })
   @ApiParam({ name: "id", description: "Tag ID" })

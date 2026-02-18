@@ -1,10 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
-import {
-  NotFoundException,
-  ForbiddenException,
-} from "@nestjs/common";
+import { NotFoundException, ForbiddenException } from "@nestjs/common";
 
 // Mock ESM-only dependencies before importing the service
 jest.mock("marked", () => ({
@@ -286,9 +283,9 @@ describe("CommentsService", () => {
         ...commentToDelete,
         parentCommentId: "parent-comment-uuid",
       };
-      commentRepository.findOne.mockResolvedValue(
-        { ...commentWithParent } as Comment,
-      );
+      commentRepository.findOne.mockResolvedValue({
+        ...commentWithParent,
+      } as Comment);
 
       await service.delete("comment-uuid-1", "user-uuid-1", UserRole.READER);
 

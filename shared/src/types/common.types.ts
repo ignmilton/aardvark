@@ -18,11 +18,11 @@ export interface ApiResponse<T> {
 }
 
 /**
- * Paginated API response
+ * Paginated API response — standard format for all list endpoints
  */
 export interface PaginatedResponse<T> {
-  items: T[];
-  pagination: PaginationMeta;
+  data: T[];
+  meta: PaginationMeta;
 }
 
 /**
@@ -31,10 +31,8 @@ export interface PaginatedResponse<T> {
 export interface PaginationMeta {
   page: number;
   limit: number;
-  totalItems: number;
+  total: number;
   totalPages: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
 }
 
 /**

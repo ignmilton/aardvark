@@ -191,7 +191,8 @@ async function seed(ds: DataSource) {
       credits: 100,
       priceInCents: 499,
       currency: "usd",
-      stripePriceId: "price_starter_100",
+      stripePriceId:
+        process.env.STRIPE_PRICE_STARTER_100 || "price_starter_100",
       bonusCredits: 0,
       isPopular: false,
       isActive: true,
@@ -201,7 +202,8 @@ async function seed(ds: DataSource) {
       credits: 500,
       priceInCents: 1999,
       currency: "usd",
-      stripePriceId: "price_popular_500",
+      stripePriceId:
+        process.env.STRIPE_PRICE_POPULAR_500 || "price_popular_500",
       bonusCredits: 50,
       isPopular: true,
       isActive: true,
@@ -211,7 +213,7 @@ async function seed(ds: DataSource) {
       credits: 1000,
       priceInCents: 3499,
       currency: "usd",
-      stripePriceId: "price_value_1000",
+      stripePriceId: process.env.STRIPE_PRICE_VALUE_1000 || "price_value_1000",
       bonusCredits: 150,
       isPopular: false,
       isActive: true,
@@ -221,7 +223,8 @@ async function seed(ds: DataSource) {
       credits: 100,
       priceInCents: 39900,
       currency: "inr",
-      stripePriceId: "price_starter_100_inr",
+      stripePriceId:
+        process.env.STRIPE_PRICE_STARTER_100_INR || "price_starter_100_inr",
       bonusCredits: 0,
       isPopular: false,
       isActive: true,
@@ -231,7 +234,8 @@ async function seed(ds: DataSource) {
       credits: 500,
       priceInCents: 159900,
       currency: "inr",
-      stripePriceId: "price_popular_500_inr",
+      stripePriceId:
+        process.env.STRIPE_PRICE_POPULAR_500_INR || "price_popular_500_inr",
       bonusCredits: 50,
       isPopular: true,
       isActive: true,
@@ -241,7 +245,8 @@ async function seed(ds: DataSource) {
       credits: 1000,
       priceInCents: 279900,
       currency: "inr",
-      stripePriceId: "price_value_1000_inr",
+      stripePriceId:
+        process.env.STRIPE_PRICE_VALUE_1000_INR || "price_value_1000_inr",
       bonusCredits: 150,
       isPopular: false,
       isActive: true,
@@ -265,7 +270,8 @@ async function seed(ds: DataSource) {
         "Ad-free experience, unlimited premium stories, and 100 bonus credits monthly.",
       priceInCents: 999,
       currency: "usd",
-      stripePriceId: "price_premium_monthly",
+      stripePriceId:
+        process.env.STRIPE_PRICE_PREMIUM_MONTHLY || "price_premium_monthly",
       features: [
         "Ad-free reading experience",
         "Unlimited access to premium stories",
@@ -283,7 +289,8 @@ async function seed(ds: DataSource) {
         "Everything in Premium Monthly — save 17% with annual billing.",
       priceInCents: 9999,
       currency: "usd",
-      stripePriceId: "price_premium_yearly",
+      stripePriceId:
+        process.env.STRIPE_PRICE_PREMIUM_YEARLY || "price_premium_yearly",
       features: [
         "Ad-free reading experience",
         "Unlimited access to premium stories",

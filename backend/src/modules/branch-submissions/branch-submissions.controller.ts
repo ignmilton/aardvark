@@ -37,7 +37,11 @@ export class BranchSubmissionsController {
    * POST /branch-submissions
    */
   @Post()
-  async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateBranchSubmissionDto) {
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateBranchSubmissionDto,
+  ) {
     const userId = req.user.id;
     const submission = await this.submissionsService.create(userId, dto);
     return {
@@ -166,7 +170,10 @@ export class BranchSubmissionsController {
    */
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@Param("id", ParseUUIDPipe) id: string, @Req() req: AuthenticatedRequest) {
+  async delete(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     const userId = req.user.id;
     await this.submissionsService.delete(id, userId);
   }

@@ -142,7 +142,10 @@ export class UsersController {
   @ApiParam({ name: "username", description: "Username" })
   @ApiResponse({ status: 200, description: "User profile" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async getProfile(@Param("username") username: string, @Request() req: AuthenticatedRequest) {
+  async getProfile(
+    @Param("username") username: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const currentUserId = req.user?.id;
     return this.usersService.getProfile(username, currentUserId);
   }
@@ -182,7 +185,10 @@ export class UsersController {
   @ApiResponse({ status: 200, description: "Successfully followed user" })
   @ApiResponse({ status: 404, description: "User not found" })
   @ApiResponse({ status: 409, description: "Already following this user" })
-  async followUser(@Param("username") username: string, @Request() req: AuthenticatedRequest) {
+  async followUser(
+    @Param("username") username: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const targetUser = await this.usersService.findByUsername(username);
     await this.usersService.followUser(req.user.id, targetUser.id);
     return { message: "Successfully followed user" };
@@ -196,7 +202,10 @@ export class UsersController {
   @ApiParam({ name: "username", description: "Username to unfollow" })
   @ApiResponse({ status: 200, description: "Successfully unfollowed user" })
   @ApiResponse({ status: 404, description: "Not following this user" })
-  async unfollowUser(@Param("username") username: string, @Request() req: AuthenticatedRequest) {
+  async unfollowUser(
+    @Param("username") username: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const targetUser = await this.usersService.findByUsername(username);
     await this.usersService.unfollowUser(req.user.id, targetUser.id);
     return { message: "Successfully unfollowed user" };
@@ -208,7 +217,10 @@ export class UsersController {
   @ApiOperation({ summary: "Check if current user is following a user" })
   @ApiParam({ name: "username", description: "Username to check" })
   @ApiResponse({ status: 200, description: "Following status" })
-  async isFollowing(@Param("username") username: string, @Request() req: AuthenticatedRequest) {
+  async isFollowing(
+    @Param("username") username: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const targetUser = await this.usersService.findByUsername(username);
     const isFollowing = await this.usersService.isFollowing(
       req.user.id,

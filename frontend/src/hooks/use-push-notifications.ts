@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { getAuthToken } from '@/lib/auth-token';
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
@@ -62,7 +63,7 @@ export function usePushNotifications() {
       setSubscription(sub);
 
       // Send subscription to backend
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = getAuthToken() || null;
       await fetch('/api/notifications/push/subscribe', {
         method: 'POST',
         headers: {
@@ -89,7 +90,7 @@ export function usePushNotifications() {
       await subscription.unsubscribe();
 
       // Notify backend
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = getAuthToken() || null;
       await fetch('/api/notifications/push/unsubscribe', {
         method: 'POST',
         headers: {

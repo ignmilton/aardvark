@@ -76,7 +76,10 @@ export class AdsController {
     status: 400,
     description: "Daily limit reached or cooldown active",
   })
-  async recordReward(@Req() req: AuthenticatedRequest, @Body() dto: RecordAdRewardDto) {
+  async recordReward(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: RecordAdRewardDto,
+  ) {
     // Get IP address from request
     const ipAddress = req.ip || req.connection?.remoteAddress || undefined;
 

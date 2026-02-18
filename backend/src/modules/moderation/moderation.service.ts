@@ -90,11 +90,8 @@ export class ModerationService {
    * Get moderation queue with pagination and filters
    */
   async getReportQueue(query: ModerationQueueQuery): Promise<{
-    reports: Report[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
+    data: Report[];
+    meta: { page: number; limit: number; total: number; totalPages: number };
   }> {
     const {
       page = 1,
@@ -132,11 +129,8 @@ export class ModerationService {
     });
 
     return {
-      reports,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      data: reports,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -438,11 +432,8 @@ export class ModerationService {
    * Get moderation logs with filters
    */
   async getModerationLogs(query: ModerationLogQuery): Promise<{
-    logs: ModerationLog[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
+    data: ModerationLog[];
+    meta: { page: number; limit: number; total: number; totalPages: number };
   }> {
     const {
       page = 1,
@@ -481,11 +472,8 @@ export class ModerationService {
     });
 
     return {
-      logs,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      data: logs,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -1143,11 +1131,8 @@ export class ModerationService {
    * Get prioritized report queue
    */
   async getPrioritizedReportQueue(query: ModerationQueueQuery): Promise<{
-    reports: (Report & { priorityScore: number })[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
+    data: (Report & { priorityScore: number })[];
+    meta: { page: number; limit: number; total: number; totalPages: number };
   }> {
     const result = await this.getReportQueue({
       ...query,
@@ -1156,20 +1141,20 @@ export class ModerationService {
     });
 
     // Calculate priority scores and sort
-    const reportsWithPriority = result.reports.map((report) => ({
+    const reportsWithPriority = result.data.map((report: Report) => ({
       ...report,
       priorityScore: this.calculateReportPriority(report),
     }));
 
     // Sort by priority score descending
-    reportsWithPriority.sort((a, b) => b.priorityScore - a.priorityScore);
+    reportsWithPriority.sort(
+      (a: { priorityScore: number }, b: { priorityScore: number }) =>
+        b.priorityScore - a.priorityScore,
+    );
 
     return {
-      reports: reportsWithPriority,
-      total: result.total,
-      page: result.page,
-      limit: result.limit,
-      totalPages: result.totalPages,
+      data: reportsWithPriority,
+      meta: result.meta,
     };
   }
 

@@ -116,7 +116,10 @@ export class SubscriptionsController {
    */
   @UseGuards(JwtAuthGuard)
   @Post("subscribe")
-  async subscribe(@Req() req: AuthenticatedRequest, @Body() dto: CreateSubscriptionDto) {
+  async subscribe(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateSubscriptionDto,
+  ) {
     const userId = req.user.id;
     const user = req.user;
 
@@ -164,7 +167,10 @@ export class SubscriptionsController {
   @UseGuards(JwtAuthGuard)
   @Post("cancel")
   @HttpCode(HttpStatus.OK)
-  async cancel(@Req() req: AuthenticatedRequest, @Body() dto: CancelSubscriptionDto) {
+  async cancel(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CancelSubscriptionDto,
+  ) {
     const userId = req.user.id;
     const subscription = await this.subscriptionsService.cancelSubscription(
       userId,
@@ -341,7 +347,9 @@ export class SubscriptionsController {
     try {
       const event = body.event;
       const payload = body.payload;
-      const eventId = body.event_id || `${event}_${payload?.payment?.entity?.id || Date.now()}`;
+      const eventId =
+        body.event_id ||
+        `${event}_${payload?.payment?.entity?.id || Date.now()}`;
 
       // Idempotency check — skip already-processed events
       const cacheKey = `rzp_webhook:${eventId}`;

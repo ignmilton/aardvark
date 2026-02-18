@@ -138,7 +138,10 @@ export class SearchController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get user search history" })
   @ApiResponse({ status: 200, description: "Recent search history" })
-  async getSearchHistory(@Request() req: AuthenticatedRequest, @Query("limit") limit?: number) {
+  async getSearchHistory(
+    @Request() req: AuthenticatedRequest,
+    @Query("limit") limit?: number,
+  ) {
     return this.searchService.getSearchHistory(req.user.id, limit || 20);
   }
 
@@ -167,7 +170,10 @@ export class SearchController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Delete a search history entry" })
   @ApiResponse({ status: 204, description: "Search history entry deleted" })
-  async deleteSearchHistory(@Request() req: AuthenticatedRequest, @Param("id") id: string) {
+  async deleteSearchHistory(
+    @Request() req: AuthenticatedRequest,
+    @Param("id") id: string,
+  ) {
     await this.searchService.deleteSearchHistory(req.user.id, id);
   }
 

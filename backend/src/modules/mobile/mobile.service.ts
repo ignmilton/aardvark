@@ -413,7 +413,9 @@ export class MobileService {
         this.logger.warn(
           `Receipt replay attempt: subscription ${params.platformSubscriptionId} already belongs to another user, attempted by ${userId}`,
         );
-        throw new BadRequestException("Receipt has already been verified by another account");
+        throw new BadRequestException(
+          "Receipt has already been verified by another account",
+        );
       }
 
       // Find existing mobile subscription for this user on this platform

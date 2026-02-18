@@ -20,6 +20,8 @@ import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { ForgotPasswordDto, ResetPasswordDto } from "./dto/reset-password.dto";
 import { AuthenticatedRequest } from "@/common/interfaces/authenticated-request.interface";
+import { User } from "@/database/entities";
+import { VerifyEmailDto } from "./dto/verify-email.dto";
 
 /**
  * Authentication controller handling registration, login,
@@ -37,6 +39,7 @@ export class AuthController {
    * Register a new user account
    */
   @Post("register")
+  @HttpCode(HttpStatus.CREATED)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: "Register a new user" })
   async register(@Body() registerDto: RegisterDto) {
@@ -51,7 +54,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Login with credentials" })
-  async login(@Request() req: { user: any }, @Body() _loginDto: LoginDto) {
+  async login(@Request() req: { user: User }, @Body() _loginDto: LoginDto) {
     return this.authService.login(req.user);
   }
 
@@ -74,7 +77,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({ summary: "Get current user" })
-  async getCurrentUser(@Request() req: { user: { userId: string } }) {
+  async getCurrentUser(@Request() req: AuthenticatedRequest) {
     return this.authService.getCurrentUser(req.user.userId);
   }
 
@@ -157,7 +160,7 @@ export class AuthController {
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({ summary: "Change password" })
   async changePassword(
-    @Request() req: { user: { userId: string } },
+    @Request() req: AuthenticatedRequest,
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     await this.authService.changePassword(
@@ -166,5 +169,29 @@ export class AuthController {
       changePasswordDto.newPassword,
     );
     return { message: "Password changed successfully" };
+  }
+
+  /**
+   * Verify email address with token
+   */
+  @Post("verify-email")
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiOperation({ summary: "Verify email address" })
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.token);
+  }
+
+  /**
+   * Resend verification email
+   */
+  @Post("resend-verification")
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({ summary: "Resend email verification" })
+  async resendVerification(@Request() req: AuthenticatedRequest) {
+    return this.authService.resendVerificationEmail(req.user.userId);
   }
 }

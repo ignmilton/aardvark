@@ -44,7 +44,10 @@ export class ProgressController {
   })
   @ApiResponse({ status: 200, description: "Reading started/resumed" })
   @ApiResponse({ status: 404, description: "Story not found" })
-  async startReading(@Body() dto: StartReadingDto, @Request() req: AuthenticatedRequest) {
+  async startReading(
+    @Body() dto: StartReadingDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.progressService.startReading(req.user.id, dto);
   }
 
@@ -77,7 +80,10 @@ export class ProgressController {
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiResponse({ status: 200, description: "Reading progress" })
   @ApiResponse({ status: 404, description: "No progress found" })
-  async getProgress(@Param("storyId") storyId: string, @Request() req: AuthenticatedRequest) {
+  async getProgress(
+    @Param("storyId") storyId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const progress = await this.progressService.getProgress(
       req.user.id,
       storyId,
@@ -133,7 +139,10 @@ export class ProgressController {
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiResponse({ status: 200, description: "Progress reset" })
   @ApiResponse({ status: 404, description: "Progress not found" })
-  async resetProgress(@Param("storyId") storyId: string, @Request() req: AuthenticatedRequest) {
+  async resetProgress(
+    @Param("storyId") storyId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.progressService.resetProgress(req.user.id, storyId);
   }
 
@@ -143,7 +152,10 @@ export class ProgressController {
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiResponse({ status: 204, description: "Progress deleted" })
   @ApiResponse({ status: 404, description: "Progress not found" })
-  async deleteProgress(@Param("storyId") storyId: string, @Request() req: AuthenticatedRequest) {
+  async deleteProgress(
+    @Param("storyId") storyId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.progressService.deleteProgress(req.user.id, storyId);
   }
 

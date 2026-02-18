@@ -3,13 +3,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { ConfigService } from "@nestjs/config";
 import { Repository } from "typeorm";
 import { SearchService } from "./search.service";
-import {
-  Story,
-  User,
-  Tag,
-  StoryTag,
-  SearchHistory,
-} from "@/database/entities";
+import { Story, User, Tag, StoryTag, SearchHistory } from "@/database/entities";
 
 describe("SearchService", () => {
   let service: SearchService;

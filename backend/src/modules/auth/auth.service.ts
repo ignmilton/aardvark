@@ -63,21 +63,38 @@ export class AuthService {
     // Hash password
     const passwordHash = await bcrypt.hash(password, this.SALT_ROUNDS);
 
-    // Create user
+    // Create user with pending verification
+    const verificationToken = nanoid(32);
     const user = this.userRepository.create({
       username,
       email,
       passwordHash,
       displayName: displayName || username,
       role: UserRole.READER,
-      accountStatus: AccountStatus.ACTIVE, // For MVP, auto-verify
-      emailVerified: true, // For MVP
-      emailVerificationToken: nanoid(32),
+      accountStatus: AccountStatus.PENDING_VERIFICATION,
+      emailVerified: false,
+      emailVerificationToken: verificationToken,
     });
 
     await this.userRepository.save(user);
 
-    // Generate tokens
+    // Send verification email
+    const appUrl = this.configService.get<string>(
+      "appUrl",
+      "http://localhost:3000",
+    );
+    const verifyUrl = `${appUrl}/auth/verify-email?token=${verificationToken}`;
+    const emailSent = await this.mailService.sendEmailVerification(
+      email,
+      verifyUrl,
+    );
+    if (emailSent) {
+      this.logger.log(`Verification email sent for user ${user.id}`);
+    } else {
+      this.logger.warn(`Failed to send verification email for user ${user.id}`);
+    }
+
+    // Generate tokens (user can access app in limited capacity before verifying)
     const tokens = await this.generateTokens(user);
 
     // Remove sensitive data
@@ -129,6 +146,13 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    // Check email verification
+    if (!user.emailVerified) {
+      throw new UnauthorizedException(
+        "Please verify your email address before logging in.",
+      );
+    }
+
     // Check if account is locked out
     if (user.lockoutUntil && user.lockoutUntil > new Date()) {
       const remainingMinutes = Math.ceil(
@@ -144,11 +168,7 @@ export class AuthService {
 
     if (!isPasswordValid) {
       // Atomically increment login attempts to prevent race conditions
-      await this.userRepository.increment(
-        { id: user.id },
-        "loginAttempts",
-        1,
-      );
+      await this.userRepository.increment({ id: user.id }, "loginAttempts", 1);
       const attempts = (user.loginAttempts || 0) + 1;
 
       if (attempts >= this.MAX_LOGIN_ATTEMPTS) {
@@ -423,6 +443,85 @@ export class AuthService {
       passwordResetToken: null,
       passwordResetExpires: null,
     });
+  }
+
+  /**
+   * Verify email using the verification token
+   */
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { emailVerificationToken: token },
+      select: [
+        "id",
+        "emailVerified",
+        "emailVerificationToken",
+        "emailVerificationExpires",
+        "accountStatus",
+      ],
+    });
+
+    if (!user) {
+      throw new BadRequestException("Invalid verification token");
+    }
+
+    if (user.emailVerified) {
+      return { message: "Email already verified" };
+    }
+
+    // Check expiration if set
+    if (
+      user.emailVerificationExpires &&
+      user.emailVerificationExpires < new Date()
+    ) {
+      throw new BadRequestException(
+        "Verification token has expired. Please request a new one.",
+      );
+    }
+
+    await this.userRepository.update(user.id, {
+      emailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationExpires: null,
+      accountStatus: AccountStatus.ACTIVE,
+    });
+
+    return { message: "Email verified successfully" };
+  }
+
+  /**
+   * Resend verification email
+   */
+  async resendVerificationEmail(userId: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ["id", "email", "emailVerified"],
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    if (user.emailVerified) {
+      return { message: "Email already verified" };
+    }
+
+    const newToken = nanoid(32);
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    await this.userRepository.update(user.id, {
+      emailVerificationToken: newToken,
+      emailVerificationExpires: expiresAt,
+    });
+
+    const appUrl = this.configService.get<string>(
+      "appUrl",
+      "http://localhost:3000",
+    );
+    const verifyUrl = `${appUrl}/auth/verify-email?token=${newToken}`;
+    await this.mailService.sendEmailVerification(user.email, verifyUrl);
+
+    return { message: "Verification email sent" };
   }
 
   /**

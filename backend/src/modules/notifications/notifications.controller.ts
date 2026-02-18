@@ -66,7 +66,10 @@ export class NotificationsController {
     status: 403,
     description: "Not authorized to mark these notifications",
   })
-  async markAsRead(@Body() markReadDto: MarkReadDto, @Request() req: AuthenticatedRequest) {
+  async markAsRead(
+    @Body() markReadDto: MarkReadDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.notificationsService.markAsRead(
       req.user.id,
       markReadDto.notificationIds,
@@ -89,7 +92,10 @@ export class NotificationsController {
   @ApiParam({ name: "id", description: "Notification ID" })
   @ApiResponse({ status: 204, description: "Notification deleted" })
   @ApiResponse({ status: 404, description: "Notification not found" })
-  async deleteNotification(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async deleteNotification(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.notificationsService.deleteNotification(req.user.id, id);
   }
 
@@ -97,7 +103,10 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Subscribe to push notifications" })
   @ApiResponse({ status: 200, description: "Push subscription registered" })
-  async pushSubscribe(@Body() dto: PushSubscribeDto, @Request() req: AuthenticatedRequest) {
+  async pushSubscribe(
+    @Body() dto: PushSubscribeDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.pushNotificationService.subscribe(
       req.user.id,
       dto.endpoint,
@@ -112,7 +121,10 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Unsubscribe from push notifications" })
   @ApiResponse({ status: 200, description: "Push subscription removed" })
-  async pushUnsubscribe(@Body() dto: PushUnsubscribeDto, @Request() req: AuthenticatedRequest) {
+  async pushUnsubscribe(
+    @Body() dto: PushUnsubscribeDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.pushNotificationService.unsubscribe(req.user.id, dto.endpoint);
     return { success: true };
   }

@@ -55,28 +55,27 @@ npm run docker:down          # Stop Docker services
 ### Frontend (`frontend/`)
 
 - **Framework:** Next.js 16 with App Router (`src/app/`)
-- **State:** Zustand (client state) + TanStack React Query (server state)
+- **State:** React Context API (client state) + TanStack React Query (server state)
 - **UI:** Radix UI primitives + Tailwind CSS + Framer Motion animations
 - **Rich text editor:** TipTap (Medium-style WYSIWYG)
 - **Visual story editor:** React Flow (node-based flowchart editor)
-- **Forms:** React Hook Form + Zod validation
-- **Auth:** next-auth
+- **Auth:** Custom token management (`lib/auth-token.ts` with `getAuthToken()`)
 - **PWA:** next-pwa for offline support
 
 Key directories:
 ```
 frontend/src/
-├── app/            # Next.js App Router pages (29 routes across 23 unique paths)
+├── app/            # Next.js App Router pages (30 routes across 30 unique paths)
 ├── components/     # React components (16 subdirectories: ui/, editor/, reader/, story/, admin/, layout/, providers/, payments/, a11y/, pwa/, seo/, ads/, home/, i18n/, recommendations/, submissions/)
-├── lib/            # Utilities (api.ts, seo.ts, sanitize.ts, utils.ts, performance.ts)
-├── hooks/          # Custom React hooks (11 hooks: admin-analytics, keyboard-nav, moderation, offline-reading, pull-to-refresh, push-notifications, pwa-install, swipe-gestures, translations, user-management)
+├── lib/            # Utilities (api.ts, auth-token.ts, seo.ts, sanitize.ts, utils.ts, performance.ts)
+├── hooks/          # Custom React hooks (10 hooks: admin-analytics, keyboard-nav, moderation, offline-reading, pull-to-refresh, push-notifications, pwa-install, swipe-gestures, translations, user-management)
 ├── i18n/           # Internationalization
 └── styles/         # Global CSS / Tailwind
 ```
 
 ### Backend (`backend/`)
 
-- **Framework:** NestJS 11, modular monolith (31 feature modules)
+- **Framework:** NestJS 11, modular monolith (29 feature modules)
 - **Database:** PostgreSQL 16 via TypeORM (29 entities in `src/database/entities/`)
 - **Cache:** Redis via cache-manager + ioredis
 - **Search:** Elasticsearch 8.11 with PostgreSQL full-text fallback
@@ -92,8 +91,8 @@ Key directories:
 ```
 backend/src/
 ├── main.ts             # Bootstrap (Helmet, CORS, compression, validation pipe, Swagger, rate limiting)
-├── app.module.ts       # Root module registering all 31 feature modules
-├── modules/            # Feature modules: ads, ai, ai-companion, analytics, auth, branch-submissions, choices, collections, comments, credits, earnings, featured, forum, health, impressions, messaging, mobile, moderation, notifications, payments, progress, ratings, reading-lists, search, segments, stories, subscriptions, tags, upload, users, websocket
+├── app.module.ts       # Root module registering all 29 feature modules
+├── modules/            # Feature modules: ads, ai-companion, analytics, auth, branch-submissions, choices, collections, comments, credits, earnings, featured, forum, health, impressions, messaging, mobile, moderation, notifications, payments, progress, ratings, reading-lists, search, segments, stories, subscriptions, tags, upload, users
 ├── database/
 │   ├── entities/       # 29 TypeORM entities
 │   ├── migrations/     # TypeORM migrations (initial schema migration + generate new with `npx typeorm migration:generate`)
@@ -102,6 +101,8 @@ backend/src/
 ├── common/
 │   ├── filters/        # HTTP exception filter
 │   ├── interceptors/   # Transform & logging interceptors
+│   ├── decorators/     # Custom decorators (@SkipTransform)
+│   ├── interfaces/     # Shared interfaces (AuthenticatedRequest)
 │   ├── cache/          # Redis cache module
 │   └── mail/           # Email service (Nodemailer/SendGrid)
 └── config/             # configuration.ts + database.config.ts
@@ -147,8 +148,7 @@ Files: `types/` (story, user, common, monetization, moderation, social, forum, m
 - Use App Router conventions (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`)
 - Server components by default; add `'use client'` only when needed
 - Use `@tanstack/react-query` for data fetching/caching
-- Use Zustand stores for client-side state
-- Use Zod schemas for form validation with `@hookform/resolvers`
+- Use React Context API for client-side state (e.g., `auth-provider.tsx`)
 - Tailwind CSS for styling; use `cn()` utility from `@/lib/utils` for conditional classes
 - Radix UI for accessible primitives (found in `components/ui/`)
 
@@ -166,7 +166,7 @@ Files: `types/` (story, user, common, monetization, moderation, social, forum, m
 ### Unit Tests
 
 - **Framework:** Jest 29
-- **Backend tests:** `*.spec.ts` files alongside source (7 test files covering auth, credits, earnings, moderation, payments, subscriptions)
+- **Backend tests:** `*.spec.ts` files alongside source (12 test files covering ads, auth, comments, credits, earnings, moderation, payments, ratings, search, subscriptions)
 - **Frontend tests:** `*.spec.ts` / `*.spec.tsx` using `@testing-library/react` and `jest-environment-jsdom`
 - **Run:** `npm run test` (all) or `npm run test --workspace=backend` / `npm run test --workspace=frontend`
 
