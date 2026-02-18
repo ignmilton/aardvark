@@ -247,7 +247,8 @@ describe("RatingsService", () => {
       storyId: "story-123",
       rating: 4.5,
       reviewTitle: "Great story!",
-      reviewText: "This was an amazing interactive fiction experience that I really enjoyed.",
+      reviewText:
+        "This was an amazing interactive fiction experience that I really enjoyed.",
     };
 
     beforeEach(() => {
@@ -281,7 +282,8 @@ describe("RatingsService", () => {
           storyId: "story-123",
           rating: 4.5,
           reviewTitle: "Great story!",
-          reviewText: "This was an amazing interactive fiction experience that I really enjoyed.",
+          reviewText:
+            "This was an amazing interactive fiction experience that I really enjoyed.",
           reviewHtml: "<p>mocked</p>",
           isVerifiedReader: false,
         }),
@@ -581,11 +583,7 @@ describe("RatingsService", () => {
     });
 
     it("should set reviewTitle to null when empty string is provided", async () => {
-      await service.update(
-        "rating-1",
-        { reviewTitle: "" },
-        "user-123",
-      );
+      await service.update("rating-1", { reviewTitle: "" }, "user-123");
 
       expect(ratingRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -595,11 +593,7 @@ describe("RatingsService", () => {
     });
 
     it("should set reviewText and reviewHtml to null when empty string is provided for reviewText", async () => {
-      await service.update(
-        "rating-1",
-        { reviewText: "" },
-        "user-123",
-      );
+      await service.update("rating-1", { reviewText: "" }, "user-123");
 
       expect(ratingRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -717,10 +711,7 @@ describe("RatingsService", () => {
     ];
 
     beforeEach(() => {
-      mockQueryBuilder.getManyAndCount.mockResolvedValue([
-        mockRatingsPage,
-        1,
-      ]);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([mockRatingsPage, 1]);
     });
 
     it("should return paginated ratings with meta information", async () => {
@@ -835,10 +826,7 @@ describe("RatingsService", () => {
     });
 
     it("should calculate totalPages correctly", async () => {
-      mockQueryBuilder.getManyAndCount.mockResolvedValue([
-        mockRatingsPage,
-        45,
-      ]);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([mockRatingsPage, 45]);
 
       const result = await service.findAll({ limit: 10 });
 

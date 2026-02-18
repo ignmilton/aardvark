@@ -225,8 +225,8 @@ export function useModeration() {
   const { data: queueData, isLoading } = useModerationQueue({}, token);
   const resolveReportMutation = useResolveReport(token);
 
-  const queue = queueData?.items;
-  const reports = queueData?.items;
+  const queue = queueData?.data;
+  const reports = queueData?.data;
 
   const resolveReport = async (reportId: string, action: ModerationAction, reason: string) => {
     await resolveReportMutation.mutateAsync({ reportId, data: { action, reason } });

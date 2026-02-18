@@ -30,6 +30,7 @@ export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new comment" })
@@ -38,7 +39,10 @@ export class CommentsController {
     status: 404,
     description: "Story or parent comment not found",
   })
-  async create(@Body() createDto: CreateCommentDto, @Request() req: AuthenticatedRequest) {
+  async create(
+    @Body() createDto: CreateCommentDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.commentsService.create(createDto, req.user.id);
   }
 
@@ -121,7 +125,10 @@ export class CommentsController {
   @ApiOperation({ summary: "Like a comment" })
   @ApiParam({ name: "id", description: "Comment ID" })
   @ApiResponse({ status: 200, description: "Comment liked" })
-  async likeComment(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async likeComment(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.commentsService.likeComment(id, req.user.id);
     return { message: "Comment liked" };
   }
@@ -133,7 +140,10 @@ export class CommentsController {
   @ApiOperation({ summary: "Unlike a comment" })
   @ApiParam({ name: "id", description: "Comment ID" })
   @ApiResponse({ status: 200, description: "Comment unliked" })
-  async unlikeComment(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async unlikeComment(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.commentsService.unlikeComment(id, req.user.id);
     return { message: "Comment unliked" };
   }

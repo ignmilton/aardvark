@@ -122,6 +122,10 @@ jobs:
             export IMAGE_TAG=${{ github.sha }}
             export GITHUB_REPOSITORY=${{ github.repository }}
 
+            # Save current image tags for rollback
+            PREV_BACKEND=$(docker inspect --format='{{.Config.Image}}' aardvark-backend 2>/dev/null || echo "")
+            PREV_FRONTEND=$(docker inspect --format='{{.Config.Image}}' aardvark-frontend 2>/dev/null || echo "")
+
             # Pull latest images
             docker compose -f docker-compose.prod.yml pull backend frontend
 
@@ -129,9 +133,21 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d --no-deps --scale backend=2 backend
             docker compose -f docker-compose.prod.yml up -d --no-deps --scale frontend=2 frontend
 
-            # Health check
+            # Health check with rollback on failure
             sleep 10
-            curl -f http://localhost/health || exit 1
+            if ! curl -f http://localhost/health; then
+              echo "Health check failed! Rolling back to previous images..."
+
+              if [ -n "$PREV_BACKEND" ] && [ -n "$PREV_FRONTEND" ]; then
+                PREV_TAG=$(echo "$PREV_BACKEND" | sed 's/.*://')
+                export IMAGE_TAG="$PREV_TAG"
+                docker compose -f docker-compose.prod.yml up -d --no-deps --scale backend=2 backend
+                docker compose -f docker-compose.prod.yml up -d --no-deps --scale frontend=2 frontend
+                echo "Rolled back to: $PREV_TAG"
+              fi
+
+              exit 1
+            fi
 
             echo "Deployment successful: ${{ github.sha }}"
 

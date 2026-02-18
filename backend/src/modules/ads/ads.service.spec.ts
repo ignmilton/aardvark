@@ -112,16 +112,18 @@ describe("AdsService", () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockImplementation((key: string, defaultVal: any) => {
-              const config: Record<string, any> = {
-                AD_CREDITS_REWARDED_VIDEO: 5,
-                AD_CREDITS_INTERSTITIAL: 2,
-                DAILY_AD_LIMIT: 10,
-                AD_COOLDOWN_SECONDS: 30,
-                ADS_ENABLED: true,
-              };
-              return config[key] !== undefined ? config[key] : defaultVal;
-            }),
+            get: jest
+              .fn()
+              .mockImplementation((key: string, defaultVal: any) => {
+                const config: Record<string, any> = {
+                  AD_CREDITS_REWARDED_VIDEO: 5,
+                  AD_CREDITS_INTERSTITIAL: 2,
+                  DAILY_AD_LIMIT: 10,
+                  AD_COOLDOWN_SECONDS: 30,
+                  ADS_ENABLED: true,
+                };
+                return config[key] !== undefined ? config[key] : defaultVal;
+              }),
           },
         },
         {
@@ -171,12 +173,8 @@ describe("AdsService", () => {
       (txManagerUserRepo.update as jest.Mock).mockResolvedValue(undefined);
 
       // Transaction manager: ad reward created and saved
-      (txManagerAdRewardRepo.create as jest.Mock).mockReturnValue(
-        mockAdReward,
-      );
-      (txManagerAdRewardRepo.save as jest.Mock).mockResolvedValue(
-        mockAdReward,
-      );
+      (txManagerAdRewardRepo.create as jest.Mock).mockReturnValue(mockAdReward);
+      (txManagerAdRewardRepo.save as jest.Mock).mockResolvedValue(mockAdReward);
 
       // Transaction manager: transaction record created and saved
       (txManagerTxRepo.create as jest.Mock).mockReturnValue({
@@ -196,9 +194,7 @@ describe("AdsService", () => {
 
       // Verify dataSource.transaction was called
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(dataSource.transaction).toHaveBeenCalledWith(
-        expect.any(Function),
-      );
+      expect(dataSource.transaction).toHaveBeenCalledWith(expect.any(Function));
     });
 
     it("should update user balance atomically", async () => {

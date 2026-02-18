@@ -86,7 +86,10 @@ export class MessagingController {
   @ApiResponse({ status: 200, description: "Messages marked as read" })
   @ApiResponse({ status: 404, description: "Conversation not found" })
   @ApiResponse({ status: 403, description: "Not authorized" })
-  async markAsRead(@Param("id") conversationId: string, @Request() req: AuthenticatedRequest) {
+  async markAsRead(
+    @Param("id") conversationId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.messagingService.markAsRead(req.user.id, conversationId);
     return { message: "Messages marked as read" };
   }
@@ -101,7 +104,10 @@ export class MessagingController {
     status: 403,
     description: "Not authorized to delete this message",
   })
-  async deleteMessage(@Param("id") messageId: string, @Request() req: AuthenticatedRequest) {
+  async deleteMessage(
+    @Param("id") messageId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.messagingService.deleteMessage(req.user.id, messageId);
   }
 
@@ -128,7 +134,10 @@ export class MessagingController {
   @ApiOperation({ summary: "Block a user" })
   @ApiResponse({ status: 200, description: "User blocked" })
   @ApiResponse({ status: 400, description: "User already blocked" })
-  async blockUser(@Body() blockUserDto: BlockUserDto, @Request() req: AuthenticatedRequest) {
+  async blockUser(
+    @Body() blockUserDto: BlockUserDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.messagingService.blockUser(req.user.id, blockUserDto);
     return { message: "User blocked successfully" };
   }
@@ -139,7 +148,10 @@ export class MessagingController {
   @ApiParam({ name: "userId", description: "Blocked user ID" })
   @ApiResponse({ status: 200, description: "User unblocked" })
   @ApiResponse({ status: 404, description: "Block not found" })
-  async unblockUser(@Param("userId") blockedId: string, @Request() req: AuthenticatedRequest) {
+  async unblockUser(
+    @Param("userId") blockedId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.messagingService.unblockUser(req.user.id, blockedId);
     return { message: "User unblocked successfully" };
   }

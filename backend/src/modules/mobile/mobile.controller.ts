@@ -50,7 +50,10 @@ export class MobileController {
   @Get("sync")
   @ApiOperation({ summary: "Get updates since last sync for offline reading" })
   @ApiResponse({ status: 200, description: "Sync data retrieved" })
-  async getSync(@Request() req: AuthenticatedRequest, @Query() query: SyncRequestDto) {
+  async getSync(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: SyncRequestDto,
+  ) {
     return this.mobileService.syncProgress(req.user.id, query);
   }
 
@@ -62,7 +65,10 @@ export class MobileController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Upload offline reading progress" })
   @ApiResponse({ status: 200, description: "Progress synced" })
-  async uploadSync(@Request() req: AuthenticatedRequest, @Body() dto: SyncProgressDto) {
+  async uploadSync(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: SyncProgressDto,
+  ) {
     return this.mobileService.uploadProgress(req.user.id, dto.progress);
   }
 
@@ -88,6 +94,7 @@ export class MobileController {
    * Unregister a push notification token
    */
   @Delete("push-token")
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Unregister push notification token" })
   @ApiResponse({ status: 200, description: "Token unregistered" })
   async unregisterPushToken(

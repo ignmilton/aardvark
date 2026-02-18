@@ -75,12 +75,16 @@ export class ForumController {
   }
 
   @Post("threads")
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new thread" })
   @ApiResponse({ status: 201, description: "Thread created" })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  async createThread(@Body() dto: CreateThreadDto, @Request() req: AuthenticatedRequest) {
+  async createThread(
+    @Body() dto: CreateThreadDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.forumService.createThread(req.user.id, dto);
   }
 
@@ -109,7 +113,10 @@ export class ForumController {
   @ApiResponse({ status: 204, description: "Thread deleted" })
   @ApiResponse({ status: 403, description: "Not authorized to delete" })
   @ApiResponse({ status: 404, description: "Thread not found" })
-  async deleteThread(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async deleteThread(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.forumService.deleteThread(req.user.id, id, req.user.role);
   }
 
@@ -122,7 +129,10 @@ export class ForumController {
   @ApiResponse({ status: 200, description: "Thread locked" })
   @ApiResponse({ status: 403, description: "Not authorized (moderators only)" })
   @ApiResponse({ status: 404, description: "Thread not found" })
-  async lockThread(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async lockThread(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const userRole = req.user.role;
     if (userRole !== UserRole.MODERATOR && userRole !== UserRole.ADMIN) {
       throw new ForbiddenException("Only moderators can lock threads");
@@ -165,6 +175,7 @@ export class ForumController {
   }
 
   @Post("threads/:id/posts")
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a post/reply in a thread" })
@@ -205,7 +216,10 @@ export class ForumController {
   @ApiResponse({ status: 204, description: "Post deleted" })
   @ApiResponse({ status: 403, description: "Not authorized to delete" })
   @ApiResponse({ status: 404, description: "Post not found" })
-  async deletePost(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async deletePost(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.forumService.deletePost(req.user.id, id, req.user.role);
   }
 

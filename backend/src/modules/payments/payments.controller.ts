@@ -177,7 +177,10 @@ export class PaymentsController {
   @Post("setup-intent")
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async createSetupIntent(@Req() req: AuthenticatedRequest, @Body() _dto: CreateSetupIntentDto) {
+  async createSetupIntent(
+    @Req() req: AuthenticatedRequest,
+    @Body() _dto: CreateSetupIntentDto,
+  ) {
     const userId = req.user.id;
     const email = req.user.email as string;
 
@@ -704,7 +707,10 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async createUPIOrder(@Req() req: AuthenticatedRequest, @Body() dto: CreateUPIOrderDto) {
+  async createUPIOrder(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateUPIOrderDto,
+  ) {
     const userId = req.user.id;
 
     const { order, razorpayKeyId } = await this.razorpayService.createOrder(
@@ -733,7 +739,10 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async verifyUPIPayment(@Req() req: AuthenticatedRequest, @Body() dto: VerifyUPIPaymentDto) {
+  async verifyUPIPayment(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: VerifyUPIPaymentDto,
+  ) {
     const userId = req.user.id;
 
     const order = await this.razorpayService.verifyPayment(
@@ -851,7 +860,10 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async requestUPIPayout(@Req() req: AuthenticatedRequest, @Body() dto: RequestUPIPayoutDto) {
+  async requestUPIPayout(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: RequestUPIPayoutDto,
+  ) {
     const authorId = req.user.id;
     if (!dto.amount) {
       throw new BadRequestException("Amount is required for UPI payout");

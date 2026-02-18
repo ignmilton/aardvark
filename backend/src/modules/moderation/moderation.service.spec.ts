@@ -290,12 +290,13 @@ describe("ModerationService", () => {
 
       const result = await service.getReportQueue({ page: 1, limit: 20 });
 
-      expect(result).toHaveProperty("reports");
-      expect(result).toHaveProperty("total");
-      expect(result).toHaveProperty("page");
-      expect(result).toHaveProperty("limit");
-      expect(result).toHaveProperty("totalPages");
-      expect(result.reports).toEqual(reports);
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("meta");
+      expect(result.meta).toHaveProperty("total");
+      expect(result.meta).toHaveProperty("page");
+      expect(result.meta).toHaveProperty("limit");
+      expect(result.meta).toHaveProperty("totalPages");
+      expect(result.data).toEqual(reports);
     });
 
     it("should filter by contentType", async () => {
@@ -1272,9 +1273,9 @@ describe("ModerationService", () => {
 
       const result = await service.getModerationLogs({ page: 1, limit: 20 });
 
-      expect(result.logs).toEqual(logs);
-      expect(result.total).toBe(1);
-      expect(result.totalPages).toBe(1);
+      expect(result.data).toEqual(logs);
+      expect(result.meta.total).toBe(1);
+      expect(result.meta.totalPages).toBe(1);
     });
 
     it("should filter by moderatorId", async () => {

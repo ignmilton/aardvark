@@ -48,8 +48,7 @@ export class StoriesService {
       } catch (error: any) {
         // PostgreSQL unique_violation = 23505
         const isUniqueViolation =
-          error?.code === "23505" ||
-          error?.driverError?.code === "23505";
+          error?.code === "23505" || error?.driverError?.code === "23505";
         if (isUniqueViolation && attempt < MAX_RETRIES - 1) {
           continue; // Retry with a new slug
         }
@@ -87,10 +86,8 @@ export class StoriesService {
    * Find all stories with filtering and pagination
    */
   async findAll(query: StoryQueryParams): Promise<{
-    items: Story[];
-    total: number;
-    page: number;
-    limit: number;
+    data: Story[];
+    meta: { page: number; limit: number; total: number; totalPages: number };
   }> {
     const {
       page = 1,
@@ -164,10 +161,8 @@ export class StoriesService {
     const [items, total] = await queryBuilder.getManyAndCount();
 
     return {
-      items,
-      total,
-      page,
-      limit,
+      data: items,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -384,15 +379,22 @@ export class StoriesService {
   }
 
   /**
-   * Find a story by slug
+   * Find a story by slug or ID
    */
-  async findBySlug(slug: string): Promise<Story> {
-    const story = await this.storyRepository
+  async findBySlugOrId(slugOrId: string): Promise<Story> {
+    const qb = this.storyRepository
       .createQueryBuilder("story")
       .leftJoinAndSelect("story.author", "author")
-      .where("story.slug = :slug", { slug })
-      .orWhere("story.id = :id", { id: slug })
-      .getOne();
+      .where("story.slug = :slug", { slug: slugOrId });
+
+    // Only search by ID if input looks like a UUID to prevent ambiguity
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(slugOrId)) {
+      qb.orWhere("story.id = :id", { id: slugOrId });
+    }
+
+    const story = await qb.getOne();
 
     if (!story) {
       throw new NotFoundException("Story not found");
@@ -437,7 +439,13 @@ export class StoriesService {
   /**
    * Get stories pending moderation review
    */
-  async findPendingReview(page: number = 1, limit: number = 20) {
+  async findPendingReview(
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{
+    data: Story[];
+    meta: { page: number; limit: number; total: number; totalPages: number };
+  }> {
     const [items, total] = await this.storyRepository.findAndCount({
       where: {
         status: StoryStatus.PENDING_REVIEW,
@@ -449,7 +457,10 @@ export class StoriesService {
       take: limit,
     });
 
-    return { items, total, page, limit };
+    return {
+      data: items,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   /**

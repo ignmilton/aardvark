@@ -14,6 +14,7 @@ import {
   choicesApi,
   branchSubmissionsApi,
 } from '@/lib/api';
+import { getAuthToken } from '@/lib/auth-token';
 
 // Dynamically import the visual editor to avoid SSR issues with React Flow
 const VisualEditorWithProvider = dynamic(
@@ -94,10 +95,6 @@ interface BranchSubmission {
   createdAt: string;
 }
 
-function getToken(): string | undefined {
-  return typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
-}
-
 export default function StoryEditorPage() {
   const params = useParams();
   const router = useRouter();
@@ -120,7 +117,7 @@ export default function StoryEditorPage() {
   // Load story data from API
   useEffect(() => {
     async function loadStory() {
-      const token = getToken();
+      const token = getAuthToken();
       try {
         // Fetch the story by slug
         const storyData = await storiesApi.getBySlug(slug);
@@ -168,7 +165,7 @@ export default function StoryEditorPage() {
 
   // Real API handlers
   const handleSegmentCreate = useCallback(async (segment: Partial<Segment>): Promise<Segment> => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token || !story) throw new Error('Not authenticated');
 
     const created = await segmentsApi.create({
@@ -187,7 +184,7 @@ export default function StoryEditorPage() {
   }, [story]);
 
   const handleSegmentUpdate = useCallback(async (id: string, data: Partial<Segment>): Promise<void> => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token) return;
 
     await segmentsApi.update(id, data as any, token);
@@ -197,7 +194,7 @@ export default function StoryEditorPage() {
   }, []);
 
   const handleSegmentDelete = useCallback(async (id: string): Promise<void> => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token) return;
 
     await segmentsApi.delete(id, token);
@@ -206,7 +203,7 @@ export default function StoryEditorPage() {
   }, []);
 
   const handleChoiceCreate = useCallback(async (choice: Partial<Choice>): Promise<Choice> => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const created = await choicesApi.create({
@@ -222,7 +219,7 @@ export default function StoryEditorPage() {
   }, [choices]);
 
   const handleChoiceDelete = useCallback(async (id: string): Promise<void> => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token) return;
 
     await choicesApi.delete(id, token);
@@ -232,7 +229,7 @@ export default function StoryEditorPage() {
   const handlePositionsUpdate = useCallback(async (
     positions: { segmentId: string; x: number; y: number }[]
   ): Promise<void> => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token || !story) return;
 
     await segmentsApi.updatePositions(story.id, positions, token);
@@ -248,7 +245,7 @@ export default function StoryEditorPage() {
 
   // Settings save
   const handleSaveSettings = async () => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token || !story) return;
 
     await storiesApi.update(story.id, {
@@ -269,7 +266,7 @@ export default function StoryEditorPage() {
   const [isPublishing, setIsPublishing] = useState(false);
 
   const handlePublish = async () => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token || !story) return;
 
     // Validate story has content
@@ -477,7 +474,7 @@ export default function StoryEditorPage() {
           <ReviewDashboard
             submissions={submissions}
             onReview={async (submissionId, status, reviewNote) => {
-              const token = getToken();
+              const token = getAuthToken();
               if (!token) return;
 
               await branchSubmissionsApi.review(submissionId, { status, reviewNote } as any, token);

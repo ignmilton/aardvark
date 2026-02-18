@@ -6,6 +6,7 @@ import { ReaderHeader, ReaderContent, ChoiceList, ProgressSidebar, EndingSummary
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { storiesApi, segmentsApi, choicesApi, progressApi } from '@/lib/api';
+import { getAuthToken } from '@/lib/auth-token';
 
 // Types
 interface Story {
@@ -43,10 +44,6 @@ interface Progress {
   isCompleted: boolean;
 }
 
-function getToken(): string | undefined {
-  return typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined;
-}
-
 async function loadSegmentWithChoices(segmentId: string): Promise<Segment> {
   const segmentData = await segmentsApi.getById(segmentId);
   let segChoices: Choice[] = [];
@@ -62,7 +59,7 @@ async function loadSegmentWithChoices(segmentId: string): Promise<Segment> {
 }
 
 async function loadProgress(storyId: string, rootSegmentId: string): Promise<Progress> {
-  const token = getToken();
+  const token = getAuthToken();
   if (token) {
     try {
       const serverProgress = await progressApi.get(storyId, token);
@@ -199,7 +196,7 @@ export default function StoryReaderPage() {
         }
 
         // Persist progress
-        const token = getToken();
+        const token = getAuthToken();
         if (token) {
           try {
             await progressApi.makeChoice(story.id, choiceId, timeSpent, token);
@@ -245,7 +242,7 @@ export default function StoryReaderPage() {
         };
 
         // Persist
-        const token = getToken();
+        const token = getAuthToken();
         if (token) {
           try {
             await progressApi.navigate(story.id, segmentId, token);
@@ -279,7 +276,7 @@ export default function StoryReaderPage() {
     );
 
     let updatedBookmarks: Progress['bookmarks'];
-    const token = getToken();
+    const token = getAuthToken();
 
     if (isBookmarked) {
       updatedBookmarks = progress.bookmarks.filter(
@@ -327,7 +324,7 @@ export default function StoryReaderPage() {
     };
 
     // Reset on server
-    const token = getToken();
+    const token = getAuthToken();
     if (token) {
       try {
         await progressApi.reset(story.id, token);
@@ -346,7 +343,7 @@ export default function StoryReaderPage() {
   // Handle rating submission
   const handleRate = useCallback(async (rating: number) => {
     if (!story) return;
-    const token = getToken();
+    const token = getAuthToken();
     if (token) {
       try {
         await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/${story.id}/rate`, {

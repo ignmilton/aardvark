@@ -82,7 +82,10 @@ export class CollectionsController {
   @ApiOperation({ summary: "Get user's public collections" })
   @ApiParam({ name: "userId", description: "User ID" })
   @ApiResponse({ status: 200, description: "User collections retrieved" })
-  async findByUser(@Param("userId") userId: string, @Request() req: AuthenticatedRequest) {
+  async findByUser(
+    @Param("userId") userId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.collectionsService.findByUser(userId, req.user?.id);
   }
 
@@ -95,7 +98,10 @@ export class CollectionsController {
   @ApiParam({ name: "slug", description: "Collection slug" })
   @ApiResponse({ status: 200, description: "Collection retrieved" })
   @ApiResponse({ status: 404, description: "Collection not found" })
-  async findBySlug(@Param("slug") slug: string, @Request() req: AuthenticatedRequest) {
+  async findBySlug(
+    @Param("slug") slug: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.collectionsService.findBySlug(slug, req.user?.id);
   }
 
@@ -116,11 +122,15 @@ export class CollectionsController {
    * Create a new collection
    */
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new collection" })
   @ApiResponse({ status: 201, description: "Collection created" })
-  async create(@Request() req: AuthenticatedRequest, @Body() dto: CreateCollectionDto) {
+  async create(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: CreateCollectionDto,
+  ) {
     return this.collectionsService.create(req.user.id, dto);
   }
 
@@ -252,7 +262,10 @@ export class CollectionsController {
   @ApiParam({ name: "id", description: "Collection ID" })
   @ApiResponse({ status: 204, description: "Unfollowed" })
   @ApiResponse({ status: 404, description: "Not following" })
-  async unfollow(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async unfollow(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.collectionsService.unfollow(id, req.user.id);
   }
 
@@ -265,7 +278,10 @@ export class CollectionsController {
   @ApiOperation({ summary: "Check if following a collection" })
   @ApiParam({ name: "id", description: "Collection ID" })
   @ApiResponse({ status: 200, description: "Following status" })
-  async isFollowing(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async isFollowing(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const isFollowing = await this.collectionsService.isFollowing(
       id,
       req.user.id,

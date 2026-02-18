@@ -156,7 +156,7 @@ export function useUserManagement() {
   const warnMutation = useIssueWarning(token);
   const banMutation = useIssueBan(token);
 
-  const users = data?.items;
+  const users = data?.data;
 
   const searchUsers = useCallback((query: string) => {
     setSearch(query);

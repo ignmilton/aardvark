@@ -48,7 +48,7 @@ export class ImpressionsController {
   @Post()
   @UseGuards(OptionalJwtAuthGuard)
   @Throttle({ default: { limit: 30, ttl: 60000 } })
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Record a story impression (view/read)" })
   @ApiResponse({ status: 201, description: "Impression recorded" })
   async recordImpression(
@@ -108,7 +108,10 @@ export class ImpressionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get author revenue records" })
   @ApiResponse({ status: 200, description: "Revenue records retrieved" })
-  async getRevenue(@Request() req: AuthenticatedRequest, @Query() query: RevenueQueryDto) {
+  async getRevenue(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: RevenueQueryDto,
+  ) {
     return this.impressionsService.getAuthorRevenue(req.user.id, query);
   }
 

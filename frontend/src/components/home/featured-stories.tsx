@@ -14,7 +14,7 @@ async function fetchFeaturedStories(): Promise<Story[]> {
   );
   if (!response.ok) throw new Error('Failed to fetch featured stories');
   const { data } = await response.json();
-  return data.items;
+  return data.data;
 }
 
 /**

@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -178,7 +180,7 @@ export class StoriesController {
   @Public()
   @ApiOperation({ summary: "Get story by slug" })
   findBySlug(@Param("slug") slug: string) {
-    return this.storiesService.findBySlug(slug);
+    return this.storiesService.findBySlugOrId(slug);
   }
 
   /**
@@ -217,13 +219,11 @@ export class StoriesController {
    * Banned users are prevented from deleting stories
    */
   @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard, BanCheckGuard)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({ summary: "Delete a story" })
-  remove(
-    @Param("id") id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  remove(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.storiesService.remove(id, req.user.userId, req.user.role);
   }
 
@@ -235,10 +235,7 @@ export class StoriesController {
   @UseGuards(JwtAuthGuard, BanCheckGuard)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({ summary: "Publish a story directly (bypasses moderation)" })
-  publish(
-    @Param("id") id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  publish(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
     return this.storiesService.publish(id, req.user.userId);
   }
 

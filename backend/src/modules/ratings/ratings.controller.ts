@@ -30,13 +30,17 @@ export class RatingsController {
   constructor(private readonly ratingsService: RatingsService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new rating/review" })
   @ApiResponse({ status: 201, description: "Rating created" })
   @ApiResponse({ status: 404, description: "Story not found" })
   @ApiResponse({ status: 409, description: "Already rated this story" })
-  async create(@Body() createDto: CreateRatingDto, @Request() req: AuthenticatedRequest) {
+  async create(
+    @Body() createDto: CreateRatingDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.ratingsService.create(createDto, req.user.id);
   }
 
@@ -72,7 +76,10 @@ export class RatingsController {
   @ApiOperation({ summary: "Get current user rating for a story" })
   @ApiParam({ name: "storyId", description: "Story ID" })
   @ApiResponse({ status: 200, description: "User rating or null" })
-  async getUserRating(@Param("storyId") storyId: string, @Request() req: AuthenticatedRequest) {
+  async getUserRating(
+    @Param("storyId") storyId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const rating = await this.ratingsService.getUserRating(
       storyId,
       req.user.id,
@@ -125,7 +132,10 @@ export class RatingsController {
   @ApiOperation({ summary: "Mark a review as helpful" })
   @ApiParam({ name: "id", description: "Rating ID" })
   @ApiResponse({ status: 200, description: "Marked as helpful" })
-  async markHelpful(@Param("id") id: string, @Request() req: AuthenticatedRequest) {
+  async markHelpful(
+    @Param("id") id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     await this.ratingsService.markHelpful(id, req.user.id);
     return { message: "Marked as helpful" };
   }

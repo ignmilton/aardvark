@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { fetchApi } from '@/lib/api';
+import { getAuthToken } from '@/lib/auth-token';
 
 interface Conversation {
   id: string;
@@ -30,7 +31,7 @@ export default function MessagesPage() {
   const [currentUserId, setCurrentUserId] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
+  const token = getAuthToken() || '';
 
   useEffect(() => {
     async function loadConversations() {

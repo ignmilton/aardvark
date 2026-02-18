@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
+import { getAuthToken } from '@/lib/auth-token';
 
 interface AnalyticsData {
   overview: {
@@ -33,7 +34,7 @@ export default function AnalyticsPage() {
     async function loadAnalytics() {
       setLoading(true);
       try {
-        const token = localStorage.getItem('token') || '';
+        const token = getAuthToken() || '';
         const response = await fetchApi<{ success: boolean; data: AnalyticsData }>(
           `/analytics/dashboard?period=${period}`,
           { token },

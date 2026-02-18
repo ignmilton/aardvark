@@ -62,7 +62,10 @@ export class EarningsController {
    * GET /earnings/history
    */
   @Get("history")
-  async getHistory(@Req() req: AuthenticatedRequest, @Query() query: EarningsQueryDto) {
+  async getHistory(
+    @Req() req: AuthenticatedRequest,
+    @Query() query: EarningsQueryDto,
+  ) {
     const authorId = req.user.id;
     const result = await this.earningsService.getEarnings(authorId, query);
     return {
@@ -173,7 +176,10 @@ export class EarningsController {
    */
   @Post("payout")
   @HttpCode(HttpStatus.OK)
-  async requestPayout(@Req() req: AuthenticatedRequest, @Body() dto: RequestPayoutDto) {
+  async requestPayout(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: RequestPayoutDto,
+  ) {
     const authorId = req.user.id;
     const payout = await this.earningsService.requestPayout(
       authorId,

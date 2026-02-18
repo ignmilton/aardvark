@@ -118,13 +118,17 @@ export class FeaturedController {
    * Create new featured content (admin)
    */
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create featured content (admin)" })
   @ApiResponse({ status: 201, description: "Featured content created" })
   @ApiResponse({ status: 400, description: "Invalid input" })
-  async create(@Request() req: AuthenticatedRequest, @Body() dto: CreateFeaturedContentDto) {
+  async create(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: CreateFeaturedContentDto,
+  ) {
     return this.featuredService.create(req.user.id, dto);
   }
 

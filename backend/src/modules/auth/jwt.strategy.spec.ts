@@ -80,10 +80,7 @@ describe("JwtStrategy", () => {
     it("should return an object with both id and userId fields set to payload.sub", async () => {
       userRepository.findOne.mockResolvedValue(mockUser as User);
 
-      const result = await strategy.validate(
-        createMockRequest(),
-        mockPayload,
-      );
+      const result = await strategy.validate(createMockRequest(), mockPayload);
 
       expect(result).toEqual({
         id: mockPayload.sub,
@@ -166,10 +163,7 @@ describe("JwtStrategy", () => {
         passwordChangedAt,
       } as User);
 
-      const result = await strategy.validate(
-        createMockRequest(),
-        mockPayload,
-      );
+      const result = await strategy.validate(createMockRequest(), mockPayload);
 
       expect(result).toEqual({
         id: mockPayload.sub,

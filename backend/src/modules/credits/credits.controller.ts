@@ -102,7 +102,10 @@ export class CreditsController {
    * GET /credits/unlock-status?storyId=xxx
    */
   @Get("unlock-status")
-  async checkUnlockStatus(@Req() req: AuthenticatedRequest, @Query("storyId") storyId: string) {
+  async checkUnlockStatus(
+    @Req() req: AuthenticatedRequest,
+    @Query("storyId") storyId: string,
+  ) {
     const unlocked = await this.creditsService.isStoryUnlocked(
       req.user.id,
       storyId,
@@ -116,7 +119,10 @@ export class CreditsController {
    */
   @Post("unlock-story")
   @HttpCode(HttpStatus.OK)
-  async unlockStory(@Req() req: AuthenticatedRequest, @Body() dto: UnlockStoryDto) {
+  async unlockStory(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UnlockStoryDto,
+  ) {
     const transaction = await this.creditsService.unlockStory(req.user.id, dto);
     return {
       success: true,
