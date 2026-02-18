@@ -75,7 +75,7 @@ frontend/src/
 
 ### Backend (`backend/`)
 
-- **Framework:** NestJS 11, modular monolith (30 feature modules)
+- **Framework:** NestJS 11, modular monolith (29 feature modules)
 - **Database:** PostgreSQL 16 via TypeORM (29 entities in `src/database/entities/`)
 - **Cache:** Redis via cache-manager + ioredis
 - **Search:** Elasticsearch 8.11 with PostgreSQL full-text fallback
@@ -91,7 +91,7 @@ Key directories:
 ```
 backend/src/
 ├── main.ts             # Bootstrap (Helmet, CORS, compression, validation pipe, Swagger, rate limiting)
-├── app.module.ts       # Root module registering all 30 feature modules
+├── app.module.ts       # Root module registering all 29 feature modules
 ├── modules/            # Feature modules: ads, ai-companion, analytics, auth, branch-submissions, choices, collections, comments, credits, earnings, featured, forum, health, impressions, messaging, mobile, moderation, notifications, payments, progress, ratings, reading-lists, search, segments, stories, subscriptions, tags, upload, users
 ├── database/
 │   ├── entities/       # 29 TypeORM entities

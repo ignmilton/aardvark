@@ -109,6 +109,7 @@ export class TagsController {
 
   @UseGuards(JwtAuthGuard)
   @Post("stories/:storyId")
+  @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Add tags to a story" })
   @ApiParam({ name: "storyId", description: "Story ID" })
